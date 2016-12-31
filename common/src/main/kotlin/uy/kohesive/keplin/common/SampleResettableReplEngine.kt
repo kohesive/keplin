@@ -51,15 +51,20 @@ class SampleResettableReplEngine(val moduleName: String, val annotatedTemplateCl
 
     fun nextCodeLine(code: String) = ReplCodeLine(codeLineNumber.incrementAndGet(), code)
 
-    fun resetToLine(lineNumber: Int) {
+    /***
+     * Resets back to a give line number, dropping higher lines
+     * Returns the removed lines.
+     */
+    fun resetToLine(lineNumber: Int): List<ReplCodeLine> {
         // TODO: thread safety across compiler and evaluator
         codeLineNumber.set(lineNumber)
-        compiler.resetToLine(lineNumber)
-        evaluator.resetToLine(lineNumber)
+        val removedCompiledLines = compiler.resetToLine(lineNumber)
+        val removedEvaluatorLines = evaluator.resetToLine(lineNumber)
+        // TODO: compare the two sets to be sure we are in sync?
+        return removedCompiledLines
     }
-    fun resetToLine(line: ReplCodeLine) {
-        resetToLine(line.no)
-    }
+
+    fun resetToLine(line: ReplCodeLine): List<ReplCodeLine> = resetToLine(line.no)
 
     fun compilationHistory(): List<ReplCodeLine> = compiler.compilationHistory
     fun evaluationHistory(): List<ReplCodeLine> = evaluator.evaluationHistory

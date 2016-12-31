@@ -67,11 +67,11 @@ class DefaultResettableReplAnalyzer(environment: KotlinCoreEnvironment) {
         }
     }
 
-    fun resetToLine(lineNumber: Int) {
-        replState.resetToLine(lineNumber)
+    fun resetToLine(lineNumber: Int): List<ReplCodeLine> {
+        return replState.resetToLine(lineNumber)
     }
 
-    fun resetToLine(line: ReplCodeLine) = resetToLine(line.no)
+    fun resetToLine(line: ReplCodeLine): List<ReplCodeLine> = resetToLine(line.no)
 
     fun analyzeReplLine(psiFile: KtFile, codeLine: ReplCodeLine): ReplLineAnalysisResult {
         topDownAnalysisContext.scripts.clear()
@@ -151,12 +151,13 @@ class DefaultResettableReplAnalyzer(environment: KotlinCoreEnvironment) {
         private val successfulLines = ResettableReplHistory<LineInfo.SuccessfulLine>()
         private val submittedLines = hashMapOf<KtFile, LineInfo>()
 
-        fun resetToLine(lineNumber: Int) {
+        fun resetToLine(lineNumber: Int): List<ReplCodeLine> {
             val removed = successfulLines.resetToLine(lineNumber)
             removed.forEach { submittedLines.remove(it.second.linePsi) }
+            return removed.map { it.first }
         }
 
-        fun resetToLine(line: ReplCodeLine) = resetToLine(line.no)
+        fun resetToLine(line: ReplCodeLine): List<ReplCodeLine> = resetToLine(line.no)
 
         fun submitLine(ktFile: KtFile, codeLine: ReplCodeLine) {
             val line = LineInfo.SubmittedLine(ktFile, successfulLines.lastValue())

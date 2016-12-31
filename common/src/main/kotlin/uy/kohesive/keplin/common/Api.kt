@@ -29,8 +29,15 @@ interface ResettableReplChecker {
 
 interface ResettableReplCompiler : ResettableReplChecker {
     fun compile(codeLine: ReplCodeLine, verifyHistory: List<ReplCodeLine>? = null): Response
-    fun resetToLine(lineNumber: Int)
-    fun resetToLine(line: ReplCodeLine) = resetToLine(line.no)
+
+    /***
+     * Reset back to a given line number, returning the lines that were removed.
+     *
+     * This must be in sync with the ResettableReplEvaluator being used
+     */
+    fun resetToLine(lineNumber: Int): List<ReplCodeLine>
+    fun resetToLine(line: ReplCodeLine): List<ReplCodeLine> = resetToLine(line.no)
+
     val compilationHistory: List<ReplCodeLine>
 
     sealed class Response(val compiledHistory: List<ReplCodeLine>) : Serializable {
@@ -74,8 +81,13 @@ interface ResettableReplEvaluator : ResettableReplEvaluatorBase {
              invokeWrapper: InvokeWrapper?,
              verifyHistory: List<ReplCodeLine> = compileResult.compiledHistory.dropLast(1)): Response
 
-    fun resetToLine(lineNumber: Int): Unit
-    fun resetToLine(line: ReplCodeLine) = resetToLine(line.no)
+    /***
+     * Reset back to a given line number, returning the lines that were removed.
+     *
+     * This must be in sync with the ResettableReplCompiler being used
+     */
+    fun resetToLine(lineNumber: Int): List<ReplCodeLine>
+    fun resetToLine(line: ReplCodeLine): List<ReplCodeLine> = resetToLine(line.no)
 
     val evaluationHistory: List<ReplCodeLine>
 

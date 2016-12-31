@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class TestReplMananger {
+class TestResettableReplEngine {
     val moduleName = "Test-${System.currentTimeMillis()}"
 
     @Test
@@ -33,7 +33,7 @@ class TestReplMananger {
     }
 
     @Test
-    fun testResetingHistory() {
+    fun testResettingHistory() {
         SampleResettableReplEngine(moduleName, StandardArgsScriptTemplateWithMavenResolving::class).use { repl ->
             val line1 = repl.nextCodeLine("val x = 10")
             repl.eval(repl.compile(line1))
@@ -57,7 +57,8 @@ class TestReplMananger {
             repl.eval(repl.compile(line6))
 
             try {
-                repl.resetToLine(line2)
+                val removedLines = repl.resetToLine(line2)
+                assertEquals(listOf(line6, line5, line4, line3), removedLines)
 
                 val newLine3 = repl.nextCodeLine("x")
 
@@ -82,7 +83,8 @@ class TestReplMananger {
 
                 assertEquals(99, newEvalResult6.resultValue)
 
-                repl.resetToLine(line2)
+                val removedNewLines = repl.resetToLine(line2)
+                assertEquals(listOf(newLine6, newLine5, newLine4, newLine3), removedNewLines)
 
                 val finalLine3 = repl.nextCodeLine("x")
                 val finalCompileResult3 = repl.compile(finalLine3)

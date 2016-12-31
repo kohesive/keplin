@@ -28,10 +28,12 @@ open class DefaultResettableReplCompiler(disposable: Disposable,
 
     private val generation = AtomicLong(1)
 
-    override fun resetToLine(lineNumber: Int) {
+    override fun resetToLine(lineNumber: Int): List<ReplCodeLine> {
         generation.incrementAndGet()
-        descriptorsHistory.resetToLine(lineNumber)
-        analyzerEngine.resetToLine(lineNumber)
+        val removedCompiledLines = descriptorsHistory.resetToLine(lineNumber)
+        val removedAnalyzedLines = analyzerEngine.resetToLine(lineNumber)
+        // TODO: compare that the lists are the same?
+        return removedCompiledLines.map { it.first }
     }
 
     override val compilationHistory: List<ReplCodeLine> get() = descriptorsHistory.historyAsSource()

@@ -23,8 +23,8 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
 
     private val compiledLoadedClassesHistory = ResettableReplHistory<EvalClassWithInstanceAndLoader>()
 
-    override fun resetToLine(lineNumber: Int): Unit {
-        compiledLoadedClassesHistory.resetToLine(lineNumber)
+    override fun resetToLine(lineNumber: Int): List<ReplCodeLine> {
+        return compiledLoadedClassesHistory.resetToLine(lineNumber).map { it.first }
     }
 
     override val evaluationHistory: List<ReplCodeLine> get() = compiledLoadedClassesHistory.historyAsSource()
