@@ -2,14 +2,13 @@ package uy.kohesive.keplin.common
 
 import org.jetbrains.kotlin.cli.jvm.repl.GenericReplCompiler
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
-import org.jetbrains.kotlin.script.util.templates.StandardArgsScriptTemplateWithMavenResolving
 import java.io.File
 import kotlin.reflect.KClass
 
 fun findRequiredScriptingJarFiles(templateClass: KClass<out Any>, additionalClasses: List<KClass<out Any>> = emptyList()): List<File> {
     val templateClassJar = templateClass.containingClasspath() ?:
             throw IllegalStateException("Cannot find template classpath, which is required")
-    val additionalClassJars =  additionalClasses.map { it.containingClasspath() ?: throw IllegalStateException("Missing JAR for additional class $it }") }
+    val additionalClassJars = additionalClasses.map { it.containingClasspath() ?: throw IllegalStateException("Missing JAR for additional class $it }") }
     val kotlinJars = listOf(
             GenericReplCompiler::class.containingClasspath() ?:
                     throw IllegalStateException("Cannot find repl engine classpath, which is required"),
@@ -23,7 +22,7 @@ fun findRequiredScriptingJarFiles(templateClass: KClass<out Any>, additionalClas
     return (listOf(templateClassJar) + additionalClassJars + kotlinJars).toSet().toList()
 }
 
-fun <T: Any> KClass<T>.containingClasspath(): File? {
+fun <T : Any> KClass<T>.containingClasspath(): File? {
     val clp = "${qualifiedName?.replace('.', '/')}.class"
     val url = Thread.currentThread().contextClassLoader.getResource(clp)?.toString() ?: return null
     val zipOrJarRegex = """(?:zip:|jar:file:)(.*)!\/(?:.*)""".toRegex()

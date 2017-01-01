@@ -1,8 +1,5 @@
 package uy.kohesive.keplin.common
 
-import org.jetbrains.kotlin.cli.common.repl.ReplCheckResult
-import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
-import org.jetbrains.kotlin.cli.common.repl.ReplCompileResult
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -90,8 +87,7 @@ class TestResettableReplEngine {
                 val finalCompileResult3 = repl.compile(finalLine3)
                 val finalEvalResult3 = repl.eval(finalCompileResult3)
                 assertEquals(10, finalEvalResult3.resultValue)
-            }
-            catch (ex: Exception) {
+            } catch (ex: Exception) {
                 ex.printStackTrace()
                 throw ex
             }

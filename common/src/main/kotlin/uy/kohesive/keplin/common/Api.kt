@@ -36,6 +36,7 @@ interface ResettableReplCompiler : ResettableReplChecker {
      * This must be in sync with the ResettableReplEvaluator being used
      */
     fun resetToLine(lineNumber: Int): List<ReplCodeLine>
+
     fun resetToLine(line: ReplCodeLine): List<ReplCodeLine> = resetToLine(line.no)
 
     val compilationHistory: List<ReplCodeLine>
@@ -50,7 +51,7 @@ interface ResettableReplCompiler : ResettableReplChecker {
 
         class Incomplete(compiledHistory: List<ReplCodeLine>) : Response(compiledHistory)
 
-        class HistoryMismatch(compiledHistory: List<ReplCodeLine>, val lineNo: Int): Response(compiledHistory)
+        class HistoryMismatch(compiledHistory: List<ReplCodeLine>, val lineNo: Int) : Response(compiledHistory)
 
         class Error(compiledHistory: List<ReplCodeLine>,
                     val message: String,
@@ -87,6 +88,7 @@ interface ResettableReplEvaluator : ResettableReplEvaluatorBase {
      * This must be in sync with the ResettableReplCompiler being used
      */
     fun resetToLine(lineNumber: Int): List<ReplCodeLine>
+
     fun resetToLine(line: ReplCodeLine): List<ReplCodeLine> = resetToLine(line.no)
 
     val evaluationHistory: List<ReplCodeLine>
