@@ -24,8 +24,11 @@ import org.jetbrains.kotlin.resolve.scopes.ImportingScope
 import org.jetbrains.kotlin.resolve.scopes.utils.parentsWithSelf
 import org.jetbrains.kotlin.resolve.scopes.utils.replaceImportingScopes
 import org.jetbrains.kotlin.script.ScriptPriorities
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.write
 
-class DefaultResettableReplAnalyzer(environment: KotlinCoreEnvironment) {
+class DefaultResettableReplAnalyzer(environment: KotlinCoreEnvironment,
+                                    val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) {
     private val topDownAnalysisContext: TopDownAnalysisContext
     private val topDownAnalyzer: LazyTopDownAnalyzer
     private val resolveSession: ResolveSession
@@ -68,18 +71,20 @@ class DefaultResettableReplAnalyzer(environment: KotlinCoreEnvironment) {
     }
 
     fun resetToLine(lineNumber: Int): List<ReplCodeLine> {
-        return replState.resetToLine(lineNumber)
+        return stateLock.write { replState.resetToLine(lineNumber) }
     }
 
     fun resetToLine(line: ReplCodeLine): List<ReplCodeLine> = resetToLine(line.no)
 
     fun analyzeReplLine(psiFile: KtFile, codeLine: ReplCodeLine): ReplLineAnalysisResult {
-        topDownAnalysisContext.scripts.clear()
-        trace.clearDiagnostics()
+        return stateLock.write {
+            topDownAnalysisContext.scripts.clear()
+            trace.clearDiagnostics()
 
-        psiFile.script!!.putUserData(ScriptPriorities.PRIORITY_KEY, codeLine.no)
+            psiFile.script!!.putUserData(ScriptPriorities.PRIORITY_KEY, codeLine.no)
 
-        return doAnalyze(psiFile, codeLine)
+            doAnalyze(psiFile, codeLine)
+        }
     }
 
     private fun doAnalyze(linePsi: KtFile, codeLine: ReplCodeLine): ReplLineAnalysisResult {
@@ -147,7 +152,7 @@ class DefaultResettableReplAnalyzer(environment: KotlinCoreEnvironment) {
         }
     }
 
-    class ResetableReplState {
+    class ResetableReplState() {
         private val successfulLines = ResettableReplHistory<LineInfo.SuccessfulLine>()
         private val submittedLines = hashMapOf<KtFile, LineInfo>()
 

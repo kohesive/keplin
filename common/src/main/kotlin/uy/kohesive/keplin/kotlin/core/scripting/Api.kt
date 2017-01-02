@@ -75,7 +75,7 @@ interface ResettableReplEvaluatorBase {
     val lastEvaluatedScript: EvalClassWithInstanceAndLoader?
 }
 
-data class EvalClassWithInstanceAndLoader(val klass: KClass<*>, val instance: Any, val classLoader: ClassLoader)
+data class EvalClassWithInstanceAndLoader(val klass: KClass<*>, val instance: Any?, val classLoader: ClassLoader)
 
 interface ResettableReplEvaluator : ResettableReplEvaluatorBase {
     fun eval(compileResult: ResettableReplCompiler.Response.CompiledClasses,

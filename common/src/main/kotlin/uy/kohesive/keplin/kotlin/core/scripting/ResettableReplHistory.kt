@@ -4,9 +4,11 @@ import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
 import java.io.Serializable
 import java.util.concurrent.ConcurrentLinkedDeque
 
+/*
+   Not thread safe, the caller is assumed to lock access.  Even though ConcurrentLinkedDeque is used, there are mutliple
+   actions that require locking.
+ */
 class ResettableReplHistory<T> : Serializable {
-    // TODO: thread safety
-
     private val history = ConcurrentLinkedDeque<Pair<CompiledReplCodeLine, T>>()
 
     init {
@@ -27,6 +29,17 @@ class ResettableReplHistory<T> : Serializable {
             removed.add(history.removeLast().let { Pair(it.first.source, it.second) })
         }
         return removed
+    }
+
+    /* remove last line only if it is the line we think it is */
+    fun removeLast(line: CompiledReplCodeLine): Boolean {
+        return if (history.peekLast().first == line) {
+            history.removeLast()
+            true
+        }
+        else {
+            false
+        }
     }
 
     fun resetToLine(line: ReplCodeLine): List<Pair<ReplCodeLine, T>> {
@@ -59,7 +72,7 @@ class ResettableReplHistory<T> : Serializable {
     fun copyValues(): List<T> = history.map { it.second }
 
     companion object {
-        private val serialVersionUID: Long = 8228353578L
+        private val serialVersionUID: Long = 8328353000L
     }
 }
 

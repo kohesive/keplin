@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class TestResettableReplEngine {
+class TestMavenScriptDependencies {
     @Test
     fun testWithMavenDependencies() {
         ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(

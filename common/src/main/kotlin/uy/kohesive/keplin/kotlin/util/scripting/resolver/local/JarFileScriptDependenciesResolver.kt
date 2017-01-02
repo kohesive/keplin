@@ -3,12 +3,13 @@ package uy.kohesive.keplin.kotlin.util.scripting.resolver.local
 import org.jetbrains.kotlin.utils.addToStdlib.check
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationBasedScriptResolver
 import java.io.File
+import java.util.concurrent.ConcurrentLinkedDeque
 
-open class JarFileScriptDependenciesResolver : AnnotationBasedScriptResolver {
+open class JarFileScriptDependenciesResolver() : AnnotationBasedScriptResolver {
     override val acceptedAnnotations = listOf(DirRepository::class, DependsOnJar::class)
     override val autoImports = listOf(DependsOnJar::class.java.`package`.name + ".*")
 
-    private val resolvers = arrayListOf<LocalJarResolver>(DirectResolver())
+    private val resolvers = ConcurrentLinkedDeque<LocalJarResolver>(listOf(DirectResolver()))
 
     override fun resolveForAnnotation(annotation: Annotation): List<File> {
         return when (annotation) {
@@ -21,6 +22,7 @@ open class JarFileScriptDependenciesResolver : AnnotationBasedScriptResolver {
             is DependsOnJar -> {
                 resolvers.asSequence().mapNotNull { it.tryResolve(annotation) }.firstOrNull()?.toList() ?:
                         throw Exception("Unable to resolve dependency $annotation")
+
             }
             else -> throw Exception("Unknown annotation ${annotation.javaClass}")
         }

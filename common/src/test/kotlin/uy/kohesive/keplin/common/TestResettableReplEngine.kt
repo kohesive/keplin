@@ -3,6 +3,7 @@ package uy.kohesive.keplin.common
 import org.junit.Ignore
 import org.junit.Test
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
+import uy.kohesive.keplin.kotlin.util.scripting.containingClasspath
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -26,6 +27,15 @@ class TestResettableReplEngine {
 
             assertEquals(line1, evalResult1.codeLine)
             assertEquals(Unit, evalResult1.resultValue)
+        }
+    }
+
+    @Test
+    fun testAtomicCompileAndEval() {
+        ResettableRepl().use { repl ->
+           val eval1 = repl.compileAndEval(repl.nextCodeLine("val x = 10"))
+           val eval2 = repl.compileAndEval("x")
+           assertEquals(10, eval2.resultValue)
         }
     }
 
@@ -94,9 +104,24 @@ class TestResettableReplEngine {
         }
     }
 
+
     @Test
-    @Ignore("Not implemented yet")
-    fun testRecursingScripts() {
-        TODO()
+    fun testRecursingScriptsDifferentEngines() {
+        val extraClasspath = ResettableRepl::class.containingClasspath()?.let { listOf(it) } ?: emptyList()
+
+        ResettableRepl(additionalClasspath = extraClasspath).use { repl ->
+            val outerEval = repl.compileAndEval("""
+                 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
+                 import uy.kohesive.keplin.kotlin.util.scripting.containingClasspath
+
+                 val extraClasspath = ResettableRepl::class.containingClasspath()?.let { listOf(it) } ?: emptyList()
+                 val result = ResettableRepl(additionalClasspath = extraClasspath).use { repl ->
+                    val innerEval = repl.compileAndEval("println(\"inner world\"); 100")
+                    innerEval.resultValue
+                 }
+                 result
+            """)
+            assertEquals(100, outerEval.resultValue)
+        }
     }
 }

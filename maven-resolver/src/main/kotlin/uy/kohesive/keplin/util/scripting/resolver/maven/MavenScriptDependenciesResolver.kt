@@ -13,6 +13,7 @@ import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationBasedScriptRe
 import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
+import java.util.concurrent.ConcurrentLinkedDeque
 
 open class MavenScriptDependenciesResolver() : AnnotationBasedScriptResolver {
     override val acceptedAnnotations = listOf(MavenRepository::class, DependsOnMaven::class)
@@ -46,9 +47,9 @@ open class MavenScriptDependenciesResolver() : AnnotationBasedScriptResolver {
         // TODO: make robust
         private val localRepo = File(File(System.getProperty("user.home")!!, ".m2"), "repository")
 
-        private val repos: ArrayList<RemoteRepository> = arrayListOf()
+        private val repos: ConcurrentLinkedDeque<RemoteRepository> = ConcurrentLinkedDeque()
 
-        private fun currentRepos() = if (repos.isEmpty()) arrayListOf(mavenCentral) else repos
+        private fun currentRepos() = if (repos.isEmpty()) arrayListOf(mavenCentral) else repos.toList()
 
         private fun String.isValidParam() = isNotBlank()
 

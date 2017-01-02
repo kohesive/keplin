@@ -19,12 +19,16 @@ import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.parsing.KotlinParserDefinition
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 
 open class DefaultResettableReplChecker(
         disposable: Disposable,
         val scriptDefinition: KotlinScriptDefinition,
         val compilerConfiguration: CompilerConfiguration,
-        messageCollector: MessageCollector
+        messageCollector: MessageCollector,
+        val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()
 ) : ResettableReplChecker {
     protected val environment = run {
         compilerConfiguration.apply {
@@ -43,32 +47,35 @@ open class DefaultResettableReplChecker(
             val psiFile: KtFile,
             val errorHolder: DiagnosticMessageHolder)
 
-    protected var lineState: LineState? = null
+    private var _lineState: LineState? = null
+
+    protected val lineState: LineState? get() = stateLock.read { _lineState }
 
     fun createDiagnosticHolder() = ReplTerminalDiagnosticMessageHolder()
 
-    @Synchronized
     override fun check(codeLine: ReplCodeLine, generation: Long): ResettableReplChecker.Response {
-        val scriptFileName = makeSriptBaseName(codeLine, generation)
-        val virtualFile =
-                LightVirtualFile("${scriptFileName}${KotlinParserDefinition.STD_SCRIPT_EXT}", KotlinLanguage.INSTANCE, codeLine.code).apply {
-                    charset = CharsetToolkit.UTF8_CHARSET
-                }
-        val psiFile: KtFile = psiFileFactory.trySetupPsiForFile(virtualFile, KotlinLanguage.INSTANCE, true, false) as KtFile?
-                ?: error("Script file not analyzed at line ${codeLine.no}: ${codeLine.code}")
+        stateLock.write {
+            val scriptFileName = makeSriptBaseName(codeLine, generation)
+            val virtualFile =
+                    LightVirtualFile("${scriptFileName}${KotlinParserDefinition.STD_SCRIPT_EXT}", KotlinLanguage.INSTANCE, codeLine.code).apply {
+                        charset = CharsetToolkit.UTF8_CHARSET
+                    }
+            val psiFile: KtFile = psiFileFactory.trySetupPsiForFile(virtualFile, KotlinLanguage.INSTANCE, true, false) as KtFile?
+                    ?: error("Script file not analyzed at line ${codeLine.no}: ${codeLine.code}")
 
-        val errorHolder = createDiagnosticHolder()
+            val errorHolder = createDiagnosticHolder()
 
-        val syntaxErrorReport = AnalyzerWithCompilerReport.reportSyntaxErrors(psiFile, errorHolder)
+            val syntaxErrorReport = AnalyzerWithCompilerReport.reportSyntaxErrors(psiFile, errorHolder)
 
-        if (!syntaxErrorReport.isHasErrors) {
-            lineState = LineState(codeLine, psiFile, errorHolder)
-        }
+            if (!syntaxErrorReport.isHasErrors) {
+                _lineState = LineState(codeLine, psiFile, errorHolder)
+            }
 
-        return when {
-            syntaxErrorReport.isHasErrors && syntaxErrorReport.isAllErrorsAtEof -> ResettableReplChecker.Response.Incomplete()
-            syntaxErrorReport.isHasErrors -> ResettableReplChecker.Response.Error(errorHolder.renderedDiagnostics)
-            else -> ResettableReplChecker.Response.Ok()
+            return when {
+                syntaxErrorReport.isHasErrors && syntaxErrorReport.isAllErrorsAtEof -> ResettableReplChecker.Response.Incomplete()
+                syntaxErrorReport.isHasErrors -> ResettableReplChecker.Response.Error(errorHolder.renderedDiagnostics)
+                else -> ResettableReplChecker.Response.Ok()
+            }
         }
     }
 }
