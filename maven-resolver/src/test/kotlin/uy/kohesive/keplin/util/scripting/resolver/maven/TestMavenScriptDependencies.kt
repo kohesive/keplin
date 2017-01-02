@@ -4,7 +4,6 @@ package uy.kohesive.keplin.util.scripting.resolver.maven
 import org.junit.Test
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
 import uy.kohesive.keplin.kotlin.util.scripting.ScriptTemplateWithArgs
-import uy.kohesive.keplin.kotlin.util.scripting.containingClasspath
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.ConfigurableAnnotationBasedScriptDefinition
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver
 import kotlin.test.assertEquals

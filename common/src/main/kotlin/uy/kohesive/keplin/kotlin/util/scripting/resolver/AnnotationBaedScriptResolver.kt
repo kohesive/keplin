@@ -1,6 +1,5 @@
 package uy.kohesive.keplin.kotlin.util.scripting.resolver
 
-import org.jetbrains.kotlin.script.ScriptDependenciesResolver
 import java.io.File
 import kotlin.reflect.KClass
 

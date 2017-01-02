@@ -6,8 +6,6 @@ import org.jetbrains.kotlin.cli.common.repl.ReplClassLoader
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
 import org.jetbrains.kotlin.cli.common.repl.renderReplStackTrace
 import org.jetbrains.kotlin.resolve.jvm.JvmClassName
-import uy.kohesive.keplin.kotlin.core.scripting.ResettableReplHistory
-import uy.kohesive.keplin.kotlin.core.scripting.makeReplClassLoader
 import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -86,7 +84,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
         val scriptInstanceConstructor = scriptClass.getConstructor(*constructorParams)
         val scriptInstance =
                 try {
-                    if (invokeWrapper != null) invokeWrapper.invoke { scriptInstanceConstructor.newInstance(*constructorArgs)  }
+                    if (invokeWrapper != null) invokeWrapper.invoke { scriptInstanceConstructor.newInstance(*constructorArgs) }
                     else scriptInstanceConstructor.newInstance(*constructorArgs)
                 } catch (e: Throwable) {
                     // ignore everything in the stack trace until this constructor call

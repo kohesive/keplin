@@ -1,16 +1,12 @@
 package uy.kohesive.keplin.kotlin.util.scripting.resolver.local
 
-import org.jetbrains.kotlin.script.*
-import java.io.File
-import java.util.concurrent.Future
 import org.jetbrains.kotlin.utils.addToStdlib.check
-import uy.kohesive.keplin.kotlin.core.scripting.DO_NOTHING
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationBasedScriptResolver
-import kotlin.reflect.KClass
+import java.io.File
 
-open class JarFileScriptDependenciesResolver: AnnotationBasedScriptResolver {
+open class JarFileScriptDependenciesResolver : AnnotationBasedScriptResolver {
     override val acceptedAnnotations = listOf(DirRepository::class, DependsOnJar::class)
-    override val autoImports= listOf(DependsOnJar::class.java.`package`.name + ".*")
+    override val autoImports = listOf(DependsOnJar::class.java.`package`.name + ".*")
 
     private val resolvers = arrayListOf<LocalJarResolver>(DirectResolver())
 
@@ -53,7 +49,7 @@ open class JarFileScriptDependenciesResolver: AnnotationBasedScriptResolver {
         override fun tryResolve(dependsOn: DependsOnJar): Iterable<File>? =
                 // TODO: add coordinates and wildcard matching
                 dependsOn.filename.check(String::isNotBlank)
-                        ?.let{ File(path, it) }
+                        ?.let { File(path, it) }
                         ?.check { it.exists() && (it.isFile || it.isDirectory) }
                         ?.let { listOf(it) }
 

@@ -10,11 +10,11 @@ class AnnotationBasedScriptResolutionManager(val resolvers: List<AnnotationBased
     class ResolvedDependencies(override val classpath: List<File>, override val imports: List<String>) : KotlinScriptExternalDependencies
 
     val annotationSortOrder: Map<KClass<out Annotation>, Int> = HashMap<KClass<out Annotation>, Int>().apply {
-            resolvers.forEachIndexed { idx: Int, resolver: AnnotationBasedScriptResolver ->
-                resolver.acceptedAnnotations.forEachIndexed { subIdx: Int, ann: KClass<out Annotation> ->
-                    put(ann, idx * 1000 + subIdx)
-                }
+        resolvers.forEachIndexed { idx: Int, resolver: AnnotationBasedScriptResolver ->
+            resolver.acceptedAnnotations.forEachIndexed { subIdx: Int, ann: KClass<out Annotation> ->
+                put(ann, idx * 1000 + subIdx)
             }
+        }
     }
 
     override fun resolve(script: ScriptContents,
@@ -23,7 +23,7 @@ class AnnotationBasedScriptResolutionManager(val resolvers: List<AnnotationBased
                          previousDependencies: KotlinScriptExternalDependencies?): Future<KotlinScriptExternalDependencies?> {
         // sort script annotations first by resolver order then by accepted order within resolver, this allows the resolver
         // to be sure some actions occur before others, i.e. adding a maven repository before depending on the maven artifact.
-        val sortedScriptAnnotations = script.annotations.sortedBy { annotationSortOrder.getOrDefault(it.javaClass.kotlin, 0)}
+        val sortedScriptAnnotations = script.annotations.sortedBy { annotationSortOrder.getOrDefault(it.javaClass.kotlin, 0) }
         val depsFromAnnotations = sortedScriptAnnotations.map { annotation ->
             val resolver = when (annotation) {
                 is InvalidScriptResolverAnnotation -> throw Exception("Invalid annotation ${annotation.annotationClass}", annotation.error)

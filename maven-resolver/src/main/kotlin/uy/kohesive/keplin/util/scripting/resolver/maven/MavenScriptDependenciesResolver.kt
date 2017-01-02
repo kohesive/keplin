@@ -3,7 +3,6 @@
 package uy.kohesive.keplin.util.scripting.resolver.maven
 
 import com.jcabi.aether.Aether
-import org.jetbrains.kotlin.script.InvalidScriptResolverAnnotation
 import org.jetbrains.kotlin.utils.addToStdlib.check
 import org.jetbrains.kotlin.utils.rethrow
 import org.sonatype.aether.repository.RemoteRepository
@@ -62,7 +61,7 @@ open class MavenScriptDependenciesResolver() : AnnotationBasedScriptResolver {
             fun String?.orNullIfBlank(): String? = this?.check(String::isNotBlank)
 
             val parts = dependsOn.fullGAV.split(':')
-            if (parts.size < 3 || parts.size > 4 ||  parts.any { it.isNullOrBlank() }) {
+            if (parts.size < 3 || parts.size > 4 || parts.any { it.isNullOrBlank() }) {
                 error("Unknown set of arguments to maven resolver: ${dependsOn.fullGAV}, should be `group:artifact:version` or `group:artifact:classifier:version`")
                 return null
             }
