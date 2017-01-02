@@ -80,7 +80,13 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
             codeLineNumber.set(lineNumber)
             val removedCompiledLines = compiler.resetToLine(lineNumber)
             val removedEvaluatorLines = evaluator.resetToLine(lineNumber)
-            // TODO: compare the two sets to be sure we are in sync?
+
+            removedCompiledLines.zip(removedEvaluatorLines).forEach {
+                if (it.first != it.second) {
+                    throw IllegalStateException("History mistmatch when resetting lines")
+                }
+            }
+
             return removedCompiledLines
         }
     }

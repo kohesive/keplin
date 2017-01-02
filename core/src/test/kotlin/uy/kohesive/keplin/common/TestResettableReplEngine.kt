@@ -33,9 +33,9 @@ class TestResettableReplEngine {
     @Test
     fun testAtomicCompileAndEval() {
         ResettableRepl().use { repl ->
-           val eval1 = repl.compileAndEval(repl.nextCodeLine("val x = 10"))
-           val eval2 = repl.compileAndEval("x")
-           assertEquals(10, eval2.resultValue)
+           repl.compileAndEval(repl.nextCodeLine("val x = 10"))
+           val evalResult = repl.compileAndEval("x")
+           assertEquals(10, evalResult.resultValue)
         }
     }
 

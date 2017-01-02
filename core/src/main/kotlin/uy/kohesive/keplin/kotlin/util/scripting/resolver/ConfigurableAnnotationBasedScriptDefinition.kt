@@ -46,6 +46,7 @@ open class ConfigurableAnnotationBasedScriptDefinition(definitionName: String,
             logScriptDefMessage(ScriptDependenciesResolver.ReportSeverity.WARNING, ex.message ?: "Invalid script template: ${template.qualifiedName}", null)
         }
 
+        @Suppress("UNCHECKED_CAST")
         fun makeScriptContents() = BasicScriptContents(file, getAnnotations = {
             val classLoader = (template as Any).javaClass.classLoader
             try {
@@ -63,9 +64,9 @@ open class ConfigurableAnnotationBasedScriptDefinition(definitionName: String,
         })
 
         try {
-            val fileDeps = resolutionManager?.resolve(makeScriptContents(), environment, Companion::logScriptDefMessage, previousDependencies)
+            val fileDeps = resolutionManager.resolve(makeScriptContents(), environment, Companion::logScriptDefMessage, previousDependencies)
             // TODO: use it as a Future
-            val updatedDependencies = fileDeps?.get()
+            val updatedDependencies = fileDeps.get()
             return updatedDependencies
         } catch (ex: Throwable) {
             logClassloadingError(ex)
