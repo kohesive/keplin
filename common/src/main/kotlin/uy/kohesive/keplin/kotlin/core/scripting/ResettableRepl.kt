@@ -1,4 +1,4 @@
-package uy.kohesive.keplin.common
+package uy.kohesive.keplin.kotlin.core.scripting
 
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
@@ -13,23 +13,26 @@ import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
-import org.jetbrains.kotlin.script.KotlinScriptDefinitionFromAnnotatedTemplate
+import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
+import uy.kohesive.keplin.kotlin.util.scripting.ScriptTemplateWithArgs
+import uy.kohesive.keplin.kotlin.util.scripting.findRequiredScriptingJarFiles
 import java.io.Closeable
 import java.io.File
 import java.net.URLClassLoader
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass
 
-
-class SampleResettableReplEngine(val moduleName: String, val annotatedTemplateClass: KClass<out Any>, val additionalClasspath: List<File> = emptyList()) : Closeable {
+class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.currentTimeMillis()}",
+                     val additionalClasspath: List<File> = emptyList(),
+                     val scriptDefinition: KotlinScriptDefinition = DefaultScriptDefinition(ScriptTemplateWithArgs::class)) : Closeable {
     private val disposable = Disposer.newDisposable()
 
     private val messageCollector = PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false)
 
     private val compilerConfiguration = CompilerConfiguration().apply {
         addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
-        addJvmClasspathRoots(findRequiredScriptingJarFiles(annotatedTemplateClass))
+        addJvmClasspathRoots(findRequiredScriptingJarFiles(scriptDefinition.template))
         addJvmClasspathRoots(additionalClasspath)
         put(CommonConfigurationKeys.MODULE_NAME, moduleName)
         put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
@@ -38,10 +41,10 @@ class SampleResettableReplEngine(val moduleName: String, val annotatedTemplateCl
 
     private val compilerClasspath = compilerConfiguration.jvmClasspathRoots.toMutableList()
     private val baseClassloader = URLClassLoader(compilerClasspath.map { it.toURI().toURL() }.toTypedArray(), Thread.currentThread().contextClassLoader)
-    private val scriptDef = KotlinScriptDefinitionFromAnnotatedTemplate(annotatedTemplateClass, null, null, emptyMap())
 
     private val compiler: DefaultResettableReplCompiler by lazy {
-        DefaultResettableReplCompiler(disposable, scriptDef, compilerConfiguration, PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false))
+        DefaultResettableReplCompiler(disposable, scriptDefinition, compilerConfiguration,
+                PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false))
     }
 
     private val evaluator: DefaultResettableReplEvaluator by lazy {
@@ -137,3 +140,5 @@ data class CompileResult(val codeLine: ReplCodeLine,
                          val compilerData: ResettableReplCompiler.Response.CompiledClasses)
 
 data class EvalResult(val codeLine: ReplCodeLine, val resultValue: Any?)
+
+class DefaultScriptDefinition(template: KClass<out Any>) : KotlinScriptDefinition(template)

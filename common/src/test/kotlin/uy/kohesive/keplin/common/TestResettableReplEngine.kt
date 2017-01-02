@@ -1,16 +1,16 @@
 package uy.kohesive.keplin.common
 
+import org.junit.Ignore
 import org.junit.Test
+import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TestResettableReplEngine {
-    val moduleName = "Test-${System.currentTimeMillis()}"
-
     @Test
     fun testBasicScript() {
-        SampleResettableReplEngine(moduleName, StandardArgsScriptTemplateWithMavenResolving::class).use { repl ->
+        ResettableRepl().use { repl ->
             val line1 = repl.nextCodeLine("val x = 10")
             val checkResult1 = repl.check(line1)
 
@@ -31,7 +31,7 @@ class TestResettableReplEngine {
 
     @Test
     fun testResettingHistory() {
-        SampleResettableReplEngine(moduleName, StandardArgsScriptTemplateWithMavenResolving::class).use { repl ->
+        ResettableRepl().use { repl ->
             val line1 = repl.nextCodeLine("val x = 10")
             repl.eval(repl.compile(line1))
 
@@ -92,5 +92,11 @@ class TestResettableReplEngine {
                 throw ex
             }
         }
+    }
+
+    @Test
+    @Ignore("Not implemented yet")
+    fun testRecursingScripts() {
+        TODO()
     }
 }

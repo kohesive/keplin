@@ -1,6 +1,7 @@
-package uy.kohesive.keplin.common
+package uy.kohesive.keplin.kotlin.core.scripting
 
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
+import uy.kohesive.keplin.kotlin.core.scripting.CompiledReplCodeLine
 import java.io.Serializable
 import java.util.concurrent.ConcurrentLinkedDeque
 

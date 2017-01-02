@@ -1,5 +1,8 @@
-include 'common', 'spark-repl'
+include 'common', 'maven-resolver', 'spark-repl', 'samples'
 
 project(':common').name = 'keplin-common'
+project(':maven-resolver').name = 'keplin-maven-resolver'
+project(':samples').name = 'keplin-samples'
 project(':spark-repl').name = 'keplin-spark-repl'
+
 

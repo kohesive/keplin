@@ -1,0 +1,147 @@
+package uy.kohesive.keplin.kotlin.util.scripting.resolver
+
+import org.jetbrains.kotlin.builtins.DefaultBuiltIns
+import org.jetbrains.kotlin.com.intellij.openapi.diagnostic.Logger
+import org.jetbrains.kotlin.com.intellij.openapi.project.Project
+import org.jetbrains.kotlin.com.intellij.openapi.vfs.StandardFileSystems
+import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFile
+import org.jetbrains.kotlin.com.intellij.psi.PsiFile
+import org.jetbrains.kotlin.com.intellij.psi.PsiManager
+import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
+import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.parsing.KotlinParserDefinition
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtScript
+import org.jetbrains.kotlin.psi.KtUserType
+import org.jetbrains.kotlin.resolve.BindingTraceContext
+import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluator
+import org.jetbrains.kotlin.script.*
+import org.jetbrains.kotlin.types.TypeUtils
+import org.jetbrains.kotlin.utils.tryCreateCallableMappingFromNamedArgs
+import java.io.File
+import kotlin.reflect.KClass
+import kotlin.reflect.KParameter
+import kotlin.reflect.primaryConstructor
+
+open class ConfigurableAnnotationBasedScriptDefinition(definitionName: String,
+                                                       template: KClass<out Any>,
+                                                       val resolvers: List<AnnotationBasedScriptResolver>,
+                                                       val scriptFilePattern: Regex = DEFAULT_SCRIPT_FILE_PATTERN.toRegex(),
+                                                       val environment: Map<String, Any?>? = null) : KotlinScriptDefinition(template) {
+    override val name = definitionName
+    protected val acceptedAnnotations = resolvers.map { it.acceptedAnnotations }.flatten()
+
+    override fun <TF : Any> isScript(file: TF): Boolean = scriptFilePattern.matches(getFileName(file))
+
+    protected val resolutionManager: AnnotationBasedScriptResolutionManager by lazy {
+        AnnotationBasedScriptResolutionManager(resolvers)
+    }
+
+    // TODO: implement other strategy - e.g. try to extract something from match with ScriptFilePattern
+    override fun getScriptName(script: KtScript): Name = ScriptNameUtil.fileNameWithExtensionStripped(script, KotlinParserDefinition.STD_SCRIPT_EXT)
+
+    override fun <TF : Any> getDependenciesFor(file: TF, project: Project, previousDependencies: KotlinScriptExternalDependencies?): KotlinScriptExternalDependencies? {
+        fun logClassloadingError(ex: Throwable) {
+            logScriptDefMessage(ScriptDependenciesResolver.ReportSeverity.WARNING, ex.message ?: "Invalid script template: ${template.qualifiedName}", null)
+        }
+
+        fun makeScriptContents() = BasicScriptContents(file, getAnnotations = {
+            val classLoader = (template as Any).javaClass.classLoader
+            try {
+                getAnnotationEntries(file, project)
+                        .mapNotNull { psiAnn ->
+                            // TODO: consider advanced matching using semantic similar to actual resolving
+                            acceptedAnnotations.find { ann ->
+                                psiAnn.typeName.let { it == ann.simpleName || it == ann.qualifiedName }
+                            }?.let { constructAnnotation(psiAnn, classLoader.loadClass(it.qualifiedName).kotlin as KClass<out Annotation>) }
+                        }
+            } catch (ex: Throwable) {
+                logClassloadingError(ex)
+                emptyList()
+            }
+        })
+
+        try {
+            val fileDeps = resolutionManager?.resolve(makeScriptContents(), environment, Companion::logScriptDefMessage, previousDependencies)
+            // TODO: use it as a Future
+            val updatedDependencies = fileDeps?.get()
+            return updatedDependencies
+        } catch (ex: Throwable) {
+            logClassloadingError(ex)
+        }
+        return null
+    }
+
+    private val KtAnnotationEntry.typeName: String get() = (typeReference?.typeElement as? KtUserType)?.referencedName.orAnonymous()
+
+    internal fun String?.orAnonymous(kind: String = ""): String =
+            this ?: "<anonymous" + (if (kind.isNotBlank()) " $kind" else "") + ">"
+
+    internal fun constructAnnotation(psi: KtAnnotationEntry, targetClass: KClass<out Annotation>): Annotation {
+
+        val valueArguments = psi.valueArguments.map { arg ->
+            val evaluator = ConstantExpressionEvaluator(DefaultBuiltIns.Instance, LanguageVersionSettingsImpl.DEFAULT)
+            val trace = BindingTraceContext()
+            val result = evaluator.evaluateToConstantValue(arg.getArgumentExpression()!!, trace, TypeUtils.NO_EXPECTED_TYPE)
+            // TODO: consider inspecting `trace` to find diagnostics reported during the computation (such as division by zero, integer overflow, invalid annotation parameters etc.)
+            val argName = arg.getArgumentName()?.asName?.toString()
+            argName to result?.value
+        }
+        val mappedArguments: Map<KParameter, Any?> =
+                tryCreateCallableMappingFromNamedArgs(targetClass.constructors.first(), valueArguments)
+                        ?: return InvalidScriptResolverAnnotation(psi.typeName, valueArguments)
+
+        try {
+            return targetClass.primaryConstructor!!.callBy(mappedArguments)
+        } catch (ex: Exception) {
+            return InvalidScriptResolverAnnotation(psi.typeName, valueArguments, ex)
+        }
+    }
+
+    class InvalidScriptResolverAnnotation(val name: String, val annParams: List<Pair<String?, Any?>>?, val error: Exception? = null) : Annotation
+
+
+    private fun <TF : Any> getAnnotationEntries(file: TF, project: Project): Iterable<KtAnnotationEntry> = when (file) {
+        is PsiFile -> getAnnotationEntriesFromPsiFile(file)
+        is VirtualFile -> getAnnotationEntriesFromVirtualFile(file, project)
+        is File -> {
+            val virtualFile = (StandardFileSystems.local().findFileByPath(file.canonicalPath)
+                    ?: throw IllegalArgumentException("Unable to find file ${file.canonicalPath}"))
+            getAnnotationEntriesFromVirtualFile(virtualFile, project)
+        }
+        else -> throw IllegalArgumentException("Unsupported file type $file")
+    }
+
+    private fun getAnnotationEntriesFromPsiFile(file: PsiFile) =
+            (file as? KtFile)?.annotationEntries
+                    ?: throw IllegalArgumentException("Unable to extract kotlin annotations from ${file.name} (${file.fileType})")
+
+    private fun getAnnotationEntriesFromVirtualFile(file: VirtualFile, project: Project): Iterable<KtAnnotationEntry> {
+        val psiFile: PsiFile = PsiManager.getInstance(project).findFile(file)
+                ?: throw IllegalArgumentException("Unable to load PSI from ${file.canonicalPath}")
+        return getAnnotationEntriesFromPsiFile(psiFile)
+    }
+
+    class BasicScriptContents<out TF : Any>(myFile: TF, getAnnotations: () -> Iterable<Annotation>) : ScriptContents {
+        override val file: File? by lazy { getFile(myFile) }
+        override val annotations: Iterable<Annotation> by lazy { getAnnotations() }
+        override val text: CharSequence? by lazy { getFileContents(myFile) }
+    }
+
+    companion object {
+        internal val log = Logger.getInstance(KotlinScriptDefinitionFromAnnotatedTemplate::class.java)
+
+        fun logScriptDefMessage(reportSeverity: ScriptDependenciesResolver.ReportSeverity, s: String, position: ScriptContents.Position?): Unit {
+            val msg = (position?.run { "[at $line:$col]" } ?: "") + s
+            when (reportSeverity) {
+                ScriptDependenciesResolver.ReportSeverity.ERROR -> log.error(msg)
+                ScriptDependenciesResolver.ReportSeverity.WARNING -> log.warn(msg)
+                ScriptDependenciesResolver.ReportSeverity.INFO -> log.info(msg)
+                ScriptDependenciesResolver.ReportSeverity.DEBUG -> log.debug(msg)
+            }
+        }
+    }
+}
+
+

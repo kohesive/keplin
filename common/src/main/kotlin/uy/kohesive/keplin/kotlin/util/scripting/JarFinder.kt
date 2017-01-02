@@ -1,4 +1,4 @@
-package uy.kohesive.keplin.common
+package uy.kohesive.keplin.kotlin.util.scripting
 
 import org.jetbrains.kotlin.cli.jvm.repl.GenericReplCompiler
 import org.jetbrains.kotlin.config.KotlinCompilerVersion

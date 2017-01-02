@@ -1,4 +1,4 @@
-package uy.kohesive.keplin.common
+package uy.kohesive.keplin.kotlin.core.scripting
 
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -53,8 +53,7 @@ open class DefaultResettableReplCompiler(disposable: Disposable,
                 when (res) {
                     is ResettableReplChecker.Response.Incomplete -> return@compile ResettableReplCompiler.Response.Incomplete(descriptorsHistory.historyAsSource())
                     is ResettableReplChecker.Response.Error -> return@compile ResettableReplCompiler.Response.Error(descriptorsHistory.historyAsSource(), res.message, res.location)
-                    is ResettableReplChecker.Response.Ok -> {
-                    } // continue
+                    is ResettableReplChecker.Response.Ok -> DO_NOTHING()
                 }
             }
             Pair(lineState!!.psiFile, lineState!!.errorHolder)
@@ -67,8 +66,10 @@ open class DefaultResettableReplCompiler(disposable: Disposable,
             classpathAddendum = newDependencies?.let { environment.updateClasspath(it.classpath.map(::JvmClasspathRoot)) }
         }
 
+        // TODO: the classpath for compilation should reset back to the correct point as well, only the evaluator resets now
+
         val analysisResult = analyzerEngine.analyzeReplLine(psiFile, codeLine)
-        AnalyzerWithCompilerReport.Companion.reportDiagnostics(analysisResult.diagnostics, errorHolder)
+        AnalyzerWithCompilerReport.reportDiagnostics(analysisResult.diagnostics, errorHolder)
         val scriptDescriptor = when (analysisResult) {
             is DefaultResettableReplAnalyzer.ReplLineAnalysisResult.WithErrors -> return ResettableReplCompiler.Response.Error(descriptorsHistory.historyAsSource(), errorHolder.renderedDiagnostics)
             is DefaultResettableReplAnalyzer.ReplLineAnalysisResult.Successful -> analysisResult.scriptDescriptor

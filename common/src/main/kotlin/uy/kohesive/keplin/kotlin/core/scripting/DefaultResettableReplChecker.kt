@@ -1,4 +1,4 @@
-package uy.kohesive.keplin.common
+package uy.kohesive.keplin.kotlin.core.scripting
 
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
@@ -59,7 +59,7 @@ open class DefaultResettableReplChecker(
 
         val errorHolder = createDiagnosticHolder()
 
-        val syntaxErrorReport = AnalyzerWithCompilerReport.Companion.reportSyntaxErrors(psiFile, errorHolder)
+        val syntaxErrorReport = AnalyzerWithCompilerReport.reportSyntaxErrors(psiFile, errorHolder)
 
         if (!syntaxErrorReport.isHasErrors) {
             lineState = LineState(codeLine, psiFile, errorHolder)

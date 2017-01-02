@@ -1,4 +1,4 @@
-package uy.kohesive.keplin.common
+package uy.kohesive.keplin.kotlin.core.scripting
 
 
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
