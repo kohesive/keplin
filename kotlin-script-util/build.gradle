@@ -11,4 +11,7 @@ dependencies {
     compile group: "com.jcabi", name: "jcabi-aether", version: version_jcabi
     compile group: "org.sonatype.aether", name: "aether-api", version: version_aether
     compile group: "org.apache.maven", name: "maven-core", version: version_maven
+
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.21'
+    runtime group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.21'
 }

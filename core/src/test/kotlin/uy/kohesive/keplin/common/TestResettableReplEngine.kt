@@ -158,6 +158,20 @@ class TestResettableReplEngine {
     }
 
     @Test
+    fun testOneShotUnitEval() {
+        ResettableRepl().use { repl ->
+            repl.compileAndEval("""println("hello world")""")
+        }
+    }
+
+    @Test
+    fun testOneShotAssignEval() {
+        ResettableRepl().use { repl ->
+            repl.compileAndEval("""val x = 10""")
+        }
+    }
+
+    @Test
     fun testBasicCompilerErrors() {
         ResettableRepl().use { repl ->
             try {
