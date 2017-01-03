@@ -6,6 +6,7 @@ import uy.kohesive.keplin.kotlin.core.scripting.CompileErrorException
 import uy.kohesive.keplin.kotlin.core.scripting.EvalRuntimeException
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
 import uy.kohesive.keplin.kotlin.util.scripting.containingClasspath
+import uy.kohesive.keplin.kotlin.util.scripting.findRequiredScriptingJarFiles
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -109,14 +110,22 @@ class TestResettableReplEngine {
 
     @Test
     fun testRecursingScriptsDifferentEngines() {
-        val extraClasspath = ResettableRepl::class.containingClasspath()?.let { listOf(it) } ?: emptyList()
+        val extraClasspath = findRequiredScriptingJarFiles(includeScriptEngine = true,
+                includeKotlinCompiler = false,
+                includeKotlinEmbeddableCompiler = true,
+                includeRuntime = false,
+                includeStdLib = false)
 
         ResettableRepl(additionalClasspath = extraClasspath).use { repl ->
             val outerEval = repl.compileAndEval("""
                  import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
-                 import uy.kohesive.keplin.kotlin.util.scripting.containingClasspath
+                 import uy.kohesive.keplin.kotlin.util.scripting.findRequiredScriptingJarFiles
 
-                 val extraClasspath = ResettableRepl::class.containingClasspath()?.let { listOf(it) } ?: emptyList()
+                 val extraClasspath = findRequiredScriptingJarFiles(includeScriptEngine = true,
+                                            includeKotlinCompiler = false,
+                                            includeKotlinEmbeddableCompiler = true,
+                                            includeRuntime = false,
+                                            includeStdLib = false)
                  val result = ResettableRepl(additionalClasspath = extraClasspath).use { repl ->
                     val innerEval = repl.compileAndEval("println(\"inner world\"); 100")
                     innerEval.resultValue

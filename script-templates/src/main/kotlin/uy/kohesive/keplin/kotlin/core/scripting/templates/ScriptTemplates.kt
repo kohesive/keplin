@@ -1,4 +1,4 @@
-package uy.kohesive.keplin.kotlin.util.scripting
+package uy.kohesive.keplin.kotlin.core.scripting.templates
 
 abstract class ScriptTemplateWithDefaultConstructor()
 abstract class ScriptTemplateWithArgs(val args: Array<String>)

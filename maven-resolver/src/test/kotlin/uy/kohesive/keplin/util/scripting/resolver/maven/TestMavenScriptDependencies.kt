@@ -4,7 +4,7 @@ package uy.kohesive.keplin.util.scripting.resolver.maven
 import org.junit.Test
 import uy.kohesive.keplin.kotlin.core.scripting.CompileErrorException
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
-import uy.kohesive.keplin.kotlin.util.scripting.ScriptTemplateWithArgs
+import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.ConfigurableAnnotationBasedScriptDefinition
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver
 import java.time.Instant
@@ -20,7 +20,7 @@ class TestMavenScriptDependencies {
     fun testWithMavenDependencies() {
         ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
                 "varargTemplateWithMavenResolving",
-                ScriptTemplateWithArgs::class,
+                uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class,
                 listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
         ).use { repl ->
             repl.compileAndEval("""
@@ -35,7 +35,7 @@ class TestMavenScriptDependencies {
     fun testResolveLibWithExtensionFunctions() {
         ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
                 "varargTemplateWithMavenResolving",
-                ScriptTemplateWithArgs::class,
+                uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class,
                 listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
         ).use { repl ->
             repl.compileAndEval("""@file:DependsOnMaven("uy.klutter:klutter-core-jdk6:1.20.1")""")
@@ -49,7 +49,7 @@ class TestMavenScriptDependencies {
     fun testMavenWithAFewThreads() {
         ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
                 "varargTemplateWithMavenResolving",
-                ScriptTemplateWithArgs::class,
+                uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class,
                 listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
         ).use { repl ->
             val countdown = CountDownLatch(3)

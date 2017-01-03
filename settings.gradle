@@ -1,6 +1,7 @@
-include 'core', 'maven-resolver', 'spark-repl', 'samples'
+include 'core', 'script-templates', 'maven-resolver', 'spark-repl', 'samples'
 
 project(':core').name = 'keplin-core'
+project(':script-templates').name = 'keplin-script-templates'
 project(':maven-resolver').name = 'keplin-maven-resolver'
 project(':samples').name = 'keplin-samples'
 project(':spark-repl').name = 'keplin-spark-repl'

@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
-import uy.kohesive.keplin.kotlin.util.scripting.ScriptTemplateWithArgs
+import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
 import uy.kohesive.keplin.kotlin.util.scripting.findRequiredScriptingJarFiles
 import java.io.Closeable
 import java.io.File
@@ -28,7 +28,7 @@ import kotlin.reflect.KClass
 
 class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.currentTimeMillis()}",
                      val additionalClasspath: List<File> = emptyList(),
-                     val scriptDefinition: KotlinScriptDefinition = DefaultScriptDefinition(ScriptTemplateWithArgs::class),
+                     val scriptDefinition: KotlinScriptDefinition = DefaultScriptDefinition(uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class),
                      val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : Closeable {
     private val disposable = Disposer.newDisposable()
 
