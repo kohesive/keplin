@@ -2,6 +2,8 @@ package uy.kohesive.keplin.common
 
 import org.junit.Ignore
 import org.junit.Test
+import uy.kohesive.keplin.kotlin.core.scripting.CompileErrorException
+import uy.kohesive.keplin.kotlin.core.scripting.EvalRuntimeException
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
 import uy.kohesive.keplin.kotlin.util.scripting.containingClasspath
 import kotlin.test.assertEquals
@@ -122,6 +124,56 @@ class TestResettableReplEngine {
                  result
             """)
             assertEquals(100, outerEval.resultValue)
+        }
+    }
+
+
+    @Test
+    fun testCompileAllFirstEvalAllLast() {
+        ResettableRepl().use { repl ->
+            val line1 = repl.compile(repl.nextCodeLine("""val x = 1"""))
+            val line2 = repl.compile(repl.nextCodeLine("""val y = 2"""))
+            val line3 = repl.compile(repl.nextCodeLine("""x+y"""))
+
+            repl.eval(line1)
+            repl.eval(line2)
+            val result = repl.eval(line3)
+            assertEquals(3, result.resultValue)
+        }
+    }
+
+    @Test(expected = CompileErrorException::class)
+    fun testCompileInOrderThenEvalOutOfOrderError() {
+        ResettableRepl().use { repl ->
+            val line1 = repl.compile(repl.nextCodeLine("""val x = 1"""))
+            val line2 = repl.compile(repl.nextCodeLine("""val y = 2"""))
+            val line3 = repl.compile(repl.nextCodeLine("""x+y"""))
+
+            repl.eval(line1)
+            repl.eval(line3)
+            repl.eval(line2)
+        }
+    }
+
+    @Test
+    fun testBasicCompilerErrors() {
+        ResettableRepl().use { repl ->
+           try {
+               repl.compileAndEval("java.util.Xyz()")
+           } catch (ex: CompileErrorException) {
+               assertTrue("unresolved reference: Xyz" in ex.message!!)
+           }
+        }
+    }
+
+    @Test
+    fun testBasicRuntimeErrors() {
+        ResettableRepl().use { repl ->
+            try {
+                repl.compileAndEval("val x: String? = null; x!!")
+            } catch (ex: EvalRuntimeException) {
+                assertTrue("NullPointerException" in ex.message!!)
+            }
         }
     }
 }
