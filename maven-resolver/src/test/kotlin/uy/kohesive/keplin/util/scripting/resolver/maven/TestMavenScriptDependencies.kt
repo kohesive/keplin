@@ -2,9 +2,7 @@ package uy.kohesive.keplin.util.scripting.resolver.maven
 
 
 import org.junit.Test
-import uy.kohesive.keplin.kotlin.core.scripting.CompileErrorException
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
-import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.ConfigurableAnnotationBasedScriptDefinition
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver
 import java.time.Instant
@@ -12,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class TestMavenScriptDependencies {
@@ -25,9 +22,30 @@ class TestMavenScriptDependencies {
         ).use { repl ->
             repl.compileAndEval("""
                     @file:DependsOnMaven("junit:junit:4.12")
-                    org.junit.Assert.assertTrue(true)
+                    import org.junit.Assert.*
+
+                    assertTrue(true)
             """)
-            repl.compileAndEval("""org.junit.Assert.assertEquals("123", "123")""")
+            repl.compileAndEval("""assertEquals("123", "123")""")
+        }
+    }
+
+    @Test
+    fun testWithMavenDependencies2() {
+        ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
+                "varargTemplateWithMavenResolving",
+                uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class,
+                listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
+        ).use { repl ->
+            repl.compileAndEval("""
+                    @file:DependsOnMaven("uy.klutter:klutter-config-typesafe-jdk6:1.20.1")
+            """)
+            repl.compileAndEval("""
+                    import uy.klutter.config.typesafe.*
+
+                    val refCfg = ReferenceConfig()
+                    val appCfg = ApplicationConfig()
+            """)
         }
     }
 
@@ -39,8 +57,13 @@ class TestMavenScriptDependencies {
                 listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
         ).use { repl ->
             repl.compileAndEval("""@file:DependsOnMaven("uy.klutter:klutter-core-jdk6:1.20.1")""")
-            repl.compileAndEval("""import uy.klutter.core.jdk.*""")
+            repl.compileAndEval("""@file:DependsOnMaven("uy.klutter:klutter-core-jdk8:1.20.1")""")
+            repl.compileAndEval("""
+                                   import uy.klutter.core.jdk.*
+                                   import uy.klutter.core.jdk8.*
+                                """)
             val result = repl.compileAndEval("""10.minimum(100).maximum(50)""")
+            repl.compileAndEval("""println(utcNow().toIsoString())""")
             assertEquals(50, result.resultValue)
         }
     }
