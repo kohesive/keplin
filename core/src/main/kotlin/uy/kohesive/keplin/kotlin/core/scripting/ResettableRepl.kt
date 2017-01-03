@@ -9,13 +9,12 @@ import org.jetbrains.kotlin.cli.common.repl.InvokeWrapper
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
-import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
-import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
 import uy.kohesive.keplin.kotlin.util.scripting.findRequiredScriptingJarFiles
 import java.io.Closeable
 import java.io.File
@@ -44,7 +43,6 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
         addJvmClasspathRoots(additionalClasspath)
         put(CommonConfigurationKeys.MODULE_NAME, moduleName)
         put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
-        put(JVMConfigurationKeys.INCLUDE_RUNTIME, true)
     }
 
     private val compilerClasspath = compilerConfiguration.jvmClasspathRoots

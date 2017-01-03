@@ -1,3 +1,4 @@
 dependencies {
     compile project(':keplin-script-templates')
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-compiler', version: version_kotlin
 }

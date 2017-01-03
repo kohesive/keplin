@@ -8,11 +8,11 @@ import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.repl.messages.DiagnosticMessageHolder
 import org.jetbrains.kotlin.cli.jvm.repl.messages.ReplTerminalDiagnosticMessageHolder
-import org.jetbrains.kotlin.com.intellij.openapi.Disposable
-import org.jetbrains.kotlin.com.intellij.openapi.vfs.CharsetToolkit
-import org.jetbrains.kotlin.com.intellij.psi.PsiFileFactory
-import org.jetbrains.kotlin.com.intellij.psi.impl.PsiFileFactoryImpl
-import org.jetbrains.kotlin.com.intellij.testFramework.LightVirtualFile
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.vfs.CharsetToolkit
+import com.intellij.psi.PsiFileFactory
+import com.intellij.psi.impl.PsiFileFactoryImpl
+import com.intellij.testFramework.LightVirtualFile
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.idea.KotlinLanguage
@@ -32,6 +32,7 @@ open class DefaultResettableReplChecker(
 ) : ResettableReplChecker {
     protected val environment = run {
         compilerConfiguration.apply {
+            put(JVMConfigurationKeys.INCLUDE_RUNTIME, true)
             add(JVMConfigurationKeys.SCRIPT_DEFINITIONS, scriptDefinition)
             put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
             put(JVMConfigurationKeys.RETAIN_OUTPUT_IN_MEMORY, true)

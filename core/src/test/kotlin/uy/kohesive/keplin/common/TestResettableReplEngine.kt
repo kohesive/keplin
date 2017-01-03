@@ -1,14 +1,11 @@
 package uy.kohesive.keplin.common
 
-import org.junit.Ignore
 import org.junit.Test
 import uy.kohesive.keplin.kotlin.core.scripting.CompileErrorException
 import uy.kohesive.keplin.kotlin.core.scripting.EvalRuntimeException
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
-import uy.kohesive.keplin.kotlin.util.scripting.containingClasspath
 import uy.kohesive.keplin.kotlin.util.scripting.findClassJars
 import uy.kohesive.keplin.kotlin.util.scripting.findKotlinCompilerJars
-import uy.kohesive.keplin.kotlin.util.scripting.findRequiredScriptingJarFiles
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -38,9 +35,9 @@ class TestResettableReplEngine {
     @Test
     fun testAtomicCompileAndEval() {
         ResettableRepl().use { repl ->
-           repl.compileAndEval(repl.nextCodeLine("val x = 10"))
-           val evalResult = repl.compileAndEval("x")
-           assertEquals(10, evalResult.resultValue)
+            repl.compileAndEval(repl.nextCodeLine("val x = 10"))
+            val evalResult = repl.compileAndEval("x")
+            assertEquals(10, evalResult.resultValue)
         }
     }
 
@@ -113,7 +110,7 @@ class TestResettableReplEngine {
     @Test
     fun testRecursingScriptsDifferentEngines() {
         val extraClasspath = findClassJars(ResettableRepl::class) +
-                             findKotlinCompilerJars(true)
+                findKotlinCompilerJars(false)
 
         ResettableRepl(additionalClasspath = extraClasspath).use { repl ->
             val outerEval = repl.compileAndEval("""
@@ -121,7 +118,7 @@ class TestResettableReplEngine {
                  import uy.kohesive.keplin.kotlin.util.scripting.*
 
                  val extraClasspath =  findClassJars(ResettableRepl::class) +
-                                       findKotlinCompilerJars(true)
+                                       findKotlinCompilerJars(false)
                  val result = ResettableRepl(additionalClasspath = extraClasspath).use { repl ->
                     val innerEval = repl.compileAndEval("println(\"inner world\"); 100")
                     innerEval.resultValue
@@ -163,11 +160,11 @@ class TestResettableReplEngine {
     @Test
     fun testBasicCompilerErrors() {
         ResettableRepl().use { repl ->
-           try {
-               repl.compileAndEval("java.util.Xyz()")
-           } catch (ex: CompileErrorException) {
-               assertTrue("unresolved reference: Xyz" in ex.message!!)
-           }
+            try {
+                repl.compileAndEval("java.util.Xyz()")
+            } catch (ex: CompileErrorException) {
+                assertTrue("unresolved reference: Xyz" in ex.message!!)
+            }
         }
     }
 

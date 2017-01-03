@@ -1,0 +1,14 @@
+repositories {
+    maven { url 'http://dl.bintray.com/kotlin/kotlin-eap-1.1' }
+}
+
+dependencies {
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-runtime', version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-script-runtime', version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-compiler', version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-daemon-client', version: version_kotlin
+    compile group: "com.jcabi", name: "jcabi-aether", version: version_jcabi
+    compile group: "org.sonatype.aether", name: "aether-api", version: version_aether
+    compile group: "org.apache.maven", name: "maven-core", version: version_maven
+}
