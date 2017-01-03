@@ -36,7 +36,11 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
 
     private val compilerConfiguration = CompilerConfiguration().apply {
         addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
-        addJvmClasspathRoots(findRequiredScriptingJarFiles(scriptDefinition.template))
+        addJvmClasspathRoots(findRequiredScriptingJarFiles(scriptDefinition.template,
+                includeScriptEngine = false,
+                includeKotlinCompiler = false,
+                includeStdLib = true,
+                includeRuntime = true))
         addJvmClasspathRoots(additionalClasspath)
         put(CommonConfigurationKeys.MODULE_NAME, moduleName)
         put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
