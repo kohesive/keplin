@@ -272,7 +272,10 @@ class TestResettableReplEngine {
                     ScriptArgsWithTypes(arrayOf(arrayOf("1", "2")), arrayOf(Array<String>::class)))
             assertEquals(303, result.resultValue)
 
-            // drop back to original args
+            // TODO: decide if retaining last passed args to evaluator should be done (with the same stack that tracks current classloader,
+            //       or if not passing in args goes back to the default or none.
+
+            // test that we drop back to original args
             val result2 = repl.compileAndEval("args[0].toInt()")
             assertEquals(100, result2.resultValue)
         }
