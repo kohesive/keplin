@@ -18,14 +18,13 @@ import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.parsing.KotlinParserDefinition
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 open class DefaultResettableReplChecker(
         disposable: Disposable,
-        val scriptDefinition: KotlinScriptDefinition,
+        val scriptDefinition: KotlinScriptDefinitionWithDefaultingArgInfo,
         val compilerConfiguration: CompilerConfiguration,
         messageCollector: MessageCollector,
         val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()

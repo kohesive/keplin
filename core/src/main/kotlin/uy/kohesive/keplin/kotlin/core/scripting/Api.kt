@@ -80,7 +80,8 @@ data class EvalClassWithInstanceAndLoader(val klass: KClass<*>, val instance: An
 interface ResettableReplEvaluator : ResettableReplEvaluatorBase {
     fun eval(compileResult: ResettableReplCompiler.Response.CompiledClasses,
              invokeWrapper: InvokeWrapper?,
-             verifyHistory: List<ReplCodeLine> = compileResult.compiledHistory.dropLast(1)): Response
+             verifyHistory: List<ReplCodeLine> = compileResult.compiledHistory.dropLast(1),
+             scriptArgs: ScriptArgsWithTypes? = null): Response
 
     /***
      * Reset back to a given line number, returning the lines that were removed.

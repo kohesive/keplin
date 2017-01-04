@@ -10,11 +10,10 @@ import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
+import kotlin.reflect.KClass
 
 open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                                           baseClassloader: ClassLoader?,
-                                          val scriptArgs: Array<Any?>? = null,
-                                          val scriptArgsTypes: Array<Class<*>>? = null,
                                           val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : ResettableReplEvaluator {
 
     private val topClassLoader: ReplClassLoader = makeReplClassLoader(baseClassloader, baseClasspath)
@@ -31,7 +30,8 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
 
     override fun eval(compileResult: ResettableReplCompiler.Response.CompiledClasses,
                       invokeWrapper: InvokeWrapper?,
-                      verifyHistory: List<ReplCodeLine>): ResettableReplEvaluator.Response {
+                      verifyHistory: List<ReplCodeLine>,
+                      scriptArgs: ScriptArgsWithTypes?): ResettableReplEvaluator.Response {
         stateLock.write {
             val firstMismatch = history.firstMismatchingHistory(verifyHistory)
             if (firstMismatch != null) {
@@ -69,10 +69,13 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                         e as? Exception)
             }
 
+            val useScriptArgs = scriptArgs?.scriptArgs
+            val useScriptArgsTypes = scriptArgs?.scriptArgsTypes?.map { it.java }
+
             val constructorParams: Array<Class<*>> = (historyCopy.map { it.klass.java } +
-                    (scriptArgs?.mapIndexed { i, it -> scriptArgsTypes?.getOrNull(i) ?: it?.javaClass ?: Any::class.java } ?: emptyList())
+                    (useScriptArgs?.mapIndexed { i, it -> useScriptArgsTypes?.getOrNull(i) ?: it?.javaClass ?: Any::class.java } ?: emptyList())
                     ).toTypedArray()
-            val constructorArgs: Array<Any?> = (historyCopy.map { it.instance } + scriptArgs.orEmpty()).toTypedArray()
+            val constructorArgs: Array<Any?> = (historyCopy.map { it.instance } + useScriptArgs.orEmpty()).toTypedArray()
 
             val scriptInstanceConstructor = scriptClass.getConstructor(*constructorParams)
 

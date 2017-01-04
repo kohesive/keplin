@@ -12,8 +12,8 @@ import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
+import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
 import uy.kohesive.keplin.kotlin.util.scripting.findRequiredScriptingJarFiles
 import java.io.Closeable
 import java.io.File
@@ -26,8 +26,10 @@ import kotlin.reflect.KClass
 
 class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.currentTimeMillis()}",
                      val additionalClasspath: List<File> = emptyList(),
-                     val scriptDefinition: KotlinScriptDefinition = DefaultScriptDefinition(uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class),
-                     val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : Closeable {
+                     val scriptDefinition: KotlinScriptDefinitionWithDefaultingArgInfo =
+                     KotlinScriptDefinitionWithDefaultingArgInfo(ScriptTemplateWithArgs::class, ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES)),
+                     val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock(),
+                     defaultScriptArgs: ScriptArgsWithTypes? = scriptDefinition.defaultEmptyArgs) : Closeable {
     private val disposable = Disposer.newDisposable()
 
     private val messageCollector = PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false)
@@ -51,9 +53,15 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
        For reporting to the user the current known classpath as modified by evaluations
      */
     val currentClassPath: List<File> get() = stateLock.read { _currentClassPath }
+    var codeLineNumber = AtomicInteger(0)
 
     private val baseClassloader = URLClassLoader(compilerClasspath.map { it.toURI().toURL() }
             .toTypedArray(), Thread.currentThread().contextClassLoader)
+
+    var scriptArgs: ScriptArgsWithTypes? = defaultScriptArgs
+       get() = stateLock.read { field }
+       set(value) = stateLock.write{ field = value }
+
 
     private val compiler: DefaultResettableReplCompiler by lazy {
         DefaultResettableReplCompiler(disposable, scriptDefinition, compilerConfiguration,
@@ -63,11 +71,8 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
 
     private val evaluator: DefaultResettableReplEvaluator by lazy {
         DefaultResettableReplEvaluator(compilerConfiguration.jvmClasspathRoots, baseClassloader,
-                arrayOf(emptyArray<String>()),
                 stateLock = stateLock)
     }
-
-    var codeLineNumber = AtomicInteger(0)
 
     fun nextCodeLine(code: String) = stateLock.write { ReplCodeLine(codeLineNumber.incrementAndGet(), code) }
 
@@ -108,11 +113,11 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
         }
     }
 
-    fun compileAndEval(codeLine: ReplCodeLine): EvalResult {
+    fun compileAndEval(codeLine: ReplCodeLine, overrideScriptArgs: ScriptArgsWithTypes? = null): EvalResult {
         return stateLock.write {
             try {
                 @Suppress("DEPRECATION")
-                eval(compile(codeLine))
+                eval(compile(codeLine), overrideScriptArgs ?: scriptArgs)
             } catch (ex: ReplEvalRuntimeException) {
                 ex.errorResult.completedEvalHistory.lastOrNull()?.let { compiler.resetToLine(it) }
                 throw ex
@@ -120,8 +125,8 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
         }
     }
 
-    fun compileAndEval(code: String): EvalResult {
-        return stateLock.write { compileAndEval(nextCodeLine(code)) }
+    fun compileAndEval(code: String, overrideScriptArgs: ScriptArgsWithTypes? = null): EvalResult {
+        return stateLock.write { compileAndEval(nextCodeLine(code), overrideScriptArgs ?: scriptArgs) }
     }
 
     @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent, ", ReplaceWith("compileAndEval(codeLine)"))
@@ -141,9 +146,10 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
     }
 
     @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent, ", ReplaceWith("compileAndEval(codeLine)"))
-    fun eval(compileResult: CompileResult): EvalResult {
+    fun eval(compileResult: CompileResult, overrideScriptArgs: ScriptArgsWithTypes? = null): EvalResult {
         stateLock.write {
-            val result = evaluator.eval(compileResult.compilerData, EvalInvoker())
+            val result = evaluator.eval(compileResult.compilerData, EvalInvoker(),
+                    scriptArgs = overrideScriptArgs ?: scriptArgs)
             return when (result) {
                 is ResettableReplEvaluator.Response.Error.CompileTime -> throw ReplCompilerException(result)
                 is ResettableReplEvaluator.Response.Error.Runtime -> throw ReplEvalRuntimeException(result)
@@ -190,4 +196,5 @@ data class CompileResult(val codeLine: ReplCodeLine,
 
 data class EvalResult(val codeLine: ReplCodeLine, val resultValue: Any?)
 
-class DefaultScriptDefinition(template: KClass<out Any>) : KotlinScriptDefinition(template)
+class DefaultScriptDefinition(template: KClass<out Any>, scriptArgsWithTypes: ScriptArgsWithTypes?) :
+        KotlinScriptDefinitionWithDefaultingArgInfo(template, scriptArgsWithTypes)

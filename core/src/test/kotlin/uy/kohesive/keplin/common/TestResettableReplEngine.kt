@@ -3,9 +3,9 @@
 package uy.kohesive.keplin.common
 
 import org.junit.Test
-import uy.kohesive.keplin.kotlin.core.scripting.ReplCompilerException
-import uy.kohesive.keplin.kotlin.core.scripting.ReplEvalRuntimeException
-import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
+import uy.kohesive.keplin.kotlin.core.scripting.*
+import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
+import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithBindings
 import uy.kohesive.keplin.kotlin.util.scripting.findClassJars
 import uy.kohesive.keplin.kotlin.util.scripting.findKotlinCompilerJars
 import kotlin.test.assertEquals
@@ -132,6 +132,24 @@ class TestResettableReplEngine {
         }
     }
 
+    @Test
+    fun testRecursingScriptsSameEngines() {
+        val extraClasspath = findClassJars(ResettableRepl::class) +
+                findKotlinCompilerJars(false)
+        ResettableRepl(scriptDefinition = DefaultScriptDefinition(TestRecursiveScriptContext::class, null),
+                additionalClasspath = extraClasspath).apply {
+            scriptArgs = ScriptArgsWithTypes(arrayOf(this, mapOf<String, Any?>("x" to 100, "y" to 50)),
+                    arrayOf(ResettableRepl::class, Map::class))
+        }.use { repl ->
+            val outerEval = repl.compileAndEval("""
+                 val x = bindings.get("x") as Int
+                 val y = bindings.get("y") as Int
+                 kotlinScript.compileAndEval("println(\"inner world\"); ${"$"}x+${"$"}y").resultValue
+            """)
+            assertEquals(150, outerEval.resultValue)
+        }
+    }
+
 
     @Test
     fun testCompileAllFirstEvalAllLast() {
@@ -199,20 +217,16 @@ class TestResettableReplEngine {
     @Test
     fun testResumeAfterCompilerError() {
         ResettableRepl().use { repl ->
+            repl.compileAndEval("val x = 10")
             try {
-                repl.compileAndEval("val x = 10")
-                try {
-                    repl.compileAndEval("java.util.fish")
-                    fail("Expected compile error")
-                } catch (ex: ReplCompilerException) {
-                    // nop
-                }
-
-                val result = repl.compileAndEval("x")
-                assertEquals(10, result.resultValue)
-            } catch (ex: ReplEvalRuntimeException) {
-                assertTrue("NullPointerException" in ex.message!!)
+                repl.compileAndEval("java.util.fish")
+                fail("Expected compile error")
+            } catch (ex: ReplCompilerException) {
+                // nop
             }
+
+            val result = repl.compileAndEval("x")
+            assertEquals(10, result.resultValue)
         }
     }
 
@@ -236,4 +250,40 @@ class TestResettableReplEngine {
             }
         }
     }
+
+    @Test
+    fun testUsingArgsForScript() {
+        val scriptArgs = ScriptArgsWithTypes(arrayOf(arrayOf("100")), arrayOf(Array<String>::class))
+        ResettableRepl(scriptDefinition = DefaultScriptDefinition(ScriptTemplateWithArgs::class, scriptArgs)).use { repl ->
+            val result = repl.compileAndEval("args[0].toInt()")
+            assertEquals(100, result.resultValue)
+        }
+    }
+
+    @Test
+    fun testOverridingArgsOnEachEval() {
+        val scriptArgs = ScriptArgsWithTypes(arrayOf(arrayOf("100")), arrayOf(Array<String>::class))
+        ResettableRepl(scriptDefinition = DefaultScriptDefinition(ScriptTemplateWithArgs::class, scriptArgs)).use { repl ->
+            repl.compileAndEval("val y = args[0].toInt()")
+            repl.compileAndEval("val x = args[0].toInt()", ScriptArgsWithTypes(arrayOf(arrayOf("200")), arrayOf(Array<String>::class)))
+            val result = repl.compileAndEval("x + y + args[0].toInt() + args[1].toInt()",
+                    ScriptArgsWithTypes(arrayOf(arrayOf("1", "2")), arrayOf(Array<String>::class)))
+            assertEquals(303, result.resultValue)
+        }
+    }
+
+    @Test
+    fun testScriptDefinitionWithMapBindings() {
+        val scriptArgs = ScriptArgsWithTypes(arrayOf(mapOf<String, Any?>("x" to 100, "y" to 50)), arrayOf(Map::class))
+        ResettableRepl(scriptDefinition = DefaultScriptDefinition(ScriptTemplateWithBindings::class, scriptArgs)).use { repl ->
+            repl.compileAndEval("""val y = bindings.get("y") as Int""")
+            repl.compileAndEval("""val x = bindings.get("x") as Int""")
+            val result = repl.compileAndEval("""x + y + (bindings.get("z") as String).toInt()""",
+                    ScriptArgsWithTypes(arrayOf(mapOf<String, Any?>("z" to "3")), arrayOf(Map::class)))
+            assertEquals(153, result.resultValue)
+        }
+    }
 }
+
+
+abstract class TestRecursiveScriptContext(val kotlinScript: ResettableRepl, val bindings: Map<String, Any?>)
