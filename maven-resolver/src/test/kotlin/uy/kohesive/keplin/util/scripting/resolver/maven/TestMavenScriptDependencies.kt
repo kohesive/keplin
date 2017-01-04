@@ -2,7 +2,11 @@ package uy.kohesive.keplin.util.scripting.resolver.maven
 
 
 import org.junit.Test
+import uy.kohesive.keplin.kotlin.core.scripting.EMPTY_SCRIPT_ARGS
+import uy.kohesive.keplin.kotlin.core.scripting.EMPTY_SCRIPT_ARGS_TYPES
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
+import uy.kohesive.keplin.kotlin.core.scripting.ScriptArgsWithTypes
+import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.ConfigurableAnnotationBasedScriptDefinition
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver
 import java.time.Instant
@@ -13,13 +17,16 @@ import kotlin.test.assertEquals
 import kotlin.test.fail
 
 class TestMavenScriptDependencies {
+    fun makeEngine(): ResettableRepl = ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
+            "varargTemplateWithMavenResolving",
+            ScriptTemplateWithArgs::class,
+            ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES),
+            listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
+    )
+
     @Test
     fun testWithMavenDependencies() {
-        ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
-                "varargTemplateWithMavenResolving",
-                uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class,
-                listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
-        ).use { repl ->
+        makeEngine().use { repl ->
             repl.compileAndEval("""
                     @file:DependsOnMaven("junit:junit:4.12")
                     import org.junit.Assert.*
@@ -32,11 +39,7 @@ class TestMavenScriptDependencies {
 
     @Test
     fun testWithMavenDependencies2() {
-        ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
-                "varargTemplateWithMavenResolving",
-                uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class,
-                listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
-        ).use { repl ->
+        makeEngine().use { repl ->
             repl.compileAndEval("""
                     @file:DependsOnMaven("uy.klutter:klutter-config-typesafe-jdk6:1.20.1")
             """)
@@ -51,11 +54,7 @@ class TestMavenScriptDependencies {
 
     @Test
     fun testResolveLibWithExtensionFunctions() {
-        ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
-                "varargTemplateWithMavenResolving",
-                uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class,
-                listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
-        ).use { repl ->
+        makeEngine().use { repl ->
             repl.compileAndEval("""@file:DependsOnMaven("uy.klutter:klutter-core-jdk6:1.20.1")""")
             repl.compileAndEval("""@file:DependsOnMaven("uy.klutter:klutter-core-jdk8:1.20.1")""")
             repl.compileAndEval("""
@@ -70,11 +69,7 @@ class TestMavenScriptDependencies {
 
     @Test
     fun testMavenWithAFewThreads() {
-        ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
-                "varargTemplateWithMavenResolving",
-                uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs::class,
-                listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver()))
-        ).use { repl ->
+        makeEngine().use { repl ->
             val countdown = CountDownLatch(3)
             val errors = ConcurrentLinkedQueue<Exception>()
             val results = ConcurrentHashMap<String, Any?>()
