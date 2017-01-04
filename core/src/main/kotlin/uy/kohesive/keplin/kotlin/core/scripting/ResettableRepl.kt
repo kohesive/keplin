@@ -1,5 +1,6 @@
 package uy.kohesive.keplin.kotlin.core.scripting
 
+import com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -9,10 +10,8 @@ import org.jetbrains.kotlin.cli.common.repl.InvokeWrapper
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
-import com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
 import uy.kohesive.keplin.kotlin.util.scripting.findRequiredScriptingJarFiles
@@ -102,7 +101,7 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
         stateLock.write {
             val result = compiler.check(codeLine)
             return when (result) {
-                is ResettableReplChecker.Response.Error -> throw CompileErrorException(result)
+                is ResettableReplChecker.Response.Error -> throw ReplCompilerException(result)
                 is ResettableReplChecker.Response.Ok -> CheckResult(codeLine, true)
                 is ResettableReplChecker.Response.Incomplete -> CheckResult(codeLine, false)
                 else -> throw IllegalStateException("Unknown check result type ${result}")
@@ -111,20 +110,29 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
     }
 
     fun compileAndEval(codeLine: ReplCodeLine): EvalResult {
-        return stateLock.write { eval(compile(codeLine)) }
+        return stateLock.write {
+            try {
+                @Suppress("DEPRECATION")
+                eval(compile(codeLine))
+            } catch (ex: ReplEvalRuntimeException) {
+                ex.errorResult.completedEvalHistory.lastOrNull()?.let { compiler.resetToLine(it) }
+                throw ex
+            }
+        }
     }
 
     fun compileAndEval(code: String): EvalResult {
-        return stateLock.write { eval(compile(nextCodeLine(code))) }
+        return stateLock.write { compileAndEval(nextCodeLine(code)) }
     }
 
+    @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent, ", ReplaceWith("compileAndEval(codeLine)"))
     fun compile(codeLine: ReplCodeLine): CompileResult {
         stateLock.write {
             val result = compiler.compile(codeLine, null)
             return when (result) {
-                is ResettableReplCompiler.Response.Error -> throw CompileErrorException(result)
-                is ResettableReplCompiler.Response.HistoryMismatch -> throw CompileErrorException(result)
-                is ResettableReplCompiler.Response.Incomplete -> throw CompileErrorException(result)
+                is ResettableReplCompiler.Response.Error -> throw ReplCompilerException(result)
+                is ResettableReplCompiler.Response.HistoryMismatch -> throw ReplCompilerException(result)
+                is ResettableReplCompiler.Response.Incomplete -> throw ReplCompilerException(result)
                 is ResettableReplCompiler.Response.CompiledClasses -> {
                     CompileResult(codeLine, result)
                 }
@@ -133,14 +141,15 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
         }
     }
 
+    @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent, ", ReplaceWith("compileAndEval(codeLine)"))
     fun eval(compileResult: CompileResult): EvalResult {
         stateLock.write {
             val result = evaluator.eval(compileResult.compilerData, EvalInvoker())
             return when (result) {
-                is ResettableReplEvaluator.Response.Error.CompileTime -> throw CompileErrorException(result)
-                is ResettableReplEvaluator.Response.Error.Runtime -> throw EvalRuntimeException(result)
-                is ResettableReplEvaluator.Response.HistoryMismatch -> throw CompileErrorException(result)
-                is ResettableReplEvaluator.Response.Incomplete -> throw CompileErrorException(result)
+                is ResettableReplEvaluator.Response.Error.CompileTime -> throw ReplCompilerException(result)
+                is ResettableReplEvaluator.Response.Error.Runtime -> throw ReplEvalRuntimeException(result)
+                is ResettableReplEvaluator.Response.HistoryMismatch -> throw ReplCompilerException(result)
+                is ResettableReplEvaluator.Response.Incomplete -> throw ReplCompilerException(result)
                 is ResettableReplEvaluator.Response.UnitResult -> {
                     _currentClassPath.addAll(compileResult.compilerData.classpathAddendum)
                     EvalResult(compileResult.codeLine, Unit)
@@ -165,7 +174,7 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
     }
 }
 
-class CompileErrorException(val errorResult: ResettableReplCompiler.Response.Error) : Exception(errorResult.message) {
+class ReplCompilerException(val errorResult: ResettableReplCompiler.Response.Error) : Exception(errorResult.message) {
     constructor (checkResult: ResettableReplChecker.Response.Error) : this(ResettableReplCompiler.Response.Error(emptyList(), checkResult.message, checkResult.location))
     constructor (incompleteResult: ResettableReplCompiler.Response.Incomplete) : this(ResettableReplCompiler.Response.Error(incompleteResult.compiledHistory, "Incomplete Code", CompilerMessageLocation.NO_LOCATION))
     constructor (historyMismatchResult: ResettableReplCompiler.Response.HistoryMismatch) : this(ResettableReplCompiler.Response.Error(historyMismatchResult.compiledHistory, "History Mismatch", CompilerMessageLocation.create(null, historyMismatchResult.lineNo, 0, null)))
@@ -174,7 +183,7 @@ class CompileErrorException(val errorResult: ResettableReplCompiler.Response.Err
     constructor (historyMismatchResult: ResettableReplEvaluator.Response.HistoryMismatch) : this(ResettableReplCompiler.Response.Error(historyMismatchResult.completedEvalHistory, "History Mismatch", CompilerMessageLocation.create(null, historyMismatchResult.lineNo, 0, null)))
 }
 
-class EvalRuntimeException(val errorResult: ResettableReplEvaluator.Response.Error.Runtime) : Exception(errorResult.message, errorResult.cause)
+class ReplEvalRuntimeException(val errorResult: ResettableReplEvaluator.Response.Error.Runtime) : Exception(errorResult.message, errorResult.cause)
 
 data class CheckResult(val codeLine: ReplCodeLine, val isComplete: Boolean = true)
 data class CompileResult(val codeLine: ReplCodeLine,
