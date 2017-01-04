@@ -27,13 +27,15 @@ class TestSimpleEngine {
         return makeSimpleReplEngine(disposable, KotlinScriptDefinitionFromAnnotatedTemplate(annotatedTemplateClass, null, null, emptyMap()))
     }
 
-    fun makeSimpleReplEngine(disposable: Disposable, scriptDefinition: KotlinScriptDefinition): SimpleReplEngine {
+    fun makeSimpleReplEngine(disposable: Disposable, scriptDefinition: KotlinScriptDefinition,
+                             scriptArgs: Array<Any?>? = arrayOf(emptyArray<String>()),
+                             scriptArgsTypes: Array<Class<*>>? = arrayOf(Array<String>::class.java)): SimpleReplEngine {
         val messageCollector = PrintingMessageCollector(System.err, MessageRenderer.PLAIN_FULL_PATHS, false)
         val configuration = makeTestConfiguration(scriptDefinition, listOf(SimpleReplEngine::class))
 
         println("ENGINE CLASSPATH: ${configuration.jvmClasspathRoots.joinToString("\n")}")
         return SimpleReplEngine(disposable, scriptDefinition, configuration, messageCollector,
-                scriptArgs = arrayOf(emptyArray<String>()), scriptArgsTypes = arrayOf(Array<String>::class.java))
+                scriptArgs = scriptArgs, scriptArgsTypes = scriptArgsTypes)
     }
 
     class SimpleReplEngine(disposable: Disposable, scriptDefinition: KotlinScriptDefinition, configuration: CompilerConfiguration, messageCollector: MessageCollector,
@@ -92,6 +94,20 @@ class TestSimpleEngine {
             val (codeLine, result) = repl.compileAndEval("x + y")
             assertTrue(result is ReplEvalResult.ValueResult, "Unexpected eval result: $result")
             assertEquals(43, (result as ReplEvalResult.ValueResult).value)
+        } finally {
+            disposable.dispose()
+        }
+    }
+
+    @Test
+    fun testSimpleEngineWithArgs() {
+        val disposable = Disposer.newDisposable()
+        try {
+            val repl = makeSimpleReplEngine(disposable, TestGenericEngine.QuickScriptDefinition(ScriptTemplateWithArgs::class),
+                    scriptArgs = arrayOf(arrayOf("100")), scriptArgsTypes = arrayOf(Array<String>::class.java))
+            val (codeLine, result) = repl.compileAndEval("args[0].toInt()")
+            assertTrue(result is ReplEvalResult.ValueResult, "Unexpected eval result: $result")
+            assertEquals(100, (result as ReplEvalResult.ValueResult).value)
         } finally {
             disposable.dispose()
         }
