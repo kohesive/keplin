@@ -29,28 +29,35 @@ class TestSimpleEngine {
         val messageCollector = PrintingMessageCollector(System.err, MessageRenderer.PLAIN_FULL_PATHS, false)
         val configuration = makeTestConfiguration(scriptDefinition, listOf(SimpleReplEngine::class))
 
-        println("ENGINE CLASSPATH: ${configuration.jvmClasspathRoots.joinToString(",")}")
-        return SimpleReplEngine(disposable, scriptDefinition, configuration, messageCollector)
+        println("ENGINE CLASSPATH: ${configuration.jvmClasspathRoots.joinToString("\n")}")
+        return SimpleReplEngine(disposable, scriptDefinition, configuration, messageCollector,
+                scriptArgs = arrayOf(emptyArray<String>()), scriptArgsTypes = arrayOf(Array<String>::class.java))
     }
 
-    class SimpleReplEngine(val disposable: Disposable, scriptDefinition: KotlinScriptDefinition, configuration: CompilerConfiguration, messageCollector: MessageCollector) {
+    class SimpleReplEngine(disposable: Disposable, scriptDefinition: KotlinScriptDefinition, configuration: CompilerConfiguration, messageCollector: MessageCollector,
+                           val scriptArgs: Array<Any?>? = null,
+                           val scriptArgsTypes: Array<Class<*>>? = null) {
         val originalClasspath = configuration.jvmClasspathRoots
         private val baseClassloader = URLClassLoader(originalClasspath.map { it.toURI().toURL() }
                 .toTypedArray(), Thread.currentThread().contextClassLoader)
 
         private val compiler = GenericReplCompiler(disposable, scriptDefinition, configuration, messageCollector)
-        private val evaluator = GenericReplCompiledEvaluator(configuration.jvmClasspathRoots, baseClassloader, null, null)
+        private val evaluator = GenericReplCompiledEvaluator(configuration.jvmClasspathRoots, baseClassloader, scriptArgs, scriptArgsTypes)
 
         val currentClasspath = originalClasspath.toMutableList()
         val history: MutableList<ReplCodeLine> = arrayListOf()
         val lastLineNumber = AtomicInteger(0)
 
+        private fun makeCodeLine(code: String, lineNumber: Int = lastLineNumber.incrementAndGet()): ReplCodeLine {
+            return ReplCodeLine(lineNumber, code)
+        }
+
         fun compileAndEval(code: String): Pair<ReplCodeLine, ReplEvalResult> {
             val codeLine = ReplCodeLine(lastLineNumber.incrementAndGet(), code)
+
             val checkResult = compiler.check(codeLine, history)
             when (checkResult) {
-                is ReplCheckResult.Ok -> {
-                } // nop
+                is ReplCheckResult.Ok -> DO_NOTHING()
                 is ReplCheckResult.Incomplete -> return Pair(codeLine, ReplEvalResult.Incomplete(checkResult.updatedHistory))
                 is ReplCheckResult.Error -> return Pair(codeLine, ReplEvalResult.Error.CompileTime(checkResult.updatedHistory, checkResult.message, checkResult.location))
             }
@@ -60,8 +67,7 @@ class TestSimpleEngine {
                 is ReplCompileResult.Incomplete -> return Pair(codeLine, ReplEvalResult.Incomplete(compileResult.updatedHistory))
                 is ReplCompileResult.HistoryMismatch -> return Pair(codeLine, ReplEvalResult.HistoryMismatch(compileResult.updatedHistory, compileResult.lineNo))
                 is ReplCompileResult.Error -> return Pair(codeLine, ReplEvalResult.Error.CompileTime(compileResult.updatedHistory, compileResult.message, compileResult.location))
-                is ReplCompileResult.CompiledClasses -> {
-                } // nop
+                is ReplCompileResult.CompiledClasses -> DO_NOTHING()
             }
 
             val eval = evaluator.eval(codeLine, history, compileResult.classes,

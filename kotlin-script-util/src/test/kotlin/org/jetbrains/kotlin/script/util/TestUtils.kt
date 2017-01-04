@@ -10,6 +10,8 @@ import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
 import kotlin.reflect.KClass
 
+fun DO_NOTHING(): Unit = Unit
+
 fun makeTestConfiguration(scriptDefinition: KotlinScriptDefinition, extraClasses: List<KClass<out Any>>): CompilerConfiguration {
     return CompilerConfiguration().apply {
         put(CommonConfigurationKeys.MODULE_NAME, "kotlin-script-util-test")

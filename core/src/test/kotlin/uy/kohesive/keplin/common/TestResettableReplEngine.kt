@@ -1,14 +1,17 @@
 package uy.kohesive.keplin.common
 
+import com.sun.org.apache.xalan.internal.xsltc.compiler.CompilerException
+import org.jetbrains.kotlin.cli.common.repl.ReplEvalResult
 import org.junit.Test
-import uy.kohesive.keplin.kotlin.core.scripting.CompileErrorException
-import uy.kohesive.keplin.kotlin.core.scripting.EvalRuntimeException
+import uy.kohesive.keplin.kotlin.core.scripting.ReplCompilerException
+import uy.kohesive.keplin.kotlin.core.scripting.ReplEvalRuntimeException
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
 import uy.kohesive.keplin.kotlin.util.scripting.findClassJars
 import uy.kohesive.keplin.kotlin.util.scripting.findKotlinCompilerJars
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.junit.JUnitAsserter.fail
 
 class TestResettableReplEngine {
     @Test
@@ -144,7 +147,7 @@ class TestResettableReplEngine {
         }
     }
 
-    @Test(expected = CompileErrorException::class)
+    @Test(expected = ReplCompilerException::class)
     fun testCompileInOrderThenEvalOutOfOrderError() {
         ResettableRepl().use { repl ->
             val line1 = repl.compile(repl.nextCodeLine("""val x = 1"""))
@@ -176,7 +179,7 @@ class TestResettableReplEngine {
         ResettableRepl().use { repl ->
             try {
                 repl.compileAndEval("java.util.Xyz()")
-            } catch (ex: CompileErrorException) {
+            } catch (ex: ReplCompilerException) {
                 assertTrue("unresolved reference: Xyz" in ex.message!!)
             }
         }
@@ -187,7 +190,49 @@ class TestResettableReplEngine {
         ResettableRepl().use { repl ->
             try {
                 repl.compileAndEval("val x: String? = null; x!!")
-            } catch (ex: EvalRuntimeException) {
+            } catch (ex: ReplEvalRuntimeException) {
+                assertTrue("NullPointerException" in ex.message!!)
+            }
+        }
+    }
+
+    @Test
+    fun testResumeAfterCompilerError() {
+        ResettableRepl().use { repl ->
+            try {
+                repl.compileAndEval("val x = 10")
+                try {
+                    repl.compileAndEval("java.util.fish")
+                    fail("Expected compile error")
+                } catch (ex: ReplCompilerException) {
+                    // nop
+                }
+
+                val result = repl.compileAndEval("x")
+                assertEquals(10, result.resultValue)
+            } catch (ex: ReplEvalRuntimeException) {
+                assertTrue("NullPointerException" in ex.message!!)
+            }
+        }
+    }
+
+    @Test
+    fun testResumeAfterRuntimeError() {
+        // TODO: this fails, we need to get history back in sync somehow.
+        ResettableRepl().use { repl ->
+            try {
+                repl.compileAndEval("val y = 100")
+                repl.compileAndEval("val x: String? = null")
+                try {
+                    repl.compileAndEval("x!!")
+                    fail("Expected runtime error")
+                } catch (ex: ReplEvalRuntimeException) {
+                    // nop
+                }
+
+                val result = repl.compileAndEval("\"\$x \$y\"")
+                assertEquals("null 100", result.resultValue)
+            } catch (ex: ReplEvalRuntimeException) {
                 assertTrue("NullPointerException" in ex.message!!)
             }
         }

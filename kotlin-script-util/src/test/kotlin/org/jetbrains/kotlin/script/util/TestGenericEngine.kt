@@ -2,30 +2,21 @@ package org.jetbrains.kotlin.script.util
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
-import org.jetbrains.kotlin.cli.common.repl.*
-import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoot
-import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
+import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
+import org.jetbrains.kotlin.cli.common.repl.ReplEvalResult
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.repl.GenericRepl
-import org.jetbrains.kotlin.cli.jvm.repl.GenericReplCompiler
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
-import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.script.KotlinScriptDefinitionFromAnnotatedTemplate
-import org.jetbrains.kotlin.script.StandardScriptDefinition
 import org.jetbrains.kotlin.script.util.templates.StandardArgsScriptTemplateWithMavenResolving
-import org.jetbrains.kotlin.utils.PathUtil
 import org.junit.Test
 import java.net.URLClassLoader
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass
 import kotlin.script.templates.standard.ScriptTemplateWithArgs
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class TestGenericEngine {
@@ -40,12 +31,14 @@ class TestGenericEngine {
                 .toTypedArray(), Thread.currentThread().contextClassLoader)
 
         // println("ENGINE CLASSPATH: ${configuration.jvmClasspathRoots.joinToString("\n")}")
-        return GenericRepl(disposable, scriptDefinition, configuration, messageCollector, baseClassloader)
+        return GenericRepl(disposable, scriptDefinition, configuration, messageCollector, baseClassloader,
+                scriptArgs = arrayOf(emptyArray<String>()), scriptArgsTypes = arrayOf(Array<String>::class.java))
     }
 
-    class QuickScriptDefinition(template: KClass<out Any>): KotlinScriptDefinition(template)
+    class QuickScriptDefinition(template: KClass<out Any>) : KotlinScriptDefinition(template)
 
     data class GenericReplMemory(val lastLine: AtomicInteger = AtomicInteger(0), var history: List<ReplCodeLine> = arrayListOf())
+
     val genericReplMemory = hashMapOf<GenericRepl, GenericReplMemory>()
 
     fun GenericRepl.runCode(code: String): Any? {
@@ -55,11 +48,11 @@ class TestGenericEngine {
 
         return when (evalResult) {
             is ReplEvalResult.Error.CompileTime,
-                    is ReplEvalResult.HistoryMismatch,
-                    is ReplEvalResult.Incomplete -> fail ("Compilation failed $evalResult")
+            is ReplEvalResult.HistoryMismatch,
+            is ReplEvalResult.Incomplete -> fail("Compilation failed $evalResult")
             is ReplEvalResult.Error.Runtime -> fail("Runtime failed $evalResult")
-            is  ReplEvalResult.UnitResult,
-                    is ReplEvalResult.ValueResult -> {
+            is ReplEvalResult.UnitResult,
+            is ReplEvalResult.ValueResult -> {
                 memory.history = evalResult.updatedHistory
                 if (evalResult is ReplEvalResult.ValueResult) evalResult.value
                 else Unit
