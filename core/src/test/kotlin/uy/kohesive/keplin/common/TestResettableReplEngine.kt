@@ -269,6 +269,10 @@ class TestResettableReplEngine {
             val result = repl.compileAndEval("x + y + args[0].toInt() + args[1].toInt()",
                     ScriptArgsWithTypes(arrayOf(arrayOf("1", "2")), arrayOf(Array<String>::class)))
             assertEquals(303, result.resultValue)
+
+            // drop back to original args
+            val result2 = repl.compileAndEval("args[0].toInt()")
+            assertEquals(100, result2.resultValue)
         }
     }
 
