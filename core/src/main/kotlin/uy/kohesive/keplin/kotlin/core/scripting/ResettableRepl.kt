@@ -49,6 +49,9 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
     private val compilerClasspath = compilerConfiguration.jvmClasspathRoots
     private val _currentClassPath = compilerClasspath.toMutableList()
 
+    // TODO: curentClassPath represents the compiler/check side, but might not match the eval side which can reset its classpath
+    //       when resetToLine is called
+
     /*
        For reporting to the user the current known classpath as modified by evaluations
      */
