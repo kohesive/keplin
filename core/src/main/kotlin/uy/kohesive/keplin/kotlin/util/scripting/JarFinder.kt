@@ -11,7 +11,7 @@ fun findKotlinCompilerJarsOrEmpty(useEmbeddedCompiler: Boolean = true): List<Fil
     return listOf(K2JVMCompiler::class.containingClasspath(filter)).filterNotNull()
 }
 
-fun <T: Any> List<T>.assertNotEmpty(error: String): List<T> {
+fun <T : Any> List<T>.assertNotEmpty(error: String): List<T> {
     if (this.isEmpty()) throw IllegalStateException(error)
     return this
 }
@@ -52,10 +52,10 @@ fun findRequiredScriptingJarFiles(templateClass: KClass<out Any>? = null,
                                   includeRuntime: Boolean = true,
                                   additionalClasses: List<KClass<out Any>> = emptyList()): List<File> {
     val templateClassJars = if (templateClass != null) findClassJarsOrEmpty(templateClass).assertNotEmpty("Cannot find template classpath, which is required")
-                           else emptyList()
+    else emptyList()
     val additionalClassJars = additionalClasses.map { findClassJarsOrEmpty(it).assertNotEmpty("Missing JAR for additional class $it") }.flatten()
     val scriptEngineJars = if (includeScriptEngine) findClassJarsOrEmpty(ResettableRepl::class).assertNotEmpty("Cannot find repl engine classpath, which is required")
-                else emptyList()
+    else emptyList()
     val kotlinJars = (if (includeKotlinCompiler) findKotlinCompilerJars(useEmbeddableCompiler) else emptyList()) +
             (if (includeStdLib) findKotlinStdLibJars() else emptyList()) +
             (if (includeRuntime) findKotlinRuntimeJars() else emptyList())

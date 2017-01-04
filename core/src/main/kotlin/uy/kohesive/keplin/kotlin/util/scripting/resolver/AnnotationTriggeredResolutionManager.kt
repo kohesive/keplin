@@ -6,8 +6,7 @@ import java.io.File
 import java.util.concurrent.Future
 import kotlin.reflect.KClass
 
-class AnnotationTriggeredResolutionManager(val resolvers: List<AnnotationTriggeredScriptResolver>,
-                                           val defaultImports: List<String> = emptyList()) : ScriptDependenciesResolver {
+class AnnotationTriggeredResolutionManager(val resolvers: List<AnnotationTriggeredScriptResolver>) : ScriptDependenciesResolver {
     class ResolvedDependencies(override val classpath: List<File>, override val imports: List<String>) : KotlinScriptExternalDependencies
 
     val annotationSortOrder: Map<KClass<out Annotation>, Int> = HashMap<KClass<out Annotation>, Int>().apply {
@@ -45,7 +44,7 @@ class AnnotationTriggeredResolutionManager(val resolvers: List<AnnotationTrigger
             }.flatten().distinct()
         } else emptyList()
 
-        val defaultImports = if (previousDependencies == null) (defaultImports + (resolvers.map { it.autoImports }.flatten())).distinct() else emptyList()
+        val defaultImports = if (previousDependencies == null) resolvers.map { it.autoImports }.flatten().distinct() else emptyList()
 
         return ResolvedDependencies(defaultClassPath + depsFromAnnotations, defaultImports).asFuture()
     }

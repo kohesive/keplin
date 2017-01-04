@@ -36,8 +36,7 @@ class ResettableReplHistory<T> : Serializable {
         return if (history.peekLast().first == line) {
             history.removeLast()
             true
-        }
-        else {
+        } else {
             false
         }
     }

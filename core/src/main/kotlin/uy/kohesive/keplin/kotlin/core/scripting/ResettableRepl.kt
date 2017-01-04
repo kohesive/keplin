@@ -26,8 +26,8 @@ import kotlin.reflect.KClass
 
 class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.currentTimeMillis()}",
                      val additionalClasspath: List<File> = emptyList(),
-                     val scriptDefinition: KotlinScriptDefinitionWithDefaultingArgInfo =
-                     KotlinScriptDefinitionWithDefaultingArgInfo(ScriptTemplateWithArgs::class, ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES)),
+                     val scriptDefinition: KotlinScriptDefinitionEx =
+                     KotlinScriptDefinitionEx(ScriptTemplateWithArgs::class, ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES)),
                      val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock(),
                      defaultScriptArgs: ScriptArgsWithTypes? = scriptDefinition.defaultEmptyArgs) : Closeable {
     private val disposable = Disposer.newDisposable()
@@ -62,8 +62,8 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
             .toTypedArray(), Thread.currentThread().contextClassLoader)
 
     var scriptArgs: ScriptArgsWithTypes? = defaultScriptArgs
-       get() = stateLock.read { field }
-       set(value) = stateLock.write{ field = value }
+        get() = stateLock.read { field }
+        set(value) = stateLock.write { field = value }
 
 
     private val compiler: DefaultResettableReplCompiler by lazy {
@@ -200,4 +200,4 @@ data class CompileResult(val codeLine: ReplCodeLine,
 data class EvalResult(val codeLine: ReplCodeLine, val resultValue: Any?)
 
 class DefaultScriptDefinition(template: KClass<out Any>, scriptArgsWithTypes: ScriptArgsWithTypes?) :
-        KotlinScriptDefinitionWithDefaultingArgInfo(template, scriptArgsWithTypes)
+        KotlinScriptDefinitionEx(template, scriptArgsWithTypes)

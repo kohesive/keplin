@@ -3,18 +3,17 @@ package uy.kohesive.keplin.kotlin.util.scripting.resolver.local
 import org.jetbrains.kotlin.utils.addToStdlib.check
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationTriggeredScriptResolver
 import java.io.File
-import java.util.concurrent.ConcurrentLinkedDeque
 
-open class JarFileScriptDependenciesResolver() : uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationTriggeredScriptResolver {
+open class JarFileScriptDependenciesResolver() : AnnotationTriggeredScriptResolver {
     override val acceptedAnnotations = listOf(DirRepository::class, DependsOnJar::class)
     override val autoImports = listOf(DependsOnJar::class.java.`package`.name + ".*")
 
     private val resolvers = java.util.concurrent.ConcurrentLinkedDeque<LocalJarResolver>(listOf(DirectResolver()))
 
-    override fun resolveForAnnotation(annotation: Annotation): List<java.io.File> {
+    override fun resolveForAnnotation(annotation: Annotation): List<File> {
         return when (annotation) {
-            is uy.kohesive.keplin.kotlin.util.scripting.resolver.local.DirRepository -> {
-                uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver.FlatLibDirectoryResolver.Companion.tryCreate(annotation)
+            is DirRepository -> {
+                FlatLibDirectoryResolver.Companion.tryCreate(annotation)
                         ?.apply { resolvers.add(this) }
                         ?: throw IllegalArgumentException("Illegal argument for DirRepository annotation: $annotation")
                 emptyList()
@@ -31,11 +30,11 @@ open class JarFileScriptDependenciesResolver() : uy.kohesive.keplin.kotlin.util.
 
 
     interface LocalJarResolver {
-        fun tryResolve(dependsOn: uy.kohesive.keplin.kotlin.util.scripting.resolver.local.DependsOnJar): Iterable<java.io.File>?
+        fun tryResolve(dependsOn: DependsOnJar): Iterable<File>?
     }
 
-    class DirectResolver : uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver.LocalJarResolver {
-        override fun tryResolve(dependsOn: uy.kohesive.keplin.kotlin.util.scripting.resolver.local.DependsOnJar): Iterable<java.io.File>? {
+    class DirectResolver : LocalJarResolver {
+        override fun tryResolve(dependsOn: DependsOnJar): Iterable<File>? {
             return dependsOn.filename.check(String::isNotBlank)
                     ?.let(::File)
                     ?.check { it.exists() && (it.isFile || it.isDirectory) }

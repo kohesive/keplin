@@ -1,12 +1,12 @@
 package uy.kohesive.keplin.kotlin.util.scripting.resolver
 
-import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
+import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.parsing.KotlinParserDefinition
@@ -19,7 +19,7 @@ import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluat
 import org.jetbrains.kotlin.script.*
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.utils.tryCreateCallableMappingFromNamedArgs
-import uy.kohesive.keplin.kotlin.core.scripting.KotlinScriptDefinitionWithArgsInfo
+import uy.kohesive.keplin.kotlin.core.scripting.KotlinScriptDefinitionEx
 import uy.kohesive.keplin.kotlin.core.scripting.ScriptArgsWithTypes
 import java.io.File
 import kotlin.reflect.KClass
@@ -30,21 +30,29 @@ open class AnnotationTriggeredScriptDefinition(definitionName: String,
                                                template: KClass<out Any>,
                                                defaultEmptyArgs: ScriptArgsWithTypes? = null,
                                                val resolvers: List<AnnotationTriggeredScriptResolver> = emptyList(),
-                                               val defaultImports: List<String> = emptyList(),
+                                               defaultImports: List<String> = emptyList(),
                                                val scriptFilePattern: Regex = DEFAULT_SCRIPT_FILE_PATTERN.toRegex(),
                                                val environment: Map<String, Any?>? = null) :
-        KotlinScriptDefinitionWithArgsInfo(template, defaultEmptyArgs) {
+        KotlinScriptDefinitionEx(template, defaultEmptyArgs, defaultImports) {
     override val name = definitionName
     protected val acceptedAnnotations = resolvers.map { it.acceptedAnnotations }.flatten()
 
     override fun <TF : Any> isScript(file: TF): Boolean = scriptFilePattern.matches(getFileName(file))
 
     protected val resolutionManager: AnnotationTriggeredResolutionManager by lazy {
-        AnnotationTriggeredResolutionManager(resolvers, defaultImports)
+        AnnotationTriggeredResolutionManager(resolvers)
     }
 
     // TODO: implement other strategy - e.g. try to extract something from match with ScriptFilePattern
     override fun getScriptName(script: KtScript): Name = ScriptNameUtil.fileNameWithExtensionStripped(script, KotlinParserDefinition.STD_SCRIPT_EXT)
+
+    class MergeDependencies(val current: KotlinScriptExternalDependencies, val backup: KotlinScriptExternalDependencies) : KotlinScriptExternalDependencies {
+        override val imports: List<String> get() = (current.imports + backup.imports).distinct()
+        override val javaHome: String? get() = current.javaHome ?: backup.javaHome
+        override val classpath: Iterable<File> get() = (current.classpath + backup.classpath).distinct()
+        override val sources: Iterable<File> get() = (current.sources + backup.sources).distinct()
+        override val scripts: Iterable<File> get() = (current.scripts + backup.scripts).distinct()
+    }
 
     override fun <TF : Any> getDependenciesFor(file: TF, project: Project, previousDependencies: KotlinScriptExternalDependencies?): KotlinScriptExternalDependencies? {
         fun logClassloadingError(ex: Throwable) {
@@ -72,7 +80,9 @@ open class AnnotationTriggeredScriptDefinition(definitionName: String,
             val fileDeps = resolutionManager.resolve(makeScriptContents(), environment, Companion::logScriptDefMessage, previousDependencies)
             // TODO: use it as a Future
             val updatedDependencies = fileDeps.get()
-            return updatedDependencies
+            val backupDependencies = super.getDependenciesFor(file, project, previousDependencies)
+            return if (updatedDependencies == null || backupDependencies == null) updatedDependencies ?: backupDependencies
+            else MergeDependencies(updatedDependencies, backupDependencies)
         } catch (ex: Throwable) {
             logClassloadingError(ex)
         }

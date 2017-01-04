@@ -9,7 +9,6 @@ import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithBind
 import uy.kohesive.keplin.kotlin.util.scripting.findClassJars
 import uy.kohesive.keplin.kotlin.util.scripting.findKotlinCompilerJars
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationTriggeredScriptDefinition
-import uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver
 import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -291,12 +290,37 @@ class TestResettableReplEngine {
         }
     }
 
+    @Test
+    fun testWithoutDefaultImportsFails() {
+        ResettableRepl(scriptDefinition = KotlinScriptDefinitionEx(ScriptTemplateWithArgs::class,
+                ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES))).use { repl ->
+            try {
+                repl.compileAndEval("""val now = Instant.now()""")
+                fail("Expected compile error")
+            } catch (ex: ReplCompilerException) {
+                assertTrue("unresolved reference: Instant" in ex.message!!)
+            }
+        }
+    }
+
+    @Test
+    fun testWithDefaultImports() {
+        ResettableRepl(scriptDefinition = KotlinScriptDefinitionEx(ScriptTemplateWithArgs::class,
+                ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES),
+                defaultImports = listOf("java.time.*"))).use { repl ->
+            val now = Instant.now()
+            repl.compileAndEval("""val now = Instant.now()""")
+            val result = repl.compileAndEval("""now""").resultValue as Instant
+            assertTrue(result >= now)
+        }
+    }
+
     fun makeConfigurableEngine(defaultImports: List<String> = emptyList()): ResettableRepl =
             ResettableRepl(scriptDefinition = AnnotationTriggeredScriptDefinition(
-            "varargTemplateWithMavenResolving",
-            ScriptTemplateWithArgs::class,
-            ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES),
-            defaultImports = defaultImports))
+                    "varargTemplateWithMavenResolving",
+                    ScriptTemplateWithArgs::class,
+                    ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES),
+                    defaultImports = defaultImports))
 
     @Test
     fun testConfigurableResolversEmpty() {

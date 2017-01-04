@@ -1,5 +1,10 @@
 package uy.kohesive.keplin.kotlin.core.scripting
 
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.vfs.CharsetToolkit
+import com.intellij.psi.PsiFileFactory
+import com.intellij.psi.impl.PsiFileFactoryImpl
+import com.intellij.testFramework.LightVirtualFile
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -8,11 +13,6 @@ import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.repl.messages.DiagnosticMessageHolder
 import org.jetbrains.kotlin.cli.jvm.repl.messages.ReplTerminalDiagnosticMessageHolder
-import com.intellij.openapi.Disposable
-import com.intellij.openapi.vfs.CharsetToolkit
-import com.intellij.psi.PsiFileFactory
-import com.intellij.psi.impl.PsiFileFactoryImpl
-import com.intellij.testFramework.LightVirtualFile
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.idea.KotlinLanguage
@@ -24,7 +24,7 @@ import kotlin.concurrent.write
 
 open class DefaultResettableReplChecker(
         disposable: Disposable,
-        val scriptDefinition: KotlinScriptDefinitionWithDefaultingArgInfo,
+        val scriptDefinition: KotlinScriptDefinitionEx,
         val compilerConfiguration: CompilerConfiguration,
         messageCollector: MessageCollector,
         val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()

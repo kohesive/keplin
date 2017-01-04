@@ -10,7 +10,6 @@ import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
-import kotlin.reflect.KClass
 
 open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                                           baseClassloader: ClassLoader?,
