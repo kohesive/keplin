@@ -77,7 +77,6 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
      */
     fun resetToLine(lineNumber: Int): List<ReplCodeLine> {
         stateLock.write {
-            // TODO: thread safety across compiler and evaluator
             codeLineNumber.set(lineNumber)
             val removedCompiledLines = compiler.resetToLine(lineNumber)
             val removedEvaluatorLines = evaluator.resetToLine(lineNumber)

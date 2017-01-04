@@ -80,9 +80,10 @@ open class DefaultResettableReplCompiler(disposable: Disposable,
             if (lastDependencies != newDependencies) {
                 lastDependencies = newDependencies
                 classpathAddendum = newDependencies?.let { environment.updateClasspath(it.classpath.map(::JvmClasspathRoot)) }
+                // TODO: the classpath for compilation should reset back to the correct point when resetting, only the evaluator resets now
+                //       ...not sure it is possible environment doesn't have a removeClasspath option.  The line above is the issue that is
+                //       not reset
             }
-
-            // TODO: the classpath for compilation should reset back to the correct point as well, only the evaluator resets now
 
             val analysisResult = analyzerEngine.analyzeReplLine(psiFile, codeLine)
             AnalyzerWithCompilerReport.reportDiagnostics(analysisResult.diagnostics, errorHolder)

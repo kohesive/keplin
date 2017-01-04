@@ -218,7 +218,6 @@ class TestResettableReplEngine {
 
     @Test
     fun testResumeAfterRuntimeError() {
-        // TODO: this fails, we need to get history back in sync somehow.
         ResettableRepl().use { repl ->
             try {
                 repl.compileAndEval("val y = 100")
