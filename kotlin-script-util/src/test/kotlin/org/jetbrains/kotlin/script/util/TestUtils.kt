@@ -34,6 +34,5 @@ fun makeTestConfiguration(scriptDefinition: KotlinScriptDefinition, extraClasses
                 }
             }
         }
-        put(JVMConfigurationKeys.INCLUDE_RUNTIME, true)
     }
 }

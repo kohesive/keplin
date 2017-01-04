@@ -32,7 +32,6 @@ open class DefaultResettableReplChecker(
 ) : ResettableReplChecker {
     protected val environment = run {
         compilerConfiguration.apply {
-            put(JVMConfigurationKeys.INCLUDE_RUNTIME, true)
             add(JVMConfigurationKeys.SCRIPT_DEFINITIONS, scriptDefinition)
             put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
             put(JVMConfigurationKeys.RETAIN_OUTPUT_IN_MEMORY, true)
