@@ -54,7 +54,7 @@ fun findRequiredScriptingJarFiles(templateClass: KClass<out Any>? = null,
     val templateClassJars = if (templateClass != null) findClassJarsOrEmpty(templateClass).assertNotEmpty("Cannot find template classpath, which is required")
                            else emptyList()
     val additionalClassJars = additionalClasses.map { findClassJarsOrEmpty(it).assertNotEmpty("Missing JAR for additional class $it") }.flatten()
-    val scriptEngineJars = if (includeScriptEngine) findClassJarsOrEmpty(ResettableRepl::class)?.assertNotEmpty("Cannot find repl engine classpath, which is required")
+    val scriptEngineJars = if (includeScriptEngine) findClassJarsOrEmpty(ResettableRepl::class).assertNotEmpty("Cannot find repl engine classpath, which is required")
                 else emptyList()
     val kotlinJars = (if (includeKotlinCompiler) findKotlinCompilerJars(useEmbeddableCompiler) else emptyList()) +
             (if (includeStdLib) findKotlinStdLibJars() else emptyList()) +

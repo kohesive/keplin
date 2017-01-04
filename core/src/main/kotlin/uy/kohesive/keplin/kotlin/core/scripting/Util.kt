@@ -12,4 +12,4 @@ fun makeReplClassLoader(baseClassloader: ClassLoader?, baseClasspath: Iterable<F
 fun makeSriptBaseName(codeLine: ReplCodeLine, generation: Long) =
         "Line_${codeLine.no}" + if (generation > 1) "_gen_${generation}" else ""
 
-fun DO_NOTHING(): Unit = Unit
+internal fun DO_NOTHING(): Unit = Unit

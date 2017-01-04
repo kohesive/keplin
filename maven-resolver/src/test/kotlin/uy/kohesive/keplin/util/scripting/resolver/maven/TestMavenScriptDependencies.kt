@@ -105,7 +105,6 @@ class TestMavenScriptDependencies {
                     """org.junit.Assert.assertTrue(true)""",
                     """org.junit.Assert.assertEquals("123", "123")"""
             ))
-            val now = Instant.now().toEpochMilli()
             runScriptThread("junit 3", listOf(
                     """
                         @file:DependsOnMaven("junit:junit:4.12")

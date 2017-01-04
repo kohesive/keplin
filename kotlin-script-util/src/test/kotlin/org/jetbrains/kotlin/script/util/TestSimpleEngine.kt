@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_VARIABLE")
+
 package org.jetbrains.kotlin.script.util
 
 import com.intellij.openapi.Disposable

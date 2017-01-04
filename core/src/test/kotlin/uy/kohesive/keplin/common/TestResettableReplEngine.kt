@@ -1,7 +1,7 @@
+@file:Suppress("DEPRECATION")
+
 package uy.kohesive.keplin.common
 
-import com.sun.org.apache.xalan.internal.xsltc.compiler.CompilerException
-import org.jetbrains.kotlin.cli.common.repl.ReplEvalResult
 import org.junit.Test
 import uy.kohesive.keplin.kotlin.core.scripting.ReplCompilerException
 import uy.kohesive.keplin.kotlin.core.scripting.ReplEvalRuntimeException
