@@ -19,28 +19,28 @@ import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluat
 import org.jetbrains.kotlin.script.*
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.utils.tryCreateCallableMappingFromNamedArgs
-import uy.kohesive.keplin.kotlin.core.scripting.KotlinScriptDefinitionWithDefaultingArgInfo
+import uy.kohesive.keplin.kotlin.core.scripting.KotlinScriptDefinitionWithArgsInfo
 import uy.kohesive.keplin.kotlin.core.scripting.ScriptArgsWithTypes
 import java.io.File
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
 import kotlin.reflect.primaryConstructor
 
-open class ConfigurableAnnotationBasedScriptDefinition(definitionName: String,
-                                                       template: KClass<out Any>,
-                                                       defaultEmptyArgs: ScriptArgsWithTypes? = null,
-                                                       val resolvers: List<AnnotationBasedScriptResolver> = emptyList(),
-                                                       val defaultImports: List<String> = emptyList(),
-                                                       val scriptFilePattern: Regex = DEFAULT_SCRIPT_FILE_PATTERN.toRegex(),
-                                                       val environment: Map<String, Any?>? = null) :
-        KotlinScriptDefinitionWithDefaultingArgInfo(template, defaultEmptyArgs) {
+open class AnnotationTriggeredScriptDefinition(definitionName: String,
+                                               template: KClass<out Any>,
+                                               defaultEmptyArgs: ScriptArgsWithTypes? = null,
+                                               val resolvers: List<AnnotationTriggeredScriptResolver> = emptyList(),
+                                               val defaultImports: List<String> = emptyList(),
+                                               val scriptFilePattern: Regex = DEFAULT_SCRIPT_FILE_PATTERN.toRegex(),
+                                               val environment: Map<String, Any?>? = null) :
+        KotlinScriptDefinitionWithArgsInfo(template, defaultEmptyArgs) {
     override val name = definitionName
     protected val acceptedAnnotations = resolvers.map { it.acceptedAnnotations }.flatten()
 
     override fun <TF : Any> isScript(file: TF): Boolean = scriptFilePattern.matches(getFileName(file))
 
-    protected val resolutionManager: AnnotationBasedScriptResolutionManager by lazy {
-        AnnotationBasedScriptResolutionManager(resolvers, defaultImports)
+    protected val resolutionManager: AnnotationTriggeredResolutionManager by lazy {
+        AnnotationTriggeredResolutionManager(resolvers, defaultImports)
     }
 
     // TODO: implement other strategy - e.g. try to extract something from match with ScriptFilePattern

@@ -7,7 +7,7 @@ import uy.kohesive.keplin.kotlin.core.scripting.EMPTY_SCRIPT_ARGS_TYPES
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
 import uy.kohesive.keplin.kotlin.core.scripting.ScriptArgsWithTypes
 import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
-import uy.kohesive.keplin.kotlin.util.scripting.resolver.ConfigurableAnnotationBasedScriptDefinition
+import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationTriggeredScriptDefinition
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.fail
 
 class TestMavenScriptDependencies {
-    fun makeEngine(): ResettableRepl = ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
+    fun makeEngine(): ResettableRepl = ResettableRepl(scriptDefinition = AnnotationTriggeredScriptDefinition(
             "varargTemplateWithMavenResolving",
             ScriptTemplateWithArgs::class,
             ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES),

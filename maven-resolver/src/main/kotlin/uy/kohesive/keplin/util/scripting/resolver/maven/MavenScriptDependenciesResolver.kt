@@ -9,13 +9,13 @@ import org.sonatype.aether.repository.RemoteRepository
 import org.sonatype.aether.resolution.DependencyResolutionException
 import org.sonatype.aether.util.artifact.DefaultArtifact
 import org.sonatype.aether.util.artifact.JavaScopes
-import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationBasedScriptResolver
+import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationTriggeredScriptResolver
 import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
 import java.util.concurrent.ConcurrentLinkedDeque
 
-open class MavenScriptDependenciesResolver() : AnnotationBasedScriptResolver {
+open class MavenScriptDependenciesResolver() : AnnotationTriggeredScriptResolver {
     override val acceptedAnnotations = listOf(MavenRepository::class, DependsOnMaven::class)
     override val autoImports = listOf(DependsOnMaven::class.java.`package`.name + ".*")
 

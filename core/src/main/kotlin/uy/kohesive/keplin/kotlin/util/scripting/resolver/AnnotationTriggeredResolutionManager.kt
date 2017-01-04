@@ -6,12 +6,12 @@ import java.io.File
 import java.util.concurrent.Future
 import kotlin.reflect.KClass
 
-class AnnotationBasedScriptResolutionManager(val resolvers: List<AnnotationBasedScriptResolver>,
-                                             val defaultImports: List<String> = emptyList()) : ScriptDependenciesResolver {
+class AnnotationTriggeredResolutionManager(val resolvers: List<AnnotationTriggeredScriptResolver>,
+                                           val defaultImports: List<String> = emptyList()) : ScriptDependenciesResolver {
     class ResolvedDependencies(override val classpath: List<File>, override val imports: List<String>) : KotlinScriptExternalDependencies
 
     val annotationSortOrder: Map<KClass<out Annotation>, Int> = HashMap<KClass<out Annotation>, Int>().apply {
-        resolvers.forEachIndexed { idx: Int, resolver: AnnotationBasedScriptResolver ->
+        resolvers.forEachIndexed { idx: Int, resolver: AnnotationTriggeredScriptResolver ->
             resolver.acceptedAnnotations.forEachIndexed { subIdx: Int, ann: KClass<out Annotation> ->
                 put(ann, idx * 1000 + subIdx)
             }

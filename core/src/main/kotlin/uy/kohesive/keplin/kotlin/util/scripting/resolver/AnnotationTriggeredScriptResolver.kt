@@ -3,7 +3,7 @@ package uy.kohesive.keplin.kotlin.util.scripting.resolver
 import java.io.File
 import kotlin.reflect.KClass
 
-interface AnnotationBasedScriptResolver {
+interface AnnotationTriggeredScriptResolver {
     /**
      * Accepted Annotations are processed in priority order in the list
      */

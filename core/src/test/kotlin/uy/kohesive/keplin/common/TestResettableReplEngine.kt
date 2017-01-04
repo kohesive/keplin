@@ -8,7 +8,7 @@ import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
 import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithBindings
 import uy.kohesive.keplin.kotlin.util.scripting.findClassJars
 import uy.kohesive.keplin.kotlin.util.scripting.findKotlinCompilerJars
-import uy.kohesive.keplin.kotlin.util.scripting.resolver.ConfigurableAnnotationBasedScriptDefinition
+import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationTriggeredScriptDefinition
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver
 import java.time.Instant
 import kotlin.test.assertEquals
@@ -292,7 +292,7 @@ class TestResettableReplEngine {
     }
 
     fun makeConfigurableEngine(defaultImports: List<String> = emptyList()): ResettableRepl =
-            ResettableRepl(scriptDefinition = ConfigurableAnnotationBasedScriptDefinition(
+            ResettableRepl(scriptDefinition = AnnotationTriggeredScriptDefinition(
             "varargTemplateWithMavenResolving",
             ScriptTemplateWithArgs::class,
             ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES),
