@@ -33,19 +33,16 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                       invokeWrapper: InvokeWrapper?,
                       verifyHistory: List<ReplCodeLine>): ResettableReplEvaluator.Response {
         stateLock.write {
-
             val firstMismatch = history.firstMismatchingHistory(verifyHistory)
             if (firstMismatch != null) {
                 return@eval ResettableReplEvaluator.Response.HistoryMismatch(history.historyAsSource(), firstMismatch)
             }
 
             val historyCopy = history.copyValues()
-
             var mainLineClassName: String? = null
+            val classLoader = makeReplClassLoader(history.lastValue()?.classLoader ?: topClassLoader, compileResult.classpathAddendum)
 
             fun classNameFromPath(path: String) = JvmClassName.byInternalName(path.replaceFirst("\\.class$".toRegex(), ""))
-
-            val classLoader = makeReplClassLoader(history.lastValue()?.classLoader ?: topClassLoader, compileResult.classpathAddendum)
 
             fun processCompiledClasses() {
                 // TODO: get class name from compiledResult instead of line number
@@ -60,27 +57,22 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                         }
             }
 
-            processCompiledClasses()
-
             fun compiledClassesNames() = compileResult.classes.map { classNameFromPath(it.path).fqNameForClassNameWithoutDollars.asString() }
+
+            processCompiledClasses()
 
             val scriptClass = try {
                 classLoader.loadClass(mainLineClassName!!)
             } catch (e: Throwable) {
-                return ResettableReplEvaluator.Response.Error.Runtime(history.historyAsSource(),
+                return@eval ResettableReplEvaluator.Response.Error.Runtime(history.historyAsSource(),
                         "Error loading class $mainLineClassName: known classes: ${compiledClassesNames()}",
                         e as? Exception)
             }
 
-            fun getConstructorParams(): Array<Class<*>> =
-                    (historyCopy.map { it.klass.java } +
-                            (scriptArgs?.mapIndexed { i, it -> scriptArgsTypes?.getOrNull(i) ?: it?.javaClass ?: Any::class.java } ?: emptyList())
-                            ).toTypedArray()
-
-            fun getConstructorArgs() = (historyCopy.map { it.instance } + scriptArgs.orEmpty()).toTypedArray()
-
-            val constructorParams: Array<Class<*>> = getConstructorParams()
-            val constructorArgs: Array<Any?> = getConstructorArgs()
+            val constructorParams: Array<Class<*>> = (historyCopy.map { it.klass.java } +
+                    (scriptArgs?.mapIndexed { i, it -> scriptArgsTypes?.getOrNull(i) ?: it?.javaClass ?: Any::class.java } ?: emptyList())
+                    ).toTypedArray()
+            val constructorArgs: Array<Any?> = (historyCopy.map { it.instance } + scriptArgs.orEmpty()).toTypedArray()
 
             val scriptInstanceConstructor = scriptClass.getConstructor(*constructorParams)
 
@@ -96,7 +88,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                         history.removeLast(compileResult.compiledCodeLine)
 
                         // ignore everything in the stack trace until this constructor call
-                        return ResettableReplEvaluator.Response.Error.Runtime(history.historyAsSource(),
+                        return@eval ResettableReplEvaluator.Response.Error.Runtime(history.historyAsSource(),
                                 renderReplStackTrace(e.cause!!, startFromMethodName = "${scriptClass.name}.<init>"), e as? Exception)
                     }
 
@@ -104,10 +96,10 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
             history.removeLast(compileResult.compiledCodeLine)
             history.add(compileResult.compiledCodeLine, EvalClassWithInstanceAndLoader(scriptClass.kotlin, scriptInstance, classLoader))
 
-            val rvField = scriptClass.getDeclaredField(SCRIPT_RESULT_FIELD_NAME).apply { isAccessible = true }
-            val rv: Any? = rvField.get(scriptInstance)
+            val resultField = scriptClass.getDeclaredField(SCRIPT_RESULT_FIELD_NAME).apply { isAccessible = true }
+            val resultValue: Any? = resultField.get(scriptInstance)
 
-            return if (compileResult.hasResult) ResettableReplEvaluator.Response.ValueResult(history.historyAsSource(), rv)
+            return if (compileResult.hasResult) ResettableReplEvaluator.Response.ValueResult(history.historyAsSource(), resultValue)
             else ResettableReplEvaluator.Response.UnitResult(history.historyAsSource())
         }
     }
