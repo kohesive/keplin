@@ -3,9 +3,8 @@
 package uy.kohesive.keplin.common
 
 import org.junit.Test
-import uy.kohesive.keplin.kotlin.core.scripting.ReplCompilerException
-import uy.kohesive.keplin.kotlin.core.scripting.ReplRepeatingMode
-import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
+import uy.kohesive.keplin.kotlin.core.scripting.*
+import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithBindings
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.junit.JUnitAsserter
@@ -118,6 +117,42 @@ class TestRepeatableEval {
             repl.eval(line1)
             repl.eval(line1)
             repl.eval(line1)
+        }
+    }
+
+    @Test
+    fun testRepeatableChangesValues() {
+        val scriptArgs = ScriptArgsWithTypes(arrayOf(emptyMap<String, Any?>()), arrayOf(Map::class))
+        ResettableRepl(repeatingMode = ReplRepeatingMode.REPEAT_ANY_PREVIOUS,
+                scriptDefinition = DefaultScriptDefinition(ScriptTemplateWithBindings::class, scriptArgs)).use { repl ->
+            val line1 = repl.compile(repl.nextCodeLine("""val something = bindings.get("x") as Int"""))
+            val line2 = repl.compile(repl.nextCodeLine("""val somethingElse = something + (bindings.get("y") as Int)"""))
+            val line3 = repl.compile(repl.nextCodeLine("""somethingElse + 10"""))
+
+            val firstArgs = ScriptArgsWithTypes(arrayOf(mapOf<String, Any?>("x" to 100, "y" to 50)), arrayOf(Map::class))
+            repl.eval(line1, firstArgs)
+            repl.eval(line2, firstArgs)
+            val result1 = repl.eval(line3)
+            assertEquals(160, result1.resultValue)
+
+            // same thing twice, same results
+            repl.eval(line1, firstArgs)
+            repl.eval(line2, firstArgs)
+            val result2 = repl.eval(line3)
+            assertEquals(160, result2.resultValue)
+
+            val secondArgs = ScriptArgsWithTypes(arrayOf(mapOf<String, Any?>("x" to 200, "y" to 70)), arrayOf(Map::class))
+
+            // eval line1 with different args affects it and would only affect line2
+            // but not line3 until line2 is re-eval'd
+            repl.eval(line1, secondArgs)
+            val result3 = repl.eval(line3)
+            assertEquals(160, result3.resultValue)
+
+            // but if we do line2 again, the line3 will change...
+            repl.eval(line2, secondArgs)
+            val result4 = repl.eval(line3)
+            assertEquals(280, result4.resultValue)
         }
     }
 }
