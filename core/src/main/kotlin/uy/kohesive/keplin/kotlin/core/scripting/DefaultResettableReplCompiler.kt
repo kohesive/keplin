@@ -50,14 +50,14 @@ open class DefaultResettableReplCompiler(disposable: Disposable,
         }.map { it.first }
     }
 
-    override val compilationHistory: List<ReplCodeLine> get() = stateLock.read { descriptorsHistory.historyAsSource() }
+    override val compilationHistory: List<ReplCodeLine> get() = stateLock.read { descriptorsHistory.copySources() }
 
     @Synchronized
     override fun compile(codeLine: ReplCodeLine, verifyHistory: List<ReplCodeLine>?): ResettableReplCompiler.Response {
         stateLock.write {
             val firstMismatch = descriptorsHistory.firstMismatchingHistory(verifyHistory)
             if (firstMismatch != null) {
-                return@compile ResettableReplCompiler.Response.HistoryMismatch(descriptorsHistory.historyAsSource(), firstMismatch)
+                return@compile ResettableReplCompiler.Response.HistoryMismatch(descriptorsHistory.copySources(), firstMismatch)
             }
 
             val currentGeneration = generation.get()
@@ -66,8 +66,8 @@ open class DefaultResettableReplCompiler(disposable: Disposable,
                 if (lineState == null || lineState!!.codeLine != codeLine) {
                     val res = check(codeLine, currentGeneration)
                     when (res) {
-                        is ResettableReplChecker.Response.Incomplete -> return@compile ResettableReplCompiler.Response.Incomplete(descriptorsHistory.historyAsSource())
-                        is ResettableReplChecker.Response.Error -> return@compile ResettableReplCompiler.Response.Error(descriptorsHistory.historyAsSource(), res.message, res.location)
+                        is ResettableReplChecker.Response.Incomplete -> return@compile ResettableReplCompiler.Response.Incomplete(descriptorsHistory.copySources())
+                        is ResettableReplChecker.Response.Error -> return@compile ResettableReplCompiler.Response.Error(descriptorsHistory.copySources(), res.message, res.location)
                         is ResettableReplChecker.Response.Ok -> DO_NOTHING()
                     }
                 }
@@ -87,7 +87,7 @@ open class DefaultResettableReplCompiler(disposable: Disposable,
             val analysisResult = analyzerEngine.analyzeReplLine(psiFile, codeLine)
             AnalyzerWithCompilerReport.reportDiagnostics(analysisResult.diagnostics, errorHolder)
             val scriptDescriptor = when (analysisResult) {
-                is DefaultResettableReplAnalyzer.ReplLineAnalysisResult.WithErrors -> return ResettableReplCompiler.Response.Error(descriptorsHistory.historyAsSource(), errorHolder.renderedDiagnostics)
+                is DefaultResettableReplAnalyzer.ReplLineAnalysisResult.WithErrors -> return ResettableReplCompiler.Response.Error(descriptorsHistory.copySources(), errorHolder.renderedDiagnostics)
                 is DefaultResettableReplAnalyzer.ReplLineAnalysisResult.Successful -> analysisResult.scriptDescriptor
                 else -> error("Unexpected result ${analysisResult.javaClass}")
             }
@@ -113,7 +113,7 @@ open class DefaultResettableReplCompiler(disposable: Disposable,
             val compiledCodeLine = CompiledReplCodeLine(generatedClassname, codeLine)
             descriptorsHistory.add(compiledCodeLine, scriptDescriptor)
 
-            return ResettableReplCompiler.Response.CompiledClasses(descriptorsHistory.historyAsSource(),
+            return ResettableReplCompiler.Response.CompiledClasses(descriptorsHistory.copySources(),
                     compiledCodeLine,
                     generatedClassname,
                     state.factory.asList().map { CompiledClassData(it.relativePath, it.asByteArray()) },

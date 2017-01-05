@@ -28,6 +28,7 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
                      val additionalClasspath: List<File> = emptyList(),
                      val scriptDefinition: KotlinScriptDefinitionEx =
                      KotlinScriptDefinitionEx(ScriptTemplateWithArgs::class, ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES)),
+                     val repeatingMode: ReplRepeatingMode = ReplRepeatingMode.NONE,
                      val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock(),
                      defaultScriptArgs: ScriptArgsWithTypes? = scriptDefinition.defaultEmptyArgs) : Closeable {
     private val disposable = Disposer.newDisposable()
@@ -67,13 +68,17 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
 
 
     private val compiler: DefaultResettableReplCompiler by lazy {
-        DefaultResettableReplCompiler(disposable, scriptDefinition, compilerConfiguration,
-                PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false),
+        DefaultResettableReplCompiler(disposable = disposable,
+                scriptDefinition = scriptDefinition,
+                compilerConfiguration = compilerConfiguration,
+                messageCollector = PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false),
                 stateLock = stateLock)
     }
 
     private val evaluator: DefaultResettableReplEvaluator by lazy {
-        DefaultResettableReplEvaluator(compilerConfiguration.jvmClasspathRoots, baseClassloader,
+        DefaultResettableReplEvaluator(baseClasspath = compilerConfiguration.jvmClasspathRoots,
+                baseClassloader = baseClassloader,
+                repeatingMode = repeatingMode,
                 stateLock = stateLock)
     }
 

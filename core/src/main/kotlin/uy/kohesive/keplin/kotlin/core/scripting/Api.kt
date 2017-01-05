@@ -120,3 +120,9 @@ interface ResettableReplEvaluator : ResettableReplEvaluatorBase {
         }
     }
 }
+
+enum class ReplRepeatingMode {
+    NONE,
+    REPEAT_ONLY_MOST_RECENT,
+    REPEAT_ANY_PREVIOUS
+}

@@ -72,7 +72,7 @@ class TestResettableReplEngine {
 
             try {
                 val removedLines = repl.resetToLine(line2)
-                assertEquals(listOf(line6, line5, line4, line3), removedLines)
+                assertEquals(listOf(line3, line4, line5, line6), removedLines)
 
                 val newLine3 = repl.nextCodeLine("x")
 
@@ -98,7 +98,7 @@ class TestResettableReplEngine {
                 assertEquals(99, newEvalResult6.resultValue)
 
                 val removedNewLines = repl.resetToLine(line2)
-                assertEquals(listOf(newLine6, newLine5, newLine4, newLine3), removedNewLines)
+                assertEquals(listOf(newLine3, newLine4, newLine5, newLine6), removedNewLines)
 
                 val finalLine3 = repl.nextCodeLine("x")
                 val finalCompileResult3 = repl.compile(finalLine3)
@@ -164,6 +164,116 @@ class TestResettableReplEngine {
             repl.eval(line2)
             val result = repl.eval(line3)
             assertEquals(3, result.resultValue)
+        }
+    }
+
+    @Test
+    fun testRepeatableLastNotAllowed() {
+        ResettableRepl(repeatingMode = ReplRepeatingMode.NONE).use { repl ->
+            val line1 = repl.compile(repl.nextCodeLine("""val x = 1"""))
+            val line2 = repl.compile(repl.nextCodeLine("""val y = 2"""))
+            val line3 = repl.compile(repl.nextCodeLine("""x+y"""))
+
+            repl.eval(line1)
+            repl.eval(line2)
+            repl.eval(line3)
+            try {
+                repl.eval(line3)
+                fail("Expecting history mismatch error")
+            } catch (ex: ReplCompilerException) {
+                assertTrue("History Mismatch" in ex.message!!)
+            }
+        }
+    }
+
+    @Test
+    fun testRepeatableAnyNotAllowedInModeNONE() {
+        ResettableRepl(repeatingMode = ReplRepeatingMode.NONE).use { repl ->
+            val line1 = repl.compile(repl.nextCodeLine("""val x = 1"""))
+            val line2 = repl.compile(repl.nextCodeLine("""val y = 2"""))
+            val line3 = repl.compile(repl.nextCodeLine("""x+y"""))
+
+            repl.eval(line1)
+            repl.eval(line2)
+            repl.eval(line3)
+
+            try {
+                repl.eval(line2)
+                fail("Expecting history mismatch error")
+            } catch (ex: ReplCompilerException) {
+                assertTrue("History Mismatch" in ex.message!!)
+            }
+        }
+    }
+
+    @Test
+    fun testRepeatableAnyNotAllowedInModeMOSTRECENT() {
+        ResettableRepl(repeatingMode = ReplRepeatingMode.REPEAT_ONLY_MOST_RECENT).use { repl ->
+            val line1 = repl.compile(repl.nextCodeLine("""val x = 1"""))
+            val line2 = repl.compile(repl.nextCodeLine("""val y = 2"""))
+            val line3 = repl.compile(repl.nextCodeLine("""x+y"""))
+
+            repl.eval(line1)
+            repl.eval(line2)
+            repl.eval(line3)
+
+            try {
+                repl.eval(line2)
+                fail("Expecting history mismatch error")
+            } catch (ex: ReplCompilerException) {
+                assertTrue("History Mismatch" in ex.message!!)
+            }
+        }
+    }
+
+    @Test
+    fun testRepeatableExecutionsMOSTRECENT() {
+        ResettableRepl(repeatingMode = ReplRepeatingMode.REPEAT_ONLY_MOST_RECENT).use { repl ->
+            val line1 = repl.compile(repl.nextCodeLine("""val x = 1"""))
+            val line2 = repl.compile(repl.nextCodeLine("""val y = 2"""))
+            val line3 = repl.compile(repl.nextCodeLine("""x+y"""))
+
+            repl.eval(line1)
+            repl.eval(line1)
+            repl.eval(line1)
+
+            repl.eval(line2)
+            repl.eval(line2)
+            repl.eval(line2)
+            repl.eval(line2)
+
+            val result = repl.eval(line3)
+            assertEquals(3, result.resultValue)
+        }
+    }
+
+    @Test
+    fun testRepeatableExecutionsREPEATANYPREVIOUS() {
+        ResettableRepl(repeatingMode = ReplRepeatingMode.REPEAT_ANY_PREVIOUS).use { repl ->
+            val line1 = repl.compile(repl.nextCodeLine("""val x = 1"""))
+            val line2 = repl.compile(repl.nextCodeLine("""val y = 2"""))
+            val line3 = repl.compile(repl.nextCodeLine("""x+y"""))
+
+            repl.eval(line1)
+
+            repl.eval(line2)
+
+            repl.eval(line1)
+
+            repl.eval(line2)
+
+            val resultFirstTime = repl.eval(line3)
+            assertEquals(3, resultFirstTime.resultValue)
+
+            repl.eval(line2)
+
+            val resultSecondTime = repl.eval(line3)
+            assertEquals(3, resultSecondTime.resultValue)
+
+            repl.eval(line1)
+            repl.eval(line1)
+            repl.eval(line1)
+            repl.eval(line1)
         }
     }
 
