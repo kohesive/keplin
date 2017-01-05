@@ -334,7 +334,7 @@ class TestResettableReplEngine {
                 repl.compileAndEval("java.util.fish")
                 fail("Expected compile error")
             } catch (ex: ReplCompilerException) {
-                // nop
+                DO_NOTHING()
             }
 
             val result = repl.compileAndEval("x")
@@ -352,7 +352,7 @@ class TestResettableReplEngine {
                     repl.compileAndEval("x!!")
                     fail("Expected runtime error")
                 } catch (ex: ReplEvalRuntimeException) {
-                    // nop
+                    DO_NOTHING()
                 }
 
                 val result = repl.compileAndEval("\"\$x \$y\"")

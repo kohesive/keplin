@@ -80,8 +80,8 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                         HistoryActions(
                                 effectiveHistory = trimmedHistory.copyValues(),
                                 verify = { trimmedHistory.firstMismatchingHistory(it) },
-                                addPlaceholder = { line, value -> /* nop */ },
-                                removePlaceholder = { true },
+                                addPlaceholder = { line, value -> DO_NOTHING() },
+                                removePlaceholder = { DO_NOTHING(true) },
                                 addFinal = { line, value ->
                                     history.removeLast(line)
                                     history.add(line, value)
@@ -101,8 +101,8 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                         HistoryActions(
                                 effectiveHistory = trimmedHistory.copyValues(),
                                 verify = { trimmedHistory.firstMismatchingHistory(it) },
-                                addPlaceholder = { line, value -> /* nop */ },
-                                removePlaceholder = { true },
+                                addPlaceholder = { line, value -> DO_NOTHING() },
+                                removePlaceholder = { DO_NOTHING(true) },
                                 addFinal = { line, value ->
                                     val extraLines = history.resetToLine(line)
                                     history.removeLast(line)
