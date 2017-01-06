@@ -121,11 +121,13 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
         }
     }
 
-    fun compileAndEval(codeLine: ReplCodeLine, overrideScriptArgs: ScriptArgsWithTypes? = null): EvalResult {
+    fun compileAndEval(codeLine: ReplCodeLine,
+                       overrideScriptArgs: ScriptArgsWithTypes? = null,
+                       wrapper: InvokeWrapper? = null): EvalResult {
         return stateLock.write {
             try {
                 @Suppress("DEPRECATION")
-                eval(compile(codeLine), overrideScriptArgs ?: defaultScriptArgs)
+                eval(compile(codeLine), overrideScriptArgs ?: defaultScriptArgs, wrapper)
             } catch (ex: ReplEvalRuntimeException) {
                 ex.errorResult.completedEvalHistory.lastOrNull()?.let { compiler.resetToLine(it) }
                 throw ex
@@ -133,8 +135,12 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
         }
     }
 
-    fun compileAndEval(code: String, overrideScriptArgs: ScriptArgsWithTypes? = null): EvalResult {
-        return stateLock.write { compileAndEval(nextCodeLine(code), overrideScriptArgs ?: defaultScriptArgs) }
+    fun compileAndEval(code: String,
+                       overrideScriptArgs: ScriptArgsWithTypes? = null,
+                       wrapper: InvokeWrapper? = null): EvalResult {
+        return stateLock.write {
+            compileAndEval(nextCodeLine(code), overrideScriptArgs ?: defaultScriptArgs, wrapper)
+        }
     }
 
     @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent, ", ReplaceWith("compileAndEval(codeLine)"))
@@ -154,9 +160,11 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
     }
 
     @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent, ", ReplaceWith("compileAndEval(codeLine)"))
-    fun eval(compileResult: CompileResult, overrideScriptArgs: ScriptArgsWithTypes? = null): EvalResult {
+    fun eval(compileResult: CompileResult,
+             overrideScriptArgs: ScriptArgsWithTypes? = null,
+             wrapper: InvokeWrapper? = null): EvalResult {
         stateLock.write {
-            val result = evaluator.eval(compileResult.compilerData, EvalInvoker(),
+            val result = evaluator.eval(compileResult.compilerData, wrapper ?: EvalInvoker(),
                     scriptArgs = overrideScriptArgs ?: defaultScriptArgs)
             return when (result) {
                 is ResettableReplEvaluator.Response.Error.CompileTime -> throw ReplCompilerException(result)

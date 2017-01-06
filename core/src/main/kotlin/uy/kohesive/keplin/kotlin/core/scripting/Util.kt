@@ -13,8 +13,8 @@ fun makeReplClassLoader(baseClassloader: ClassLoader?, baseClasspath: Iterable<F
 fun makeSriptBaseName(codeLine: ReplCodeLine, generation: Long) =
         "Line_${codeLine.no}" + if (generation > 1) "_gen_${generation}" else ""
 
-internal fun DO_NOTHING(): Unit = Unit
-internal fun <T> DO_NOTHING(v: T): T = v
+fun DO_NOTHING(): Unit = Unit
+fun <T> DO_NOTHING(v: T): T = v
 
 val EMPTY_SCRIPT_ARGS: Array<out Any?>? = arrayOf(emptyArray<String>())
 val EMPTY_SCRIPT_ARGS_TYPES: Array<out KClass<out Any>>? = arrayOf(Array<String>::class)

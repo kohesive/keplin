@@ -11,8 +11,8 @@ import uy.kohesive.keplin.util.scripting.resolver.maven.MavenScriptDependenciesR
 import java.io.Reader
 import javax.script.*
 
-class KeplinKotlinJsr223EvalOnlyScriptEngine(val factory: KelpinKotlinJsr223EvalOnlyEngineFactory,
-                                             defaultImports: List<String> = emptyList())
+class EvalOnlyEngine(val factory: EvalOnlyEngineFactory,
+                     defaultImports: List<String> = emptyList())
     : AbstractScriptEngine() {
     private val extraClasspath = findClassJars(ResettableRepl::class) +
             findKotlinCompilerJars(false)
@@ -38,7 +38,8 @@ class KeplinKotlinJsr223EvalOnlyScriptEngine(val factory: KelpinKotlinJsr223Eval
     override fun eval(script: String, context: ScriptContext): Any? {
         return engine.compileAndEval(engine.nextCodeLine(script),
                 ScriptArgsWithTypes(arrayOf<Any?>(engine, context),
-                        KeplinKotlinJsr223ScriptTemplateArgTypes)).resultValue
+                        KeplinKotlinJsr223ScriptTemplateArgTypes),
+                ContextRerouteScriptIoInvoker(context)).resultValue
     }
 
     override fun eval(reader: Reader, context: ScriptContext): Any? {

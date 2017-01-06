@@ -4,9 +4,9 @@ import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import javax.script.ScriptEngine
 import javax.script.ScriptEngineFactory
 
-open class KelpinKotlinJsr223EvalOnlyEngineFactory : ScriptEngineFactory {
+open class EvalOnlyEngineFactory : ScriptEngineFactory {
     override fun getScriptEngine(): ScriptEngine {
-        return KeplinKotlinJsr223EvalOnlyScriptEngine(this).apply { fixupArgsForScriptTemplate() }
+        return EvalOnlyEngine(this).apply { fixupArgsForScriptTemplate() }
     }
 
     override fun getLanguageName(): String = "kotlin"
