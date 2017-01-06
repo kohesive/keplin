@@ -14,7 +14,8 @@ import kotlin.concurrent.write
 open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                                           baseClassloader: ClassLoader?,
                                           val repeatingMode: ReplRepeatingMode = ReplRepeatingMode.REPEAT_ONLY_MOST_RECENT,
-                                          val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : ResettableReplEvaluator {
+                                          val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) :
+        ResettableReplEvaluator {
 
     private val topClassLoader: ReplClassLoader = makeReplClassLoader(baseClassloader, baseClasspath)
 
@@ -80,7 +81,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                         HistoryActions(
                                 effectiveHistory = trimmedHistory.copyValues(),
                                 verify = { trimmedHistory.firstMismatchingHistory(it) },
-                                addPlaceholder = { line, value -> DO_NOTHING() },
+                                addPlaceholder = { _, _ -> DO_NOTHING() },
                                 removePlaceholder = { DO_NOTHING(true) },
                                 addFinal = { line, value ->
                                     history.removeLast(line)
@@ -101,7 +102,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                         HistoryActions(
                                 effectiveHistory = trimmedHistory.copyValues(),
                                 verify = { trimmedHistory.firstMismatchingHistory(it) },
-                                addPlaceholder = { line, value -> DO_NOTHING() },
+                                addPlaceholder = { _, _ -> DO_NOTHING() },
                                 removePlaceholder = { DO_NOTHING(true) },
                                 addFinal = { line, value ->
                                     val extraLines = history.resetToLine(line)
@@ -127,7 +128,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                 historyActor.processClasses()
             } catch (e: Exception) {
                 return@eval ResettableReplEvaluator.Response.Error.Runtime(history.copySources(),
-                        e.message!!, e as? Exception)
+                        e.message!!, e)
             }
 
             val useScriptArgs = scriptArgs?.scriptArgs
