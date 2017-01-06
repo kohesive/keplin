@@ -6,6 +6,16 @@ import java.io.OutputStream
 import java.io.PrintStream
 import java.util.*
 
+// TODO: We trap the thread before it does an action need I/O captured, but if that thread spawns other, the new threads
+//       do not have their IO trapped.
+//
+//       It is possible to trap them as well using AspectJ around Thread.start(), but that brings in a dependency.
+//
+//       It is also possible to assign I/O intercept to a thread group since all new threads start in the same group as their
+//       parent.  So in the thread local initializer, we would do a lookup on the thread group to get the I/O trap, and
+//       then it would cache into the thread local.
+
+
 object InOutTrapper {
     init {
         System.setIn(ThreadAwareInputStreamForker(System.`in`))
@@ -49,13 +59,6 @@ object InOutTrapper {
         (System.`in` as? ThreadAwareInputStreamForker)?.popThread()
     }
 }
-
-
-
-
-// TODO: if thread is in a thread group then we can trap all the child threads...  good
-//       or bad idea?
-
 
 open class RerouteScriptIoInvoker(val input: InputStream, val output: PrintStream, val errorOutput: PrintStream) : InvokeWrapper {
     override fun <T> invoke(body: () -> T): T {
