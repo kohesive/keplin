@@ -1,8 +1,8 @@
 package uy.kohesive.keplin.kotlin.util.scripting
 
 import org.jetbrains.kotlin.cli.common.repl.InvokeWrapper
-import uy.kohesive.keplin.kotlin.core.scripting.DO_NOTHING
 import java.io.InputStream
+import java.io.OutputStream
 import java.io.PrintStream
 import java.util.*
 
@@ -13,38 +13,44 @@ object InOutTrapper {
         System.setErr(ThreadAwarePrintStreamForker(System.err))
     }
 
-    // make sure this class is loaded
-    fun ensure() {
-        DO_NOTHING()
+    fun trapSystemInOutForThread(input: InputStream, output: PrintStream, errOutput: PrintStream) {
+        (System.`in` as? ThreadAwareInputStreamForker)?.pushThread(input)
+        (System.out as? ThreadAwarePrintStreamForker)?.pushThread(output)
+        (System.err as? ThreadAwarePrintStreamForker)?.pushThread(errOutput)
+    }
+
+    fun removeSystemInOutForThread() {
+        (System.`in` as? ThreadAwareInputStreamForker)?.popThread()
+        (System.out as? ThreadAwarePrintStreamForker)?.popThread()
+        (System.err as? ThreadAwarePrintStreamForker)?.popThread()
+    }
+
+    fun trapSystemOutForThread(output: PrintStream) {
+        (System.out as? ThreadAwarePrintStreamForker)?.pushThread(output)
+    }
+
+    fun trapSystemErrForThread(errOutput: PrintStream) {
+        (System.err as? ThreadAwarePrintStreamForker)?.pushThread(errOutput)
+    }
+
+    fun trapSystemInForThread(input: InputStream) {
+        (System.`in` as? ThreadAwareInputStreamForker)?.pushThread(input)
+    }
+
+    fun removeSystemOutForThread() {
+        (System.out as? ThreadAwarePrintStreamForker)?.popThread()
+    }
+
+    fun removeSystemErrForThread() {
+        (System.err as? ThreadAwarePrintStreamForker)?.popThread()
+    }
+
+    fun removeSystemInForThread() {
+        (System.`in` as? ThreadAwareInputStreamForker)?.popThread()
     }
 }
 
-fun trapSystemOutForThread(output: PrintStream) {
-    InOutTrapper.ensure()
-    (System.out as? ThreadAwarePrintStreamForker)?.pushThread(output)
-}
 
-fun trapSystemErrForThread(errOutput: PrintStream) {
-    InOutTrapper.ensure()
-    (System.err as? ThreadAwarePrintStreamForker)?.pushThread(errOutput)
-}
-
-fun trapSystemInForThread(input: InputStream) {
-    InOutTrapper.ensure()
-    (System.`in` as? ThreadAwareInputStreamForker)?.pushThread(input)
-}
-
-fun removeSystemOutForThread() {
-    (System.out as? ThreadAwarePrintStreamForker)?.popThread()
-}
-
-fun removeSystemErrForThread() {
-    (System.err as? ThreadAwarePrintStreamForker)?.popThread()
-}
-
-fun removeSystemInForThread() {
-    (System.`in` as? ThreadAwareInputStreamForker)?.popThread()
-}
 
 
 // TODO: if thread is in a thread group then we can trap all the child threads...  good
@@ -53,53 +59,48 @@ fun removeSystemInForThread() {
 
 open class RerouteScriptIoInvoker(val input: InputStream, val output: PrintStream, val errorOutput: PrintStream) : InvokeWrapper {
     override fun <T> invoke(body: () -> T): T {
-        trapSystemOutForThread(output)
-        trapSystemErrForThread(errorOutput)
-        trapSystemInForThread(input)
+        InOutTrapper.trapSystemInOutForThread(input, output, errorOutput)
         try {
             return body()
         } finally {
-            removeSystemOutForThread()
-            removeSystemErrForThread()
-            removeSystemInForThread()
+            InOutTrapper.removeSystemInOutForThread()
         }
     }
 }
 
-class ThreadAwareInputStreamForker(val fallbackInputStream: InputStream) : InputStream() {
-    val traps = ThreadLocal<InputStream>()
+interface ThreadIoTrap<T : Any> {
+    val fallback: T
+    val traps: ThreadLocal<T>
 
-    fun mine(): InputStream = traps.get() ?: fallbackInputStream
+    fun mine(): T = traps.get() ?: fallback
 
-    fun pushThread(redirect: InputStream) {
+    fun pushThread(redirect: T) {
         traps.set(redirect)
     }
 
     fun popThread() {
         traps.remove()
     }
+}
 
+class IoTrapManager<T : Any>(override val fallback: T, override val traps: ThreadLocal<T> = ThreadLocal<T>()) : ThreadIoTrap<T>
+
+class ThreadAwareInputStreamForker(fallbackInputStream: InputStream)
+    : InputStream(), ThreadIoTrap<InputStream> by IoTrapManager(fallbackInputStream) {
     override fun read(): Int {
         return mine().read()
     }
-
 }
 
-
-class ThreadAwarePrintStreamForker(val fallbackPrintStream: PrintStream) : PrintStream(fallbackPrintStream) {
-    val traps = ThreadLocal<PrintStream>()
-
-    fun mine(): PrintStream = traps.get() ?: fallbackPrintStream
-
-    fun pushThread(redirect: PrintStream) {
-        traps.set(redirect)
+class ThreadAwareOutputStreamForker(fallbackOutputStream: OutputStream)
+    : OutputStream(), ThreadIoTrap<OutputStream> by IoTrapManager(fallbackOutputStream) {
+    override fun write(b: Int) {
+        mine().write(b)
     }
+}
 
-    fun popThread() {
-        traps.get()?.flush()
-        traps.remove()
-    }
-
+class ThreadAwarePrintStreamForker(fallbackPrintStream: PrintStream)
+    : PrintStream(fallbackPrintStream), ThreadIoTrap<PrintStream> by IoTrapManager(fallbackPrintStream) {
     override fun flush() {
         mine().flush()
     }
