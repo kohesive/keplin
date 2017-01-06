@@ -24,13 +24,14 @@ import kotlin.concurrent.read
 import kotlin.concurrent.write
 import kotlin.reflect.KClass
 
-class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.currentTimeMillis()}",
-                     val additionalClasspath: List<File> = emptyList(),
-                     val scriptDefinition: KotlinScriptDefinitionEx =
+// TODO:  GenericRepl compatible constructor
+open class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.currentTimeMillis()}",
+                          val additionalClasspath: List<File> = emptyList(),
+                          val scriptDefinition: KotlinScriptDefinitionEx =
                      KotlinScriptDefinitionEx(ScriptTemplateWithArgs::class, ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES)),
-                     val repeatingMode: ReplRepeatingMode = ReplRepeatingMode.NONE,
-                     val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock(),
-                     defaultScriptArgs: ScriptArgsWithTypes? = scriptDefinition.defaultEmptyArgs) : Closeable {
+                          val repeatingMode: ReplRepeatingMode = ReplRepeatingMode.NONE,
+                          val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : Closeable {
+
     private val disposable = Disposer.newDisposable()
 
     private val messageCollector = PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false)
@@ -62,10 +63,9 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
     private val baseClassloader = URLClassLoader(compilerClasspath.map { it.toURI().toURL() }
             .toTypedArray(), Thread.currentThread().contextClassLoader)
 
-    var scriptArgs: ScriptArgsWithTypes? = defaultScriptArgs
+    var defaultScriptArgs: ScriptArgsWithTypes? = scriptDefinition.defaultEmptyArgs
         get() = stateLock.read { field }
         set(value) = stateLock.write { field = value }
-
 
     private val compiler: DefaultResettableReplCompiler by lazy {
         DefaultResettableReplCompiler(disposable = disposable,
@@ -125,7 +125,7 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
         return stateLock.write {
             try {
                 @Suppress("DEPRECATION")
-                eval(compile(codeLine), overrideScriptArgs ?: scriptArgs)
+                eval(compile(codeLine), overrideScriptArgs ?: defaultScriptArgs)
             } catch (ex: ReplEvalRuntimeException) {
                 ex.errorResult.completedEvalHistory.lastOrNull()?.let { compiler.resetToLine(it) }
                 throw ex
@@ -134,7 +134,7 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
     }
 
     fun compileAndEval(code: String, overrideScriptArgs: ScriptArgsWithTypes? = null): EvalResult {
-        return stateLock.write { compileAndEval(nextCodeLine(code), overrideScriptArgs ?: scriptArgs) }
+        return stateLock.write { compileAndEval(nextCodeLine(code), overrideScriptArgs ?: defaultScriptArgs) }
     }
 
     @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent, ", ReplaceWith("compileAndEval(codeLine)"))
@@ -157,7 +157,7 @@ class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.cur
     fun eval(compileResult: CompileResult, overrideScriptArgs: ScriptArgsWithTypes? = null): EvalResult {
         stateLock.write {
             val result = evaluator.eval(compileResult.compilerData, EvalInvoker(),
-                    scriptArgs = overrideScriptArgs ?: scriptArgs)
+                    scriptArgs = overrideScriptArgs ?: defaultScriptArgs)
             return when (result) {
                 is ResettableReplEvaluator.Response.Error.CompileTime -> throw ReplCompilerException(result)
                 is ResettableReplEvaluator.Response.Error.Runtime -> throw ReplEvalRuntimeException(result)

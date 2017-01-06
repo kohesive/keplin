@@ -37,7 +37,7 @@ class TestEngineRecursion {
                 findKotlinCompilerJars(false)
         ResettableRepl(scriptDefinition = DefaultScriptDefinition(TestRecursiveScriptContext::class, null),
                 additionalClasspath = extraClasspath).apply {
-            scriptArgs = ScriptArgsWithTypes(arrayOf(this, mapOf<String, Any?>("x" to 100, "y" to 50)),
+            defaultScriptArgs = ScriptArgsWithTypes(arrayOf(this, mapOf<String, Any?>("x" to 100, "y" to 50)),
                     arrayOf(ResettableRepl::class, Map::class))
         }.use { repl ->
             val outerEval = repl.compileAndEval("""
