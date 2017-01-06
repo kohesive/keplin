@@ -13,13 +13,13 @@ object InOutTrapper {
         System.setErr(ThreadAwarePrintStreamForker(System.err))
     }
 
-    fun trapSystemInOutForThread(input: InputStream, output: PrintStream, errOutput: PrintStream) {
+    fun trapAllSystemInOutForThread(input: InputStream, output: PrintStream, errOutput: PrintStream) {
         (System.`in` as? ThreadAwareInputStreamForker)?.pushThread(input)
         (System.out as? ThreadAwarePrintStreamForker)?.pushThread(output)
         (System.err as? ThreadAwarePrintStreamForker)?.pushThread(errOutput)
     }
 
-    fun removeSystemInOutForThread() {
+    fun removeAllSystemInOutForThread() {
         (System.`in` as? ThreadAwareInputStreamForker)?.popThread()
         (System.out as? ThreadAwarePrintStreamForker)?.popThread()
         (System.err as? ThreadAwarePrintStreamForker)?.popThread()
@@ -59,11 +59,11 @@ object InOutTrapper {
 
 open class RerouteScriptIoInvoker(val input: InputStream, val output: PrintStream, val errorOutput: PrintStream) : InvokeWrapper {
     override fun <T> invoke(body: () -> T): T {
-        InOutTrapper.trapSystemInOutForThread(input, output, errorOutput)
+        InOutTrapper.trapAllSystemInOutForThread(input, output, errorOutput)
         try {
             return body()
         } finally {
-            InOutTrapper.removeSystemInOutForThread()
+            InOutTrapper.removeAllSystemInOutForThread()
         }
     }
 }
