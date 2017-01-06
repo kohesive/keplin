@@ -1,6 +1,6 @@
-/idea/
-/classes/
+.idea/
+classes/
 build/
-/.gradle/
+.gradle/
 *.iws
 *.iml
