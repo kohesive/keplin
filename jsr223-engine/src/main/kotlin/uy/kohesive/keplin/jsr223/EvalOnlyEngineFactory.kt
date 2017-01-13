@@ -9,6 +9,6 @@ open class EvalOnlyEngineFactory : AbstractEngineFactory() {
     }
 
     override fun getEngineName(): String = "Keplin Kotlin Eval-Only Scripting Engine"
-    override fun getNames(): List<String> = listOf("keplin-kotin-eval-only")
+    override fun getNames(): List<String> = listOf("keplin-kotin")
     override fun getThreadingModel(): String = "MULTITHREADED"
 }
