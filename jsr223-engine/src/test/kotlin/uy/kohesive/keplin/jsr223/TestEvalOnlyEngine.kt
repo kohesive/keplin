@@ -11,10 +11,9 @@ class TestEvalOnlyEngine {
     @Test
     fun testJsr223BasicEvalOnlyEngine() {
         val factory = ScriptEngineManager()
-        val engine = factory.getEngineByName("keplin-kotin-eval-only")
+        val engine = factory.getEngineByName("keplin-kotin")
 
         val capture = StringWriter()
-
         engine.context.writer = capture
 
         engine.put("z", 33)
