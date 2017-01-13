@@ -3,9 +3,9 @@ package uy.kohesive.keplin.jsr223
 import uy.kohesive.keplin.jsr223.core.scripting.AbstractEngineFactory
 import javax.script.ScriptEngine
 
-open class EvalOnlyEngineFactory : AbstractEngineFactory() {
+open class EvalOnlyReplEngineFactory : AbstractEngineFactory() {
     override fun getScriptEngine(): ScriptEngine {
-        return EvalOnlyEngine(this).apply { fixupArgsForScriptTemplate() }
+        return EvalOnlyReplEngine(this).apply { fixupArgsForScriptTemplate() }
     }
 
     override fun getEngineName(): String = "Keplin Kotlin Eval-Only Scripting Engine"

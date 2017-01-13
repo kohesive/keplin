@@ -1,2 +1,2 @@
-uy.kohesive.keplin.jsr223.EvalOnlyEngineFactory
-uy.kohesive.keplin.jsr223.CompilableEngineFactory
+uy.kohesive.keplin.jsr223.EvalOnlyReplEngineFactory
+uy.kohesive.keplin.jsr223.CompilableReplEngineFactory

@@ -7,12 +7,12 @@ import javax.script.ScriptEngineManager
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class TestCompilableEngine {
+class TestCompilableReplEngine {
 
     @Test
     fun testJsr223CompilableEngineEvalOnlyParts() {
         val factory = ScriptEngineManager()
-        val engine = factory.getEngineByName("keplin-kotin-compilable")
+        val engine = factory.getEngineByName("keplin-kotin-repl-compilable")
 
         val capture = StringWriter()
         engine.context.writer = capture
@@ -39,7 +39,7 @@ class TestCompilableEngine {
     @Test
     fun testJsr223CompilableEngineExecuteManyTimes() {
         val factory = ScriptEngineManager()
-        val engine = factory.getEngineByName("keplin-kotin-compilable")
+        val engine = factory.getEngineByName("keplin-kotin-repl-compilable")
         val compiler = engine as Compilable
 
         val capture = StringWriter()
