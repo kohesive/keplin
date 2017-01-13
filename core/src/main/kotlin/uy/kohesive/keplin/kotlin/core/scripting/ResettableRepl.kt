@@ -184,6 +184,8 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
         }
     }
 
+    val lastEvaluatedScript: EvalClassWithInstanceAndLoader? get() = evaluator.lastEvaluatedScript
+
     private class EvalInvoker : InvokeWrapper {
         override fun <T> invoke(body: () -> T): T {
             return body()
