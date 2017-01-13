@@ -1,6 +1,7 @@
 package uy.kohesive.keplin.kotlin.util.scripting
 
 import org.jetbrains.kotlin.cli.common.repl.InvokeWrapper
+import uy.kohesive.keplin.kotlin.core.scripting.DO_NOTHING
 import java.io.InputStream
 import java.io.OutputStream
 import java.io.PrintStream
@@ -17,6 +18,10 @@ import java.util.*
 
 
 object InOutTrapper {
+    val originalSystemIn = System.`in`
+    val originalSystemOut = System.out
+    val originalSystemErr = System.err
+
     init {
         System.setIn(ThreadAwareInputStreamForker(System.`in`))
         System.setOut(ThreadAwarePrintStreamForker(System.out))
@@ -57,6 +62,11 @@ object InOutTrapper {
 
     fun removeSystemInForThread() {
         (System.`in` as? ThreadAwareInputStreamForker)?.popThread()
+    }
+
+    @Suppress("NOTHING_TO_INLINE")
+    inline fun ensureInitialized() {
+        DO_NOTHING()
     }
 }
 

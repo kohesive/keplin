@@ -1,6 +1,7 @@
 package uy.kohesive.keplin.jsr223
 
 import org.junit.Test
+import java.io.StringWriter
 import javax.script.ScriptEngineManager
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -11,6 +12,10 @@ class TestEvalOnlyEngine {
     fun testJsr223BasicEvalOnlyEngine() {
         val factory = ScriptEngineManager()
         val engine = factory.getEngineByName("keplin-kotin-eval-only")
+
+        val capture = StringWriter()
+
+        engine.context.writer = capture
 
         engine.put("z", 33)
 
@@ -27,5 +32,7 @@ class TestEvalOnlyEngine {
             put("boundValue", 100)
         })
         assertEquals(143, result2)
+
+        assertEquals("Hello keplin-kotin-eval-only engine\n43\n", capture.toString())
     }
 }
