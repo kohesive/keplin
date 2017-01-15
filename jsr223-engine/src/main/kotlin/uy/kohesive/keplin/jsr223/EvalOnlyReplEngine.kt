@@ -14,5 +14,9 @@ class EvalOnlyReplEngine(factory: EvalOnlyReplEngineFactory,
             repeatingMode = ReplRepeatingMode.NONE,
             scriptDefinition = scriptDefinition
     )
+
+    companion object {
+        val jsr223EngineName = "keplin-kotin"
+    }
 }
 

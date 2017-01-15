@@ -9,6 +9,10 @@ open class EvalOnlyReplEngineFactory : AbstractEngineFactory() {
     }
 
     override fun getEngineName(): String = "Keplin Kotlin Eval-Only Scripting Engine"
-    override fun getNames(): List<String> = listOf("keplin-kotin")
+    override fun getNames(): List<String> = listOf(jsr223EngineName)
     override fun getThreadingModel(): String = "MULTITHREADED"
+
+    companion object {
+        val jsr223EngineName = EvalOnlyReplEngine.jsr223EngineName
+    }
 }

@@ -1,6 +1,6 @@
 package uy.kohesive.keplin.jsr223
 
-import uy.kohesive.keplin.jsr223.core.scripting.AbstractReplScriptEngine
+import uy.kohesive.keplin.jsr223.core.scripting.AbstractInvocableReplScriptEngine
 import uy.kohesive.keplin.jsr223.core.scripting.makeBestIoTrappingInvoker
 import uy.kohesive.keplin.kotlin.core.scripting.*
 import java.io.Reader
@@ -8,7 +8,7 @@ import javax.script.*
 
 class CompilableReplEngine(factory: ScriptEngineFactory,
                            defaultImports: List<String> = emptyList())
-    : AbstractReplScriptEngine(factory, defaultImports), Compilable {
+    : AbstractInvocableReplScriptEngine(factory, defaultImports), Compilable, Invocable {
 
     override val engine: ResettableRepl = ResettableRepl(
             moduleName = moduleName,
@@ -48,5 +48,9 @@ class CompilableReplEngine(factory: ScriptEngineFactory,
         override fun getEngine(): ScriptEngine {
             return this@CompilableReplEngine
         }
+    }
+
+    companion object {
+        val jsr223EngineName = "keplin-kotin-repl-compilable"
     }
 }

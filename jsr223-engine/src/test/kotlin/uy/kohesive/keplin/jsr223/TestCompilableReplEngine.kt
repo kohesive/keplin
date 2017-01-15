@@ -12,7 +12,7 @@ class TestCompilableReplEngine {
     @Test
     fun testJsr223CompilableEngineEvalOnlyParts() {
         val factory = ScriptEngineManager()
-        val engine = factory.getEngineByName("keplin-kotin-repl-compilable")
+        val engine = factory.getEngineByName(CompilableReplEngineFactory.jsr223EngineName)
 
         val capture = StringWriter()
         engine.context.writer = capture
@@ -39,7 +39,7 @@ class TestCompilableReplEngine {
     @Test
     fun testJsr223CompilableEngineExecuteManyTimes() {
         val factory = ScriptEngineManager()
-        val engine = factory.getEngineByName("keplin-kotin-repl-compilable")
+        val engine = factory.getEngineByName(CompilableReplEngineFactory.jsr223EngineName)
         val compiler = engine as Compilable
 
         val capture = StringWriter()
