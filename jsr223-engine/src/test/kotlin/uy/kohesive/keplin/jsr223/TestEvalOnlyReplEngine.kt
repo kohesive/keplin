@@ -69,18 +69,25 @@ class TestEvalOnlyReplEngine {
         invoker.getInterface(Runnable::class.java).run()
         assertEquals("running\n", capture.toString())
 
+        // we do this in three parts to make sure interface can span multiple evals
+
         engine.eval("""
-                    fun one(x: Int, y: Int) = x + y
-                    fun two(something: String) = "twoes "+something
-                   """)
-        // we do this in two parts to make sure interface can span multiple evals
+                      fun one(x: Int, y: Int) = x + y
+                    """)
         engine.eval("""
-                    fun three(): Int = 10
+                      fun two(something: String) = "twoes "+something
+                    """)
+        engine.eval("""
+                      fun three(): Int = 10
                     """)
         val foofy = invoker.getInterface(Foofy::class.java)
         assertEquals(33, foofy.one(21, 12))
         assertEquals("twoes a crowd", foofy.two("a crowd"))
         assertEquals(10, foofy.three())
+
+        // go back and do runnable again!
+        invoker.getInterface(Runnable::class.java).run()
+        assertEquals("running\nrunning\n", capture.toString())
     }
 
     interface Foofy {
