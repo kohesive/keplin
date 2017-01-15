@@ -72,10 +72,10 @@ data class CompiledReplCodeLine(val className: String, val source: ReplCodeLine)
 }
 
 interface ResettableReplEvaluatorBase {
-    val lastEvaluatedScript: EvalClassWithInstanceAndLoader?
+    val lastEvaluatedScripts: List<EvalClassWithInstanceAndLoader>
 }
 
-data class EvalClassWithInstanceAndLoader(val klass: KClass<*>, val instance: Any?, val classLoader: ClassLoader)
+data class EvalClassWithInstanceAndLoader(val klass: KClass<*>, val instance: Any?, val classLoader: ClassLoader, val invokeWrapper: InvokeWrapper?)
 
 interface ResettableReplEvaluator : ResettableReplEvaluatorBase {
     fun eval(compileResult: ResettableReplCompiler.Response.CompiledClasses,

@@ -141,7 +141,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
 
             val scriptInstanceConstructor = scriptClass.getConstructor(*constructorParams)
 
-            historyActor.addPlaceholder(compileResult.compiledCodeLine, EvalClassWithInstanceAndLoader(scriptClass.kotlin, null, classLoader))
+            historyActor.addPlaceholder(compileResult.compiledCodeLine, EvalClassWithInstanceAndLoader(scriptClass.kotlin, null, classLoader, invokeWrapper))
 
             val scriptInstance =
                     try {
@@ -156,7 +156,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                     }
 
             historyActor.removePlaceholder(compileResult.compiledCodeLine)
-            historyActor.addFinal(compileResult.compiledCodeLine, EvalClassWithInstanceAndLoader(scriptClass.kotlin, scriptInstance, classLoader))
+            historyActor.addFinal(compileResult.compiledCodeLine, EvalClassWithInstanceAndLoader(scriptClass.kotlin, scriptInstance, classLoader, invokeWrapper))
 
             val resultField = scriptClass.getDeclaredField(SCRIPT_RESULT_FIELD_NAME).apply { isAccessible = true }
             val resultValue: Any? = resultField.get(scriptInstance)
@@ -166,8 +166,8 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
         }
     }
 
-    override val lastEvaluatedScript: EvalClassWithInstanceAndLoader? get() {
-        return stateLock.read { history.lastValue() }
+    override val lastEvaluatedScripts: List<EvalClassWithInstanceAndLoader> get() {
+        return stateLock.read { history.copyValues() }
     }
 
     companion object {

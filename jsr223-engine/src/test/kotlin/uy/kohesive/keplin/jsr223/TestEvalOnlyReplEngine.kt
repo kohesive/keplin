@@ -1,6 +1,5 @@
 package uy.kohesive.keplin.jsr223
 
-import org.junit.Ignore
 import org.junit.Test
 import java.io.StringWriter
 import javax.script.Invocable
@@ -52,10 +51,12 @@ class TestEvalOnlyReplEngine {
         engine.eval("""class Bar(val base: Int) { fun foo(x: Int) = x + base; }""")
         val barInstance = engine.eval("""Bar(50)""")
         assertEquals(75, engine.invokeMethod(barInstance, "foo", 25))
+
+        // and call old thing again
+        assertEquals(50, invoker.invokeFunction("foo", 30))
     }
 
     @Test
-    @Ignore("Not yet implemented")
     fun testJsr223InvocableInterface() {
         val factory = ScriptEngineManager()
         val engine = factory.getEngineByName("keplin-kotin")
@@ -66,7 +67,25 @@ class TestEvalOnlyReplEngine {
 
         engine.eval("""fun run() { println("running") }""")
         invoker.getInterface(Runnable::class.java).run()
-        assertEquals("running", capture.toString())
+        assertEquals("running\n", capture.toString())
 
+        engine.eval("""
+                    fun one(x: Int, y: Int) = x + y
+                    fun two(something: String) = "twoes "+something
+                   """)
+        // we do this in two parts to make sure interface can span multiple evals
+        engine.eval("""
+                    fun three(): Int = 10
+                    """)
+        val foofy = invoker.getInterface(Foofy::class.java)
+        assertEquals(33, foofy.one(21, 12))
+        assertEquals("twoes a crowd", foofy.two("a crowd"))
+        assertEquals(10, foofy.three())
+    }
+
+    interface Foofy {
+        fun one(x: Int, y: Int): Int
+        fun two(s: String): String
+        fun three(): Int
     }
 }
