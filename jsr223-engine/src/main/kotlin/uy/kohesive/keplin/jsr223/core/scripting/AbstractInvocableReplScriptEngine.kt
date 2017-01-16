@@ -8,7 +8,11 @@ import java.lang.reflect.Proxy
 import javax.script.Invocable
 import javax.script.ScriptEngineFactory
 import javax.script.ScriptException
-import kotlin.reflect.*
+import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
+import kotlin.reflect.KParameter
+import kotlin.reflect.full.functions
+import kotlin.reflect.full.safeCast
 
 
 abstract class AbstractInvocableReplScriptEngine(factory: ScriptEngineFactory,

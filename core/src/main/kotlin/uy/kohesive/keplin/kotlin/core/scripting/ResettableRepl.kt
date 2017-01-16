@@ -49,7 +49,7 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
     }
 
     private val compilerClasspath = compilerConfiguration.jvmClasspathRoots
-    private val _currentClassPath = compilerClasspath.toMutableList()
+    private val _currentClasspath = compilerClasspath.toMutableList()
 
     // TODO: curentClassPath represents the compiler/check side, but might not match the eval side which can reset its classpath
     //       when resetToLine is called
@@ -57,7 +57,7 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
     /*
        For reporting to the user the current known classpath as modified by evaluations
      */
-    val currentClassPath: List<File> get() = stateLock.read { _currentClassPath }
+    val currentClassPath: List<File> get() = stateLock.read { _currentClasspath }
     var codeLineNumber = AtomicInteger(0)
 
     private val baseClassloader = URLClassLoader(compilerClasspath.map { it.toURI().toURL() }
@@ -143,7 +143,7 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
         }
     }
 
-    @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent, ", ReplaceWith("compileAndEval(codeLine)"))
+    @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent across threads.", ReplaceWith("compileAndEval(codeLine)"))
     fun compile(codeLine: ReplCodeLine): CompileResult {
         stateLock.write {
             val result = compiler.compile(codeLine, null)
@@ -159,41 +159,75 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
         }
     }
 
-    @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent, ", ReplaceWith("compileAndEval(codeLine)"))
+    /***
+     * Allowed evaluation later without keeping the full engine around in memory, good for compile and cache / run later models.
+     */
+    @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent across threads and this one does not update known classpath.", ReplaceWith("compileAndEval(codeLine)"))
+    fun delayEval(compileResult: CompileResult): DelayedEvaluation {
+        return DelayedEvaluation(evaluator, compileResult, defaultScriptArgs, stateLock, _currentClasspath)
+    }
+
+    @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent across threads.", ReplaceWith("compileAndEval(codeLine)"))
     fun eval(compileResult: CompileResult,
              overrideScriptArgs: ScriptArgsWithTypes? = null,
              wrapper: InvokeWrapper? = null): EvalResult {
         stateLock.write {
-            val result = evaluator.eval(compileResult.compilerData, wrapper ?: EvalInvoker(),
-                    scriptArgs = overrideScriptArgs ?: defaultScriptArgs)
-            return when (result) {
-                is ResettableReplEvaluator.Response.Error.CompileTime -> throw ReplCompilerException(result)
-                is ResettableReplEvaluator.Response.Error.Runtime -> throw ReplEvalRuntimeException(result)
-                is ResettableReplEvaluator.Response.HistoryMismatch -> throw ReplCompilerException(result)
-                is ResettableReplEvaluator.Response.Incomplete -> throw ReplCompilerException(result)
-                is ResettableReplEvaluator.Response.UnitResult -> {
-                    _currentClassPath.addAll(compileResult.compilerData.classpathAddendum)
-                    EvalResult(compileResult.codeLine, Unit)
-                }
-                is ResettableReplEvaluator.Response.ValueResult -> {
-                    _currentClassPath.addAll(compileResult.compilerData.classpathAddendum)
-                    EvalResult(compileResult.codeLine, result.value)
-                }
-                else -> throw IllegalStateException("Unknown compiler result type ${result}")
-            }
+            val (result, classpathAddendum) = evalWithSpecialResult(evaluator, compileResult, overrideScriptArgs, defaultScriptArgs, wrapper)
+            _currentClasspath.addAll(classpathAddendum)
+            return result
         }
     }
 
     val lastEvaluatedScripts: List<EvalClassWithInstanceAndLoader> get() = evaluator.lastEvaluatedScripts
 
-    private class EvalInvoker : InvokeWrapper {
-        override fun <T> invoke(body: () -> T): T {
-            return body()
-        }
-    }
-
     override fun close() {
         disposable.dispose()
+    }
+}
+
+/**
+ * Allowed evaluation later without keeping the full engine around in memory, good for compile and cache / run later models.
+ */
+data class DelayedEvaluation(val evaluator: ResettableReplEvaluator,
+                             val compileResult: CompileResult,
+                             val defaultScriptArgs: ScriptArgsWithTypes?,
+                             val stateLock: ReentrantReadWriteLock,
+                             val currentClasspath: MutableList<File>) {
+    fun eval(overrideScriptArgs: ScriptArgsWithTypes? = null,
+             wrapper: InvokeWrapper? = null): EvalResult {
+        stateLock.write {
+            val (result, classpathAddendum) = evalWithSpecialResult(evaluator, compileResult, overrideScriptArgs, defaultScriptArgs, wrapper)
+            currentClasspath.addAll(classpathAddendum)
+            return result
+        }
+    }
+}
+
+private fun evalWithSpecialResult(evaluator: ResettableReplEvaluator,
+                                  compileResult: CompileResult,
+                                  overrideScriptArgs: ScriptArgsWithTypes? = null,
+                                  defaultScriptArgs: ScriptArgsWithTypes? = null,
+                                  wrapper: InvokeWrapper? = null): Pair<EvalResult, List<File>> {
+    val result = evaluator.eval(compileResult.compilerData, wrapper ?: EvalInvoker(),
+            scriptArgs = overrideScriptArgs ?: defaultScriptArgs)
+    return when (result) {
+        is ResettableReplEvaluator.Response.Error.CompileTime -> throw ReplCompilerException(result)
+        is ResettableReplEvaluator.Response.Error.Runtime -> throw ReplEvalRuntimeException(result)
+        is ResettableReplEvaluator.Response.HistoryMismatch -> throw ReplCompilerException(result)
+        is ResettableReplEvaluator.Response.Incomplete -> throw ReplCompilerException(result)
+        is ResettableReplEvaluator.Response.UnitResult -> {
+            Pair(EvalResult(compileResult.codeLine, Unit), compileResult.compilerData.classpathAddendum)
+        }
+        is ResettableReplEvaluator.Response.ValueResult -> {
+            Pair(EvalResult(compileResult.codeLine, result.value), compileResult.compilerData.classpathAddendum)
+        }
+        else -> throw IllegalStateException("Unknown compiler result type ${result}")
+    }
+}
+
+private class EvalInvoker : InvokeWrapper {
+    override fun <T> invoke(body: () -> T): T {
+        return body()
     }
 }
 

@@ -28,11 +28,13 @@ abstract class AbstractCompilableScriptEngine(factory: ScriptEngineFactory,
         return compile(script.use(Reader::readText))
     }
 
-    inner class CompiledCode(val compiled: CompileResult) : CompiledScript() {
+    inner class CompiledCode(compiled: CompileResult) : CompiledScript() {
+        @Suppress("DEPRECATION")
+        val delayedEval = this@AbstractCompilableScriptEngine.engine.delayEval(compiled)
+
         override fun eval(context: ScriptContext): Any? {
             @Suppress("DEPRECATION")
-            return this@AbstractCompilableScriptEngine.engine.eval(compiled,
-                    baseArgsForScriptTemplate(context),
+            return delayedEval.eval(baseArgsForScriptTemplate(context),
                     makeBestIoTrappingInvoker(context)).resultValue
         }
 
