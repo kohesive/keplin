@@ -24,7 +24,7 @@ import uy.kohesive.keplin.kotlin.core.scripting.ScriptArgsWithTypes
 import java.io.File
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
-import kotlin.reflect.primaryConstructor
+import kotlin.reflect.full.primaryConstructor
 
 open class AnnotationTriggeredScriptDefinition(definitionName: String,
                                                template: KClass<out Any>,
