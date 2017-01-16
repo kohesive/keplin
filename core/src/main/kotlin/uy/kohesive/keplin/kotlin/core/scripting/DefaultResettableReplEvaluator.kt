@@ -14,7 +14,7 @@ import kotlin.concurrent.write
 open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                                           baseClassloader: ClassLoader?,
                                           val repeatingMode: ReplRepeatingMode = ReplRepeatingMode.REPEAT_ONLY_MOST_RECENT,
-                                          val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) :
+                                          protected val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) :
         ResettableReplEvaluator {
 
     private val topClassLoader: ReplClassLoader = makeReplClassLoader(baseClassloader, baseClasspath)
@@ -29,12 +29,17 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
 
     override val evaluationHistory: List<ReplCodeLine> get() = stateLock.read { history.copySources() }
 
+    val currentClasspath: List<File> get() = stateLock.read {
+        history.copyValues().lastOrNull()?.let { it.classLoader.listAllUrlsAsFiles() }
+                ?: topClassLoader.listAllUrlsAsFiles()
+    }
+
     private class HistoryActions(val effectiveHistory: List<EvalClassWithInstanceAndLoader>,
                                  val verify: (compareHistory: SourceList?) -> Int?,
                                  val addPlaceholder: (line: CompiledReplCodeLine, value: EvalClassWithInstanceAndLoader) -> Unit,
                                  val removePlaceholder: (line: CompiledReplCodeLine) -> Boolean,
                                  val addFinal: (line: CompiledReplCodeLine, value: EvalClassWithInstanceAndLoader) -> Unit,
-                                 val processClasses: () -> Pair<ClassLoader, Class<out Any>>)
+                                 val processClasses: (compileResult: ResettableReplCompiler.Response.CompiledClasses) -> Pair<ClassLoader, Class<out Any>>)
 
     override fun eval(compileResult: ResettableReplCompiler.Response.CompiledClasses,
                       invokeWrapper: InvokeWrapper?,
@@ -47,13 +52,13 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                     addPlaceholder = { line, value -> history.add(line, value) },
                     removePlaceholder = { line -> history.removeLast(line) },
                     addFinal = { line, value -> history.add(line, value) },
-                    processClasses = {
+                    processClasses = { compiled ->
                         var mainLineClassName: String? = null
-                        val classLoader = makeReplClassLoader(history.lastValue()?.classLoader ?: topClassLoader, compileResult.classpathAddendum)
+                        val classLoader = makeReplClassLoader(history.lastValue()?.classLoader ?: topClassLoader, compiled.classpathAddendum)
                         fun classNameFromPath(path: String) = JvmClassName.byInternalName(path.replaceFirst("\\.class$".toRegex(), ""))
-                        fun compiledClassesNames() = compileResult.classes.map { classNameFromPath(it.path).fqNameForClassNameWithoutDollars.asString() }
-                        val expectedClassName = compileResult.generatedClassname
-                        compileResult.classes.filter { it.path.endsWith(".class") }
+                        fun compiledClassesNames() = compiled.classes.map { classNameFromPath(it.path).fqNameForClassNameWithoutDollars.asString() }
+                        val expectedClassName = compiled.generatedClassname
+                        compiled.classes.filter { it.path.endsWith(".class") }
                                 .forEach {
                                     val className = classNameFromPath(it.path)
                                     if (className.internalName == expectedClassName || className.internalName.endsWith("/$expectedClassName")) {
@@ -87,7 +92,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                                     history.removeLast(line)
                                     history.add(line, value)
                                 },
-                                processClasses = {
+                                processClasses = { _ ->
                                     Pair(lastItem.second.classLoader, lastItem.second.klass.java)
                                 })
                     }
@@ -112,7 +117,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
                                         history.add(it.first, it.second)
                                     }
                                 },
-                                processClasses = {
+                                processClasses = { _ ->
                                     Pair(matchingItem.second.classLoader, matchingItem.second.klass.java)
                                 })
                     }
@@ -125,7 +130,7 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
             }
 
             val (classLoader, scriptClass) = try {
-                historyActor.processClasses()
+                historyActor.processClasses(compileResult)
             } catch (e: Exception) {
                 return@eval ResettableReplEvaluator.Response.Error.Runtime(history.copySources(),
                         e.message!!, e)

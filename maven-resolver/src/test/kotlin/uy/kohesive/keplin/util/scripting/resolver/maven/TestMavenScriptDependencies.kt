@@ -1,6 +1,7 @@
 package uy.kohesive.keplin.util.scripting.resolver.maven
 
 
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import uy.kohesive.keplin.kotlin.core.scripting.EMPTY_SCRIPT_ARGS
 import uy.kohesive.keplin.kotlin.core.scripting.EMPTY_SCRIPT_ARGS_TYPES
@@ -9,7 +10,6 @@ import uy.kohesive.keplin.kotlin.core.scripting.ScriptArgsWithTypes
 import uy.kohesive.keplin.kotlin.core.scripting.templates.ScriptTemplateWithArgs
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.AnnotationTriggeredScriptDefinition
 import uy.kohesive.keplin.kotlin.util.scripting.resolver.local.JarFileScriptDependenciesResolver
-import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
@@ -27,13 +27,27 @@ class TestMavenScriptDependencies {
     @Test
     fun testWithMavenDependencies() {
         makeEngine().use { repl ->
+
+            repl.compileAndEval("""println("just a blank eval so default classpath items are added")""")
+
+            val classpath1 = repl.currentEvalClassPath
+
             repl.compileAndEval("""
                     @file:DependsOnMaven("junit:junit:4.12")
                     import org.junit.Assert.*
 
                     assertTrue(true)
             """)
+
+            val classpath2 = repl.currentEvalClassPath
+            val diff = classpath2 - classpath1
+            assertEquals(2, diff.size)
+            assertTrue(diff.all { it.name.contains("junit-4.12.jar") || it.name.contains("hamcrest-core-1.3.jar") })
+
             repl.compileAndEval("""assertEquals("123", "123")""")
+
+            val classpath3 = repl.currentEvalClassPath
+            assertEquals(classpath2, classpath3)
         }
     }
 

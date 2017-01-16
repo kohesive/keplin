@@ -1,7 +1,7 @@
 package uy.kohesive.keplin.kotlin.util.scripting.resolver
 
 import org.jetbrains.kotlin.script.*
-import uy.kohesive.keplin.kotlin.util.scripting.containingClasspath
+import uy.kohesive.keplin.kotlin.core.scripting.containingClasspath
 import java.io.File
 import java.util.concurrent.Future
 import kotlin.reflect.KClass

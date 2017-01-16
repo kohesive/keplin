@@ -145,6 +145,20 @@ class TestResettableReplEngine {
             repl.compileAndEval("""val x = 10""")
         }
     }
+
+    @Test
+    fun testBasicClasspath() {
+        ResettableRepl().use { repl ->
+            repl.compileAndEval("""val x = 10""")
+            val classpath1 = repl.currentEvalClassPath
+            repl.compileAndEval("""val y = 10""")
+            val classpath2 = repl.currentEvalClassPath
+            assertEquals(classpath1, classpath2)
+            repl.compileAndEval("""val z = 10""")
+            val classpath3 = repl.currentEvalClassPath
+            assertEquals(classpath2, classpath3)
+        }
+    }
 }
 
 

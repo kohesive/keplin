@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.codegen.KotlinCodegenFacade
 import org.jetbrains.kotlin.codegen.state.GenerationState
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.descriptors.ScriptDescriptor
+import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
@@ -19,7 +20,7 @@ import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 open class DefaultResettableReplCompiler(disposable: Disposable,
-                                         scriptDefinition: KotlinScriptDefinitionEx,
+                                         scriptDefinition: KotlinScriptDefinition,
                                          compilerConfiguration: CompilerConfiguration,
                                          messageCollector: MessageCollector,
                                          stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) :

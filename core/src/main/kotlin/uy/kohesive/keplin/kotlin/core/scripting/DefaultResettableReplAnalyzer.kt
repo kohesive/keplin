@@ -27,17 +27,22 @@ import org.jetbrains.kotlin.resolve.scopes.utils.parentsWithSelf
 import org.jetbrains.kotlin.resolve.scopes.utils.replaceImportingScopes
 import org.jetbrains.kotlin.script.ScriptPriorities
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 class DefaultResettableReplAnalyzer(environment: KotlinCoreEnvironment,
-                                    val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) {
+                                    protected val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) {
     private val topDownAnalysisContext: TopDownAnalysisContext
     private val topDownAnalyzer: LazyTopDownAnalyzer
     private val resolveSession: ResolveSession
     private val scriptDeclarationFactory: ScriptMutableDeclarationProviderFactory
-    val module: ModuleDescriptorImpl
     private val replState = ResetableReplState()
+
+    val module: ModuleDescriptorImpl
+        get() = stateLock.read { field }
+
     val trace: BindingTraceContext = CliLightClassGenerationSupport.NoScopeRecordCliBindingTrace()
+        get() = stateLock.read { field }
 
     init {
         // Module source scope is empty because all binary classes are in the dependency module, and all source classes are guaranteed

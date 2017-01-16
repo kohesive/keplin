@@ -36,7 +36,8 @@ class TestEngineRecursion {
         val extraClasspath = findClassJars(ResettableRepl::class) +
                 findKotlinCompilerJars(false)
         ResettableRepl(scriptDefinition = DefaultScriptDefinition(TestRecursiveScriptContext::class, null),
-                additionalClasspath = extraClasspath).apply {
+                additionalClasspath = extraClasspath,
+                sharedHostClassLoader = Thread.currentThread().contextClassLoader).apply {
             defaultScriptArgs = ScriptArgsWithTypes(arrayOf(this, mapOf<String, Any?>("x" to 100, "y" to 50)),
                     arrayOf(ResettableRepl::class, Map::class))
         }.use { repl ->

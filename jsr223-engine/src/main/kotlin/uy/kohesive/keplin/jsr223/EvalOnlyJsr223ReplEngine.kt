@@ -13,7 +13,8 @@ open class EvalOnlyJsr223ReplEngine(factory: EvalOnlyReplEngineFactory,
                 moduleName = moduleName,
                 additionalClasspath = extraClasspath,
                 repeatingMode = ReplRepeatingMode.NONE,
-                scriptDefinition = scriptDefinition
+                scriptDefinition = scriptDefinition,
+                sharedHostClassLoader = Thread.currentThread().contextClassLoader
         )
     }
 

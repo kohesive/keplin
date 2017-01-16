@@ -2,6 +2,7 @@ package uy.kohesive.keplin.kotlin.util.scripting
 
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
 import uy.kohesive.keplin.kotlin.core.scripting.ResettableRepl
+import uy.kohesive.keplin.kotlin.core.scripting.containingClasspath
 import java.io.File
 import kotlin.reflect.KClass
 
@@ -62,20 +63,6 @@ fun findRequiredScriptingJarFiles(templateClass: KClass<out Any>? = null,
     return (templateClassJars + additionalClassJars + scriptEngineJars + kotlinJars).toSet().toList()
 }
 
-fun <T : Any> KClass<T>.containingClasspath(filterJarName: Regex = ".*".toRegex()): File? {
-    val clp = "${qualifiedName?.replace('.', '/')}.class"
-    val zipOrJarRegex = """(?:zip:|jar:file:)(.*)!\/(?:.*)""".toRegex()
-    val filePathRegex = """(?:file:)(.*)""".toRegex()
-    return Thread.currentThread().contextClassLoader.getResources(clp)
-            ?.toList()
-            ?.map { it.toString() }
-            ?.map { url ->
-                zipOrJarRegex.find(url)?.let { it.groupValues[1] }
-                        ?: filePathRegex.find(url)?.let { it.groupValues[1].removeSuffix(clp) }
-                        ?: throw IllegalStateException("Expecting a local classpath when searching for class: ${qualifiedName}")
-            }
-            ?.find { filterJarName.matches(it) }
-            ?.let { File(it) }
-}
+
 
 

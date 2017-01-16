@@ -18,16 +18,17 @@ import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.parsing.KotlinParserDefinition
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 open class DefaultResettableReplChecker(
         disposable: Disposable,
-        val scriptDefinition: KotlinScriptDefinitionEx,
+        val scriptDefinition: KotlinScriptDefinition,
         val compilerConfiguration: CompilerConfiguration,
         messageCollector: MessageCollector,
-        val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()
+        protected val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()
 ) : ResettableReplChecker {
     protected val environment = run {
         compilerConfiguration.apply {
@@ -38,7 +39,7 @@ open class DefaultResettableReplChecker(
         KotlinCoreEnvironment.createForProduction(disposable, compilerConfiguration, EnvironmentConfigFiles.JVM_CONFIG_FILES)
     }
 
-    protected val psiFileFactory: PsiFileFactoryImpl = PsiFileFactory.getInstance(environment.project) as PsiFileFactoryImpl
+    private val psiFileFactory: PsiFileFactoryImpl = PsiFileFactory.getInstance(environment.project) as PsiFileFactoryImpl
 
     // "line" - is the unit of evaluation here, could in fact consists of several character lines
     protected class LineState(

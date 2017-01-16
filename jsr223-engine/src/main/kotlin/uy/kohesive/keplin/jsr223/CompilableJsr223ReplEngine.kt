@@ -16,7 +16,8 @@ open class CompilableJsr223ReplEngine(factory: ScriptEngineFactory,
                 moduleName = moduleName,
                 additionalClasspath = extraClasspath,
                 repeatingMode = ReplRepeatingMode.REPEAT_ANY_PREVIOUS,
-                scriptDefinition = scriptDefinition
+                scriptDefinition = scriptDefinition,
+                sharedHostClassLoader = Thread.currentThread().contextClassLoader
         )
     }
 
