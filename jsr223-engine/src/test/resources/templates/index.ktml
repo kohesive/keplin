@@ -1,0 +1,9 @@
+import java.util.*
+import java.io.File
+
+${include("header")}
+
+<p>Body stuff</p>
+<p>Path separator char is '${File.pathSeparatorChar}'</p>
+
+${include("footer")}
