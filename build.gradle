@@ -2,7 +2,7 @@ buildscript {
     repositories {
         maven { url 'http://dl.bintray.com/kotlin/kotlin-eap-1.1' }
         // only when using Kotlin DEV releases ...
-        // maven { url 'https://dl.bintray.com/kotlin/kotlin-dev' }
+        maven { url 'https://dl.bintray.com/kotlin/kotlin-dev' }
         jcenter()
         mavenCentral()
     }
@@ -23,7 +23,7 @@ subprojects {
         mavenCentral()
         maven { url 'http://dl.bintray.com/kotlin/kotlin-eap-1.1' }
         // only when using Kotlin DEV releases ...
-        // maven { url 'https://dl.bintray.com/kotlin/kotlin-dev' }
+        maven { url 'https://dl.bintray.com/kotlin/kotlin-dev' }
     }
 
     dependencies {
