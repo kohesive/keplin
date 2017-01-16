@@ -28,7 +28,6 @@ class TestTemplatesIncludingTemplates {
                 <head>
                     <title>Hi, I'm the page</title>
                 </head>
-                </html>
                 <body>
                 <div>Top of page</div>
                 <p>Body stuff</p>
