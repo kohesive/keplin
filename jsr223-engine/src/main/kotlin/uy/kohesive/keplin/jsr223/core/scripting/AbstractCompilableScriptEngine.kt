@@ -1,21 +1,13 @@
-package uy.kohesive.keplin.jsr223
+package uy.kohesive.keplin.jsr223.core.scripting
 
-import uy.kohesive.keplin.jsr223.core.scripting.AbstractInvocableReplScriptEngine
-import uy.kohesive.keplin.jsr223.core.scripting.makeBestIoTrappingInvoker
-import uy.kohesive.keplin.kotlin.core.scripting.*
+import uy.kohesive.keplin.kotlin.core.scripting.CompileResult
+import uy.kohesive.keplin.kotlin.core.scripting.ReplCompilerException
 import java.io.Reader
 import javax.script.*
 
-class CompilableReplEngine(factory: ScriptEngineFactory,
-                           defaultImports: List<String> = emptyList())
+abstract class AbstractCompilableScriptEngine(factory: ScriptEngineFactory,
+                                              defaultImports: List<String> = emptyList())
     : AbstractInvocableReplScriptEngine(factory, defaultImports), Compilable, Invocable {
-
-    override val engine: ResettableRepl = ResettableRepl(
-            moduleName = moduleName,
-            additionalClasspath = extraClasspath,
-            repeatingMode = ReplRepeatingMode.REPEAT_ANY_PREVIOUS,
-            scriptDefinition = scriptDefinition
-    )
 
     override fun compile(script: String): CompiledScript {
         try {
@@ -39,18 +31,14 @@ class CompilableReplEngine(factory: ScriptEngineFactory,
     inner class CompiledCode(val compiled: CompileResult) : CompiledScript() {
         override fun eval(context: ScriptContext): Any? {
             @Suppress("DEPRECATION")
-            return this@CompilableReplEngine.engine.eval(compiled,
-                    ScriptArgsWithTypes(arrayOf<Any?>(this@CompilableReplEngine.engine, context),
-                            KeplinKotlinJsr223ScriptTemplateArgTypes),
+            return this@AbstractCompilableScriptEngine.engine.eval(compiled,
+                    baseArgsForScriptTemplate(context),
                     makeBestIoTrappingInvoker(context)).resultValue
         }
 
         override fun getEngine(): ScriptEngine {
-            return this@CompilableReplEngine
+            return this@AbstractCompilableScriptEngine
         }
     }
 
-    companion object {
-        val jsr223EngineName = "keplin-kotin-repl-compilable"
-    }
 }

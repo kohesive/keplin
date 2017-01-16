@@ -15,18 +15,9 @@ fun makeBestIoTrappingInvoker(context: ScriptContext): InvokeWrapper {
     // IO trapper, we can do nice thread specific capturing, otherwise assume the worst and
     // use old style unsafe IO trapping.  A caller can easily tag their reader/writers with
     // a marker interface to tell us to do otherwise.
-    return if ((context.reader is IoCaptureFriendly
-            || context.reader is StringReader
-            || context.reader is CharArrayReader
-            || context.reader is FileReader) &&
-            (context.writer is IoCaptureFriendly
-                    || context.writer is StringWriter
-                    || context.writer is CharArrayWriter
-                    || context.writer is FileWriter) &&
-            (context.errorWriter is IoCaptureFriendly
-                    || context.writer is StringWriter
-                    || context.writer is CharArrayWriter
-                    || context.writer is FileWriter)) {
+    return if (isFriendly(context.reader) &&
+            isFriendly(context.writer) &&
+            isFriendly(context.errorWriter)) {
         ContextRerouteScriptIoInvoker(context)
     } else {
         UnfriendlyContextRerouteScriptIoInvoker(context)
@@ -73,13 +64,27 @@ class ContextRerouteScriptIoInvoker(val context: ScriptContext)
         wrapFriendlyWriter(context.writer),
         wrapFriendlyWriter(context.errorWriter))
 
+fun isFriendly(reader: Reader): Boolean {
+    return reader is IoCaptureFriendly
+            || reader is StringReader
+            || reader is CharArrayReader
+            || reader is FileReader
+}
+
+fun isFriendly(writer: Writer): Boolean {
+    return writer is IoCaptureFriendly
+            || writer is StringWriter
+            || writer is CharArrayWriter
+            || writer is FileWriter
+}
+
 fun wrapFriendlyReader(reader: Reader): InputStream {
-    return if (reader is IoCaptureFriendly) MarkedFriendlyReaderInputStream(reader)
+    return if (isFriendly(reader)) MarkedFriendlyReaderInputStream(reader)
     else ReaderInputStream(reader)
 }
 
 fun wrapFriendlyWriter(writer: Writer): PrintStream {
-    return if (writer is IoCaptureFriendly) MarkedFriendlyPrintStream(WriterOutputStream(writer), true)
+    return if (isFriendly(writer)) MarkedFriendlyPrintStream(WriterOutputStream(writer), true)
     else PrintStream(WriterOutputStream(writer), true)
 }
 

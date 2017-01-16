@@ -5,7 +5,7 @@ import javax.script.ScriptEngine
 
 open class EvalOnlyReplEngineFactory : AbstractEngineFactory() {
     override fun getScriptEngine(): ScriptEngine {
-        return EvalOnlyReplEngine(this).apply { fixupArgsForScriptTemplate() }
+        return EvalOnlyJsr223ReplEngine(this).apply { fixupArgsForScriptTemplate() }
     }
 
     override fun getEngineName(): String = "Keplin Kotlin Eval-Only Scripting Engine"
@@ -13,6 +13,6 @@ open class EvalOnlyReplEngineFactory : AbstractEngineFactory() {
     override fun getThreadingModel(): String = "MULTITHREADED"
 
     companion object {
-        val jsr223EngineName = EvalOnlyReplEngine.jsr223EngineName
+        val jsr223EngineName = EvalOnlyJsr223ReplEngine.jsr223EngineName
     }
 }

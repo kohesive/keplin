@@ -5,7 +5,7 @@ import javax.script.ScriptEngine
 
 open class CompilableReplEngineFactory : AbstractEngineFactory() {
     override fun getScriptEngine(): ScriptEngine {
-        return CompilableReplEngine(this).apply { fixupArgsForScriptTemplate() }
+        return CompilableJsr223ReplEngine(this).apply { fixupArgsForScriptTemplate() }
     }
 
     override fun getEngineName(): String = "Keplin Kotlin REPL Compilable Scripting Engine"
@@ -13,6 +13,6 @@ open class CompilableReplEngineFactory : AbstractEngineFactory() {
     override fun getThreadingModel(): String = "MULTITHREADED"
 
     companion object {
-        val jsr223EngineName = CompilableReplEngine.jsr223EngineName
+        val jsr223EngineName = CompilableJsr223ReplEngine.jsr223EngineName
     }
 }
