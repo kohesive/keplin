@@ -53,6 +53,8 @@ open class DefaultResettableReplChecker(
 
     fun createDiagnosticHolder() = ReplTerminalDiagnosticMessageHolder()
 
+    fun check(codeLine: ReplCodeLine): ResettableReplChecker.Response = check(codeLine, 1L)
+
     override fun check(codeLine: ReplCodeLine, generation: Long): ResettableReplChecker.Response {
         stateLock.write {
             val scriptFileName = makeSriptBaseName(codeLine, generation)

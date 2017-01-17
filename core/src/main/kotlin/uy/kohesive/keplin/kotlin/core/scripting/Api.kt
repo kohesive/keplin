@@ -9,7 +9,7 @@ import java.io.Serializable
 import kotlin.reflect.KClass
 
 interface ResettableReplChecker {
-    fun check(codeLine: ReplCodeLine, generation: Long = 1): Response
+    fun check(codeLine: ReplCodeLine, generation: Long = 1L): Response
 
     sealed class Response() : Serializable {
         class Ok() : Response()
@@ -71,8 +71,10 @@ data class CompiledReplCodeLine(val className: String, val source: ReplCodeLine)
     }
 }
 
+typealias EvalHistoryType = Pair<CompiledReplCodeLine, EvalClassWithInstanceAndLoader>
+
 interface ResettableReplEvaluatorBase {
-    val lastEvaluatedScripts: List<EvalClassWithInstanceAndLoader>
+    val lastEvaluatedScripts: List<EvalHistoryType>
 }
 
 data class EvalClassWithInstanceAndLoader(val klass: KClass<*>, val instance: Any?, val classLoader: ClassLoader, val invokeWrapper: InvokeWrapper?)

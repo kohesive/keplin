@@ -1,5 +1,6 @@
 package uy.kohesive.keplin.kotlin.core.scripting
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
@@ -25,30 +26,38 @@ import kotlin.concurrent.read
 import kotlin.concurrent.write
 import kotlin.reflect.KClass
 
-// TODO:  GenericRepl compatible constructor
-open class ResettableRepl(val moduleName: String = "kotlin-script-module-${System.currentTimeMillis()}",
-                          val additionalClasspath: List<File> = emptyList(),
-                          val scriptDefinition: KotlinScriptDefinition = KotlinScriptDefinitionEx(ScriptTemplateWithArgs::class, ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES)),
-                          val repeatingMode: ReplRepeatingMode = ReplRepeatingMode.NONE,
-                          private val sharedHostClassLoader: ClassLoader? = null,
-                          private val emptyArgsProvider: DefaultEmptyArgsProvider = (scriptDefinition as? DefaultEmptyArgsProvider) ?: SimpleEmptyArgs(null),
-                          private val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : Closeable {
+open class ResettableRepl protected constructor(protected val disposable: Disposable,
+                                                protected val scriptDefinition: KotlinScriptDefinition,
+                                                protected val compilerConfiguration: CompilerConfiguration,
+                                                protected val repeatingMode: ReplRepeatingMode = ReplRepeatingMode.NONE,
+                                                protected val sharedHostClassLoader: ClassLoader? = null,
+                                                emptyArgsProvider: DefaultEmptyArgsProvider,
+                                                protected val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : Closeable {
 
-    private val disposable = Disposer.newDisposable()
-
-    private val messageCollector = PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false)
-
-    private val compilerConfiguration = CompilerConfiguration().apply {
-        addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
-        addJvmClasspathRoots(findRequiredScriptingJarFiles(scriptDefinition.template,
-                includeScriptEngine = false,
-                includeKotlinCompiler = false,
-                includeStdLib = true,
-                includeRuntime = true))
-        addJvmClasspathRoots(additionalClasspath)
-        put(CommonConfigurationKeys.MODULE_NAME, moduleName)
-        put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
-    }
+    constructor(disposable: Disposable = Disposer.newDisposable(),
+                moduleName: String = "kotlin-script-module-${System.currentTimeMillis()}",
+                additionalClasspath: List<File> = emptyList(),
+                scriptDefinition: KotlinScriptDefinitionEx = KotlinScriptDefinitionEx(ScriptTemplateWithArgs::class, ScriptArgsWithTypes(EMPTY_SCRIPT_ARGS, EMPTY_SCRIPT_ARGS_TYPES)),
+                messageCollector: MessageCollector = PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false),
+                repeatingMode: ReplRepeatingMode = ReplRepeatingMode.NONE,
+                sharedHostClassLoader: ClassLoader? = null,
+                stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : this(disposable,
+            compilerConfiguration = CompilerConfiguration().apply {
+                addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
+                addJvmClasspathRoots(findRequiredScriptingJarFiles(scriptDefinition.template,
+                        includeScriptEngine = false,
+                        includeKotlinCompiler = false,
+                        includeStdLib = true,
+                        includeRuntime = true))
+                addJvmClasspathRoots(additionalClasspath)
+                put(CommonConfigurationKeys.MODULE_NAME, moduleName)
+                put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
+            },
+            repeatingMode = repeatingMode,
+            sharedHostClassLoader = sharedHostClassLoader,
+            scriptDefinition = scriptDefinition,
+            emptyArgsProvider = scriptDefinition,
+            stateLock = stateLock)
 
     private val compilerClasspath = compilerConfiguration.jvmClasspathRoots
     private val trackedClasspath = compilerClasspath.toMutableList()
@@ -143,9 +152,9 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
     }
 
     @Deprecated("Unsafe to use individual compile/eval methods which may leave history state inconsistent across threads.", ReplaceWith("compileAndEval(codeLine)"))
-    fun compile(codeLine: ReplCodeLine): CompileResult {
+    fun compile(codeLine: ReplCodeLine, verifyHistory: List<ReplCodeLine>? = null): CompileResult {
         stateLock.write {
-            val result = compiler.compile(codeLine, null)
+            val result = compiler.compile(codeLine, verifyHistory)
             return when (result) {
                 is ResettableReplCompiler.Response.Error -> throw ReplCompilerException(result)
                 is ResettableReplCompiler.Response.HistoryMismatch -> throw ReplCompilerException(result)
@@ -177,7 +186,7 @@ open class ResettableRepl(val moduleName: String = "kotlin-script-module-${Syste
         }
     }
 
-    val lastEvaluatedScripts: List<EvalClassWithInstanceAndLoader> get() = evaluator.lastEvaluatedScripts
+    val lastEvaluatedScripts: List<EvalHistoryType> get() = evaluator.lastEvaluatedScripts
 
     override fun close() {
         disposable.dispose()
@@ -215,12 +224,12 @@ private fun evalWithSpecialResult(evaluator: ResettableReplEvaluator,
         is ResettableReplEvaluator.Response.HistoryMismatch -> throw ReplCompilerException(result)
         is ResettableReplEvaluator.Response.Incomplete -> throw ReplCompilerException(result)
         is ResettableReplEvaluator.Response.UnitResult -> {
-            Pair(EvalResult(compileResult.codeLine, Unit), compileResult.compilerData.classpathAddendum)
+            Pair(EvalResult(compileResult.codeLine, Unit, result.completedEvalHistory), compileResult.compilerData.classpathAddendum)
         }
         is ResettableReplEvaluator.Response.ValueResult -> {
-            Pair(EvalResult(compileResult.codeLine, result.value), compileResult.compilerData.classpathAddendum)
+            Pair(EvalResult(compileResult.codeLine, result.value, result.completedEvalHistory), compileResult.compilerData.classpathAddendum)
         }
-        else -> throw IllegalStateException("Unknown compiler result type ${result}")
+        else -> throw IllegalStateException("Unknown eval result type ${result}")
     }
 }
 
@@ -245,7 +254,7 @@ data class CheckResult(val codeLine: ReplCodeLine, val isComplete: Boolean = tru
 data class CompileResult(val codeLine: ReplCodeLine,
                          val compilerData: ResettableReplCompiler.Response.CompiledClasses)
 
-data class EvalResult(val codeLine: ReplCodeLine, val resultValue: Any?)
+data class EvalResult(val codeLine: ReplCodeLine, val resultValue: Any?, val evalHistory: List<ReplCodeLine>)
 
 class DefaultScriptDefinition(template: KClass<out Any>, scriptArgsWithTypes: ScriptArgsWithTypes?) :
         KotlinScriptDefinitionEx(template, scriptArgsWithTypes)

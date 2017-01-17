@@ -171,8 +171,8 @@ open class DefaultResettableReplEvaluator(baseClasspath: Iterable<File>,
         }
     }
 
-    override val lastEvaluatedScripts: List<EvalClassWithInstanceAndLoader> get() {
-        return stateLock.read { history.copyValues() }
+    override val lastEvaluatedScripts: List<EvalHistoryType> get() {
+        return stateLock.read { history.copyAll() }
     }
 
     companion object {

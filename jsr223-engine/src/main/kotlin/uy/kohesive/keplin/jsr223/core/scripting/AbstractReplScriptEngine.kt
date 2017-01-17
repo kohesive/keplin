@@ -55,8 +55,8 @@ abstract class AbstractReplScriptEngine(val _factory: ScriptEngineFactory,
     override fun eval(script: String, context: ScriptContext): Any? {
         try {
             return engine.compileAndEval(engine.nextCodeLine(script),
-                    baseArgsForScriptTemplate(context),
-                    makeBestIoTrappingInvoker(context)).resultValue
+                    overrideScriptArgs = baseArgsForScriptTemplate(context),
+                    wrapper = makeBestIoTrappingInvoker(context)).resultValue
         } catch (ex: ReplCompilerException) {
             throw ScriptException(ex.errorResult.message,
                     ex.errorResult.location.path,

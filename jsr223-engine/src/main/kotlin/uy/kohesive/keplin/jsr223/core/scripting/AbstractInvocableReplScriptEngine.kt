@@ -81,7 +81,7 @@ abstract class AbstractInvocableReplScriptEngine(factory: ScriptEngineFactory,
     }
 
     private fun prioritizedHistory(receiverClass: KClass<*>?, receiverInstance: Any?): List<EvalClassWithInstanceAndLoader> {
-        return engine.lastEvaluatedScripts.filter { it.instance != null }.reversed().assertNotEmpty("no script ").let { history ->
+        return engine.lastEvaluatedScripts.map { it.second }.filter { it.instance != null }.reversed().assertNotEmpty("no script ").let { history ->
             if (receiverInstance != null) {
                 val receiverKlass = receiverClass ?: receiverInstance.javaClass.kotlin
                 val receiverInHistory = history.find { it.instance == receiverInstance } ?:
