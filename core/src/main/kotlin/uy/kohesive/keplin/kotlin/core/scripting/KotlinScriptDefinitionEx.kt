@@ -11,14 +11,10 @@ interface DefaultEmptyArgsProvider {
     val defaultEmptyArgs: ScriptArgsWithTypes?
 }
 
-interface DefaultImportsProvider {
-    val defaultImports: List<String>
-}
-
 open class KotlinScriptDefinitionEx(template: KClass<out Any>,
                                     override val defaultEmptyArgs: ScriptArgsWithTypes?,
-                                    override val defaultImports: List<String> = emptyList())
-    : KotlinScriptDefinition(template), DefaultEmptyArgsProvider, DefaultImportsProvider {
+                                    val defaultImports: List<String> = emptyList())
+    : KotlinScriptDefinition(template), DefaultEmptyArgsProvider {
     class EmptyDependencies() : KotlinScriptExternalDependencies
     class DefaultImports(val defaultImports: List<String>, val base: KotlinScriptExternalDependencies) : KotlinScriptExternalDependencies by base {
         override val imports: List<String> get() = (defaultImports + base.imports).distinct()
