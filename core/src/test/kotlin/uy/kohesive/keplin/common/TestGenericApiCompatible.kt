@@ -195,10 +195,7 @@ class TestGenericApiCompatible {
             disposable.dispose()
         }
     }
-
-
 }
-
 
 fun makeTestConfiguration(scriptDefinition: KotlinScriptDefinition, extraClasses: List<KClass<out Any>>): CompilerConfiguration {
     return CompilerConfiguration().apply {
