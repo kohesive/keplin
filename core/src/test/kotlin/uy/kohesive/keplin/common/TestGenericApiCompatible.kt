@@ -1,8 +1,9 @@
+@file:Suppress("DEPRECATION")
+
 package uy.kohesive.keplin.common
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
-import junit.framework.Assert.assertEquals
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
@@ -21,6 +22,7 @@ import java.net.URLClassLoader
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass
 import kotlin.script.templates.standard.ScriptTemplateWithArgs
+import kotlin.test.assertEquals
 import kotlin.test.fail
 import uy.kohesive.keplin.kotlin.core.scripting.GenericRepl as NewGenericRepl
 import uy.kohesive.keplin.kotlin.core.scripting.GenericReplCompiledEvaluator as NewGenericReplCompiledEvaluator
@@ -101,7 +103,7 @@ class TestGenericApiCompatible {
 
             val check2 = repl.check(line2, eval1.updatedHistory) as ReplCheckResult.Ok
             // eval does both ... val compile2 = repl.compile(line2, check2.updatedHistory) as ReplCompileResult.CompiledClasses
-            val eval2 = repl.eval(line2, check2.updatedHistory.dropLast(1)) as ReplEvalResult.UnitResult
+            repl.eval(line2, check2.updatedHistory.dropLast(1)) as ReplEvalResult.UnitResult
 
         } finally {
             disposable.dispose()
@@ -127,7 +129,7 @@ class TestGenericApiCompatible {
 
             val check2 = compiler.check(line2, eval1.updatedHistory) as ReplCheckResult.Ok
             val compile2 = compiler.compile(line2, check2.updatedHistory) as ReplCompileResult.CompiledClasses
-            val eval2 = evaluator.eval(line2, compile2.updatedHistory.dropLast(1), compile2.classes, compile2.hasResult, compile2.classpathAddendum) as ReplEvalResult.UnitResult
+            evaluator.eval(line2, compile2.updatedHistory.dropLast(1), compile2.classes, compile2.hasResult, compile2.classpathAddendum) as ReplEvalResult.UnitResult
         } finally {
             disposable.dispose()
         }
@@ -165,7 +167,7 @@ class TestGenericApiCompatible {
 
             // and then the compile+eval variation
             val line3 = ReplCodeLine(3, "val z = 100")
-            val eval3 = repl.eval(line3, eval2.updatedHistory)
+            repl.eval(line3, eval2.updatedHistory)
         } finally {
             disposable.dispose()
         }
@@ -190,21 +192,22 @@ class TestGenericApiCompatible {
 
             val check2 = compiler.check(line2, eval1.updatedHistory) as ReplCheckResult.Ok
             val compile2 = compiler.compile(line2, check2.updatedHistory) as ReplCompileResult.CompiledClasses
-            val eval2 = evaluator.eval(line2, compile2.updatedHistory.dropLast(1), compile2.classes, compile2.hasResult, compile2.classpathAddendum) as ReplEvalResult.UnitResult
+            evaluator.eval(line2, compile2.updatedHistory.dropLast(1), compile2.classes, compile2.hasResult, compile2.classpathAddendum) as ReplEvalResult.UnitResult
         } finally {
             disposable.dispose()
         }
     }
-}
 
-fun makeTestConfiguration(scriptDefinition: KotlinScriptDefinition, extraClasses: List<KClass<out Any>>): CompilerConfiguration {
-    return CompilerConfiguration().apply {
-        put(CommonConfigurationKeys.MODULE_NAME, "kotlin-script-util-test")
-        addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
-        (listOf(scriptDefinition.template, Pair::class, JvmName::class) + extraClasses).forEach {
-            PathUtil.getResourcePathForClass(it.java).let {
-                addJvmClasspathRoot(it)
+    fun makeTestConfiguration(scriptDefinition: KotlinScriptDefinition, extraClasses: List<KClass<out Any>>): CompilerConfiguration {
+        return CompilerConfiguration().apply {
+            put(CommonConfigurationKeys.MODULE_NAME, "kotlin-script-util-test")
+            addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
+            (listOf(scriptDefinition.template, Pair::class, JvmName::class) + extraClasses).forEach {
+                PathUtil.getResourcePathForClass(it.java).let {
+                    addJvmClasspathRoot(it)
+                }
             }
         }
     }
 }
+
