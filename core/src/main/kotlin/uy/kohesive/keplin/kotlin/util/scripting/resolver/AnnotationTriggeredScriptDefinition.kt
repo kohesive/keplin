@@ -9,6 +9,7 @@ import com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.NameUtils
 import org.jetbrains.kotlin.parsing.KotlinParserDefinition
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtFile
@@ -37,14 +38,13 @@ open class AnnotationTriggeredScriptDefinition(definitionName: String,
     override val name = definitionName
     protected val acceptedAnnotations = resolvers.map { it.acceptedAnnotations }.flatten()
 
-    override fun <TF : Any> isScript(file: TF): Boolean = scriptFilePattern.matches(getFileName(file))
+    override fun <TF : Any> isScript(file: TF): Boolean = getFileName(file).endsWith(KotlinParserDefinition.STD_SCRIPT_EXT)
 
     protected val resolutionManager: AnnotationTriggeredResolutionManager by lazy {
         AnnotationTriggeredResolutionManager(resolvers)
     }
 
-    // TODO: implement other strategy - e.g. try to extract something from match with ScriptFilePattern
-    override fun getScriptName(script: KtScript): Name = ScriptNameUtil.fileNameWithExtensionStripped(script, KotlinParserDefinition.STD_SCRIPT_EXT)
+    override fun getScriptName(script: KtScript): Name = NameUtils.getScriptNameForFile(script.containingKtFile.name)
 
     class MergeDependencies(val current: KotlinScriptExternalDependencies, val backup: KotlinScriptExternalDependencies) : KotlinScriptExternalDependencies {
         override val imports: List<String> get() = (current.imports + backup.imports).distinct()

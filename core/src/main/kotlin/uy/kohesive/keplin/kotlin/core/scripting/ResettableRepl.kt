@@ -31,7 +31,7 @@ open class ResettableRepl protected constructor(protected val disposable: Dispos
                                                 protected val compilerConfiguration: CompilerConfiguration,
                                                 protected val repeatingMode: ReplRepeatingMode = ReplRepeatingMode.NONE,
                                                 protected val sharedHostClassLoader: ClassLoader? = null,
-                                                emptyArgsProvider: DefaultEmptyArgsProvider,
+                                                emptyArgsProvider: ScriptTemplateEmptyArgsProvider,
                                                 protected val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : Closeable {
 
     constructor(disposable: Disposable = Disposer.newDisposable(),

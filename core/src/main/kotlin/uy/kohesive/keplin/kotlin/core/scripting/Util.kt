@@ -16,8 +16,8 @@ fun makeSriptBaseName(codeLine: ReplCodeLine, generation: Long) =
 fun DO_NOTHING(): Unit = Unit
 fun <T> DO_NOTHING(v: T): T = v
 
-val EMPTY_SCRIPT_ARGS: Array<out Any?>? = arrayOf(emptyArray<String>())
-val EMPTY_SCRIPT_ARGS_TYPES: Array<out KClass<out Any>>? = arrayOf(Array<String>::class)
+val EMPTY_SCRIPT_ARGS: Array<out Any?> = arrayOf(emptyArray<String>())
+val EMPTY_SCRIPT_ARGS_TYPES: Array<out KClass<out Any>> = arrayOf(Array<String>::class)
 
 fun ClassLoader.listAllUrlsAsFiles(): List<File> {
     val parents = generateSequence(this) { loader -> loader.parent }.filterIsInstance(URLClassLoader::class.java)

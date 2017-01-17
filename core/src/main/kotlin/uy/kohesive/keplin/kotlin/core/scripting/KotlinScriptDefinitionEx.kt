@@ -5,16 +5,14 @@ import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
 import kotlin.reflect.KClass
 
-// TODO: can auto detect script arg types from constructor of template?
-
-interface DefaultEmptyArgsProvider {
+interface ScriptTemplateEmptyArgsProvider {
     val defaultEmptyArgs: ScriptArgsWithTypes?
 }
 
 open class KotlinScriptDefinitionEx(template: KClass<out Any>,
                                     override val defaultEmptyArgs: ScriptArgsWithTypes?,
                                     val defaultImports: List<String> = emptyList())
-    : KotlinScriptDefinition(template), DefaultEmptyArgsProvider {
+    : KotlinScriptDefinition(template), ScriptTemplateEmptyArgsProvider {
     class EmptyDependencies() : KotlinScriptExternalDependencies
     class DefaultImports(val defaultImports: List<String>, val base: KotlinScriptExternalDependencies) : KotlinScriptExternalDependencies by base {
         override val imports: List<String> get() = (defaultImports + base.imports).distinct()
@@ -27,6 +25,6 @@ open class KotlinScriptDefinitionEx(template: KClass<out Any>,
     }
 }
 
-class SimpleEmptyArgs(override val defaultEmptyArgs: ScriptArgsWithTypes? = null) : DefaultEmptyArgsProvider
+class SimpleScriptTemplateEmptyArgsProvider(override val defaultEmptyArgs: ScriptArgsWithTypes? = null) : ScriptTemplateEmptyArgsProvider
 
-class ScriptArgsWithTypes(val scriptArgs: Array<out Any?>?, val scriptArgsTypes: Array<out KClass<out Any>>?)
+class ScriptArgsWithTypes(val scriptArgs: Array<out Any?>, val scriptArgsTypes: Array<out KClass<out Any>>)
