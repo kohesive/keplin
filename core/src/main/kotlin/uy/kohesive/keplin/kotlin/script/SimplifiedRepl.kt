@@ -28,16 +28,6 @@ import kotlin.script.templates.standard.ScriptTemplateWithArgs
 private val EMPTY_SCRIPT_ARGS: Array<out Any?> = arrayOf(emptyArray<String>())
 private val EMPTY_SCRIPT_ARGS_TYPES: Array<out KClass<out Any>> = arrayOf(Array<String>::class)
 
-open class CustomizedGenericRepl(disposable: Disposable,
-                                 scriptDefinition: KotlinScriptDefinition,
-                                 compilerConfiguration: CompilerConfiguration,
-                                 messageCollector: MessageCollector,
-                                 baseClassloader: ClassLoader?,
-                                 fallbackScriptArgs: ScriptArgsWithTypes? = null,
-                                 repeatingMode: ReplRepeatingMode,
-                                 stateLock: ReentrantReadWriteLock)
-    : GenericRepl(disposable, scriptDefinition, compilerConfiguration, messageCollector, baseClassloader, fallbackScriptArgs, repeatingMode, stateLock)
-
 open class SimplifiedRepl protected constructor(protected val disposable: Disposable,
                                                 protected val scriptDefinition: KotlinScriptDefinition,
                                                 protected val compilerConfiguration: CompilerConfiguration,
@@ -77,14 +67,14 @@ open class SimplifiedRepl protected constructor(protected val disposable: Dispos
         set(value) = stateLock.write { field = value }
 
     private val engine: GenericRepl by lazy {
-        CustomizedGenericRepl(disposable = disposable,
+        object : GenericRepl(disposable = disposable,
                 scriptDefinition = scriptDefinition,
                 compilerConfiguration = compilerConfiguration,
                 messageCollector = PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, false),
                 baseClassloader = baseClassloader,
                 fallbackScriptArgs = fallbackArgs,
                 repeatingMode = repeatingMode,
-                stateLock = stateLock)
+                stateLock = stateLock) {}
     }
 
 
