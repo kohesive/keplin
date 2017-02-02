@@ -1,7 +1,6 @@
 dependencies {
     compile project(':keplin-core')
     compile project(':keplin-maven-resolver')
-    compile project(':keplin-script-templates')
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-daemon-client', version: version_kotlin
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
