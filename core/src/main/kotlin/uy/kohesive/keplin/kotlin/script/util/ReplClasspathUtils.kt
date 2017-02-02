@@ -90,7 +90,6 @@ internal fun <T : Any> KClass<T>.containingClasspath(filterJarName: Regex = ".*"
                         ?: throw IllegalStateException("Expecting a local classpath when searching for class: ${qualifiedName}")
             }
             ?.find {
-                println(it)
                 filterJarName.matches(it)
             }
             ?.let { File(it) }
