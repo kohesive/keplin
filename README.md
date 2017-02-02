@@ -1,10 +1,10 @@
 # keplin
 
-A mix of Kotlin repls (Spark, Flink, Livy, Toree, Zeppelin, ...)
+A mix of Kotlin repls (Spark, Flink, Livy, Toree, Zeppelin, ...all coming soon)
 
 ### Gradle /Maven
 
-Add this repo:
+Using `Kotlin 1.1-beta-38` or newer BETA, add this repo:
 
 ```
 http://dl.bintray.com/jaysonminard/kohesive
@@ -16,9 +16,7 @@ http://dl.bintray.com/jaysonminard/kohesive
 |`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-ALPHA-38`|
 |`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-ALPHA-38`|
 
-# Modules core, maven-resolver and JSR223
-
-This provides the following:
+# Current Modules:
 
 ### keplin-core
 
