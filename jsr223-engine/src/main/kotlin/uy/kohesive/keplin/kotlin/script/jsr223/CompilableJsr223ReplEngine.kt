@@ -22,7 +22,7 @@ open class CompilableJsr223ReplEngine(factory: ScriptEngineFactory,
     }
 
     companion object {
-        val jsr223EngineName = "kotin-repl-compilable"
+        val jsr223EngineName = "keplin-kotlin-repl-compilable"
     }
 }
 

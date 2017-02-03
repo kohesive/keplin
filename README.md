@@ -12,9 +12,9 @@ http://dl.bintray.com/jaysonminard/kohesive
 
 |artifact|GAV|
 |---|---|
-|`keplin-core`|`uy.kohesive.keplin:keplin-core:1.0.0-ALPHA-39`|
-|`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-ALPHA-39`|
-|`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-ALPHA-39`|
+|`keplin-core`|`uy.kohesive.keplin:keplin-core:1.0.0-ALPHA-41`|
+|`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-ALPHA-41`|
+|`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-ALPHA-41`|
 
 # Current Modules:
 
@@ -34,8 +34,8 @@ See [unit tests](./maven-resolver/src/test/kotlin/uy/kohesive/keplin/kotlin/scri
 
 ### keplin-jsr223-kotlin-engine
 
-* `kotin-repl-compilable` JSR223 engine also implementing Compilable and Invocable interfaces
-* `kotin-repl-eval-only` JSR223 engine that is atomic eval only (compile+eval) and also Invocable interface
+* `keplin-kotlin-repl-compilable` JSR223 engine also implementing Compilable and Invocable interfaces
+* `keplin-kotlin-repl-eval-only` JSR223 engine that is atomic eval only (compile+eval) and also Invocable interface
 
 See [unit tests](./jsr223-engine/src/test/kotlin/uy/kohesive/keplin/kotlin/script/jsr223)
 

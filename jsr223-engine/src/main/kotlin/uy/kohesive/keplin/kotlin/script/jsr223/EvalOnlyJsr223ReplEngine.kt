@@ -20,7 +20,7 @@ open class EvalOnlyJsr223ReplEngine(factory: ScriptEngineFactory,
     }
 
     companion object {
-        val jsr223EngineName = "kotin-repl-eval-only"
+        val jsr223EngineName = "keplin-kotlin-repl-eval-only"
     }
 }
 
