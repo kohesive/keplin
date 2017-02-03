@@ -38,3 +38,7 @@ See [unit tests](./maven-resolver/src/test/kotlin/uy/kohesive/keplin/kotlin/scri
 * `kotin-repl-eval-only` JSR223 engine that is atomic eval only (compile+eval) and also Invocable interface
 
 See [unit tests](./jsr223-engine/src/test/kotlin/uy/kohesive/keplin/kotlin/script/jsr223)
+
+### Kotlin-Jupyter 
+
+Keplin is used in the related [Kotlin-Jupyter](https://github.com/ligee/kotlin-jupyter) project to provide a basic REPL for Jupyter notebooks or console.
