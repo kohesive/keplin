@@ -1,11 +1,11 @@
 package uy.kohesive.keplin.kotlin.script.jsr223
 
-import com.intellij.openapi.Disposable
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
 import org.jetbrains.kotlin.cli.common.repl.*
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.repl.GenericReplCompiler
+import org.jetbrains.kotlin.com.intellij.openapi.Disposable
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.script.KotlinScriptDefinition

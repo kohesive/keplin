@@ -1,8 +1,8 @@
 package uy.kohesive.keplin.kotlin.script
 
-import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import org.jetbrains.kotlin.cli.common.repl.ScriptTemplateEmptyArgsProvider
+import org.jetbrains.kotlin.com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
 import kotlin.reflect.KClass

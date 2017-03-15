@@ -4,10 +4,10 @@
 
 package uy.kohesive.keplin.kotlin.script.jsr223
 
-import com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.cli.common.repl.KotlinJsr223JvmScriptEngineFactoryBase
 import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
+import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.utils.PathUtil.*
 import uy.kohesive.keplin.kotlin.script.util.classpathFromClass
 import uy.kohesive.keplin.kotlin.script.util.classpathFromClassloader

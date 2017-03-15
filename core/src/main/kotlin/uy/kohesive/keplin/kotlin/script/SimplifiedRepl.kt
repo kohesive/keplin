@@ -1,7 +1,5 @@
 package uy.kohesive.keplin.kotlin.script
 
-import com.intellij.openapi.Disposable
-import com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -11,6 +9,8 @@ import org.jetbrains.kotlin.cli.common.repl.*
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.repl.GenericRepl
+import org.jetbrains.kotlin.com.intellij.openapi.Disposable
+import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.script.KotlinScriptDefinition

@@ -18,7 +18,7 @@ abstract class AbstractReplScriptEngine(val _factory: ScriptEngineFactory,
                                         defaultImports: List<String>)
     : AbstractIoFriendlyScriptEngine() {
     protected val extraClasspath: List<File> = findClassJars(SimplifiedRepl::class) +
-            findKotlinCompilerJars(false)
+            findKotlinCompilerJars(true)
     open protected val resolvers = listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver())
     open protected val moduleName: String = "KeplinKotlinJsr223-${System.currentTimeMillis()}"
     open protected val definitionName: String = "KeplinKotlinJsr223"
