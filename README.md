@@ -4,7 +4,7 @@ A mix of Kotlin repls (Spark, Flink, Livy, Toree, Zeppelin, ...all coming soon)
 
 ### Gradle /Maven
 
-Using `Kotlin 1.1-beta-38` or newer BETA, add this repo:
+Using `Kotlin 1.1.x`, add this repo:
 
 ```
 http://dl.bintray.com/jaysonminard/kohesive
@@ -12,9 +12,9 @@ http://dl.bintray.com/jaysonminard/kohesive
 
 |artifact|GAV|
 |---|---|
-|`keplin-core`|`uy.kohesive.keplin:keplin-core:1.0.0-ALPHA-41`|
-|`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-ALPHA-41`|
-|`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-ALPHA-41`|
+|`keplin-core`|`uy.kohesive.keplin:keplin-core:1.0.0-BETA-01`|
+|`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-BETA-01`|
+|`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-BETA-01`|
 
 # Current Modules:
 
