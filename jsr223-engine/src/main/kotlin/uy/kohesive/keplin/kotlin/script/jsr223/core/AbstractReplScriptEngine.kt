@@ -7,8 +7,7 @@ import uy.kohesive.keplin.kotlin.script.SimplifiedRepl
 import uy.kohesive.keplin.kotlin.script.resolver.AnnotationTriggeredScriptDefinition
 import uy.kohesive.keplin.kotlin.script.resolver.JarFileScriptDependenciesResolver
 import uy.kohesive.keplin.kotlin.script.resolver.maven.MavenScriptDependenciesResolver
-import uy.kohesive.keplin.kotlin.script.util.findClassJars
-import uy.kohesive.keplin.kotlin.script.util.findKotlinCompilerJars
+import uy.kohesive.keplin.util.ClassPathUtils
 import java.io.File
 import java.io.Reader
 import javax.script.*
@@ -17,8 +16,8 @@ import kotlin.reflect.KClass
 abstract class AbstractReplScriptEngine(val _factory: ScriptEngineFactory,
                                         defaultImports: List<String>)
     : AbstractIoFriendlyScriptEngine() {
-    protected val extraClasspath: List<File> = findClassJars(SimplifiedRepl::class) +
-            findKotlinCompilerJars(true)
+    protected val extraClasspath: List<File> = ClassPathUtils.findClassJars(SimplifiedRepl::class) +
+            ClassPathUtils.findKotlinCompilerJars(true)
     open protected val resolvers = listOf(JarFileScriptDependenciesResolver(), MavenScriptDependenciesResolver())
     open protected val moduleName: String = "KeplinKotlinJsr223-${System.currentTimeMillis()}"
     open protected val definitionName: String = "KeplinKotlinJsr223"

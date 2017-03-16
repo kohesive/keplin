@@ -3,8 +3,8 @@ package uy.kohesive.keplin.kotlin.script.jsr223.core
 import org.apache.commons.io.input.ReaderInputStream
 import org.apache.commons.io.output.WriterOutputStream
 import org.jetbrains.kotlin.cli.common.repl.InvokeWrapper
-import uy.kohesive.keplin.kotlin.script.util.InOutTrapper
-import uy.kohesive.keplin.kotlin.script.util.RerouteScriptIoInvoker
+import uy.kohesive.keplin.util.InOutTrapper
+import uy.kohesive.keplin.util.RerouteScriptIoInvoker
 import java.io.*
 import javax.script.Bindings
 import javax.script.ScriptContext

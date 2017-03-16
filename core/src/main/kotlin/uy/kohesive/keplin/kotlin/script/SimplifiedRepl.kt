@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
-import uy.kohesive.keplin.kotlin.script.util.findRequiredScriptingJarFiles
+import uy.kohesive.keplin.util.ClassPathUtils
 import java.io.Closeable
 import java.io.File
 import java.net.URLClassLoader
@@ -34,6 +34,7 @@ open class SimplifiedRepl protected constructor(protected val disposable: Dispos
                                                 protected val repeatingMode: ReplRepeatingMode = ReplRepeatingMode.NONE,
                                                 protected val sharedHostClassLoader: ClassLoader? = null,
                                                 protected val emptyArgsProvider: ScriptTemplateEmptyArgsProvider,
+                                                protected val useDaemonCompiler: Boolean = false,
                                                 protected val stateLock: ReentrantReadWriteLock = ReentrantReadWriteLock()) : Closeable {
 
     constructor(disposable: Disposable = Disposer.newDisposable(),
@@ -45,7 +46,7 @@ open class SimplifiedRepl protected constructor(protected val disposable: Dispos
                 sharedHostClassLoader: ClassLoader? = null) : this(disposable,
             compilerConfiguration = CompilerConfiguration().apply {
                 addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
-                addJvmClasspathRoots(findRequiredScriptingJarFiles(scriptDefinition.template,
+                addJvmClasspathRoots(ClassPathUtils.findRequiredScriptingJarFiles(scriptDefinition.template,
                         includeScriptEngine = false,
                         includeKotlinCompiler = false,
                         includeStdLib = true,

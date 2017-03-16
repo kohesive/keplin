@@ -1,3 +1,5 @@
 dependencies {
+    compile project(":keplin-util")
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-daemon-client', version: version_kotlin
 }

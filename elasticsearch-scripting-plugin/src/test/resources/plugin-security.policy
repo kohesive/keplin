@@ -1,0 +1,17 @@
+grant {
+  permission java.security.AllPermission;
+
+  permission java.lang.RuntimePermission "accessDeclaredMembers";
+  permission java.lang.RuntimePermission "createClassLoader";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+  permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+  permission java.io.FilePermission "${java.home}/-", "read";
+  permission java.io.FilePermission "${java.home}/../Classes", "read";
+  permission java.util.PropertyPermission "bremeld.*", "write";
+  permission java.lang.RuntimePermission "loadLibrary.jansi64-1.1.1";
+  permission java.lang.RuntimePermission "loadLibrary.jansi-1.1.1";
+  permission java.lang.RuntimePermission "loadLibrary.jansi";
+  permission java.lang.RuntimePermission "loadLibrary./var/folders/rh/shm9rq551zg_nhp9tvjdwgxr0000gn/T/libjansi-64-1-860352696033448169.1";
+  permission java.lang.RuntimePermission "loadLibrary./var/folders/rh/shm9rq551zg_nhp9tvjdwgxr0000gn/T/libjansi-64-1-3649199399470036235.1";
+  permission java.lang.RuntimePermission "loadLibrary./var/folders/rh/-";
+};

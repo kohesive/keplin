@@ -1,4 +1,4 @@
-package uy.kohesive.keplin.kotlin.script.util
+package uy.kohesive.keplin.util
 
 import org.jetbrains.kotlin.cli.common.repl.InvokeWrapper
 import org.jetbrains.kotlin.cli.common.repl.NO_ACTION
