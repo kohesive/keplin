@@ -23,7 +23,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
             temp.asMap.forEach {
                 put(it.key, it.value)
             }
-            put(KotlinScriptPlugin.KotlinPath, "/Users/jminard/Downloads/kotlinc")
+            put(KotlinScriptPlugin.KotlinPath, "/Users/jminard/Downloads/kotlinc-2")
         }
         return builder.build()
     }
@@ -123,6 +123,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                             .field("title", "Title #$i")
                             .field("content", "Hello World $i!")
                             .field("number", i)
+                            .field("badContent", "category:  History, Science, Fish")
                             .endObject()
                     )
             )
