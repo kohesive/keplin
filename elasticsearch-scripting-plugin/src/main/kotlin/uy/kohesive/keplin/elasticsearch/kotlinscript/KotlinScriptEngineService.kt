@@ -111,7 +111,9 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
         val _mutableVars: MutableMap<String, Any> = HashMap<String, Any>(vars)
 
         override fun run(): Any? {
-            val args = makeArgs(variables = _mutableVars.toWrapped())
+            @Suppress("UNCHECKED_CAST")
+            val ctx = _mutableVars.get("ctx") as? MutableMap<Any, Any> ?: hashMapOf()
+            val args = makeArgs(variables = _mutableVars.toWrapped(), ctx = ctx)
             val executable = compiledScript.compiled() as PreparedScript
             return executable.code.invoker(executable.code, args)
         }
@@ -140,7 +142,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             putAll(lookup.asMap())
         }
 
-        var _doc = lookup.doc() as MutableMap<String, List<Any>>
+        var _doc = lookup.doc() as MutableMap<String, MutableList<Any>>
         var _aggregationValue: Any? = null
         var _scorer: Scorer? = null
 
@@ -148,7 +150,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
 
         override fun run(): Any? {
             val score = _scorer?.score()?.toDouble() ?: 0.0
-            val ctx = _mutableVars.get("ctx") as? Map<Any, Any> ?: emptyMap()
+            val ctx = _mutableVars.get("ctx") as? MutableMap<Any, Any> ?: hashMapOf()
             val args = makeArgs(_mutableVars.toWrapped(), score, _doc, ctx, _aggregationValue)
             val executable = compiledScript.compiled() as PreparedScript
             return executable.code.invoker(executable.code, args)

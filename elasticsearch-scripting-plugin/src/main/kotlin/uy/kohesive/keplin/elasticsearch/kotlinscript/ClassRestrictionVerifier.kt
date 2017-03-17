@@ -1,6 +1,5 @@
 package uy.kohesive.keplin.elasticsearch.kotlinscript
 
-import org.elasticsearch.painless.Definition
 import org.objectweb.asm.*
 import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
@@ -433,7 +432,8 @@ object ClassRestrictionVerifier {
         val methodPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+((?:[\w\_][\w\_\d\.]*|\<init\>)\*?)\(([\w\_][\w\_\d\.\,\[\]]*)?\)[;]?$""".toRegex()
         val propertyPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+([\w\_][\w\_\d\.]*\*?)$""".toRegex()
 
-        val definitionResources = DEFINITION_FILES.map { Definition::class.java.getResourceAsStream(it) }
+        val painlessPackage = "org.elasticsearch.painless".replace('.', '/')
+        val definitionResources = DEFINITION_FILES.map { Thread.currentThread().contextClassLoader.getResourceAsStream("$painlessPackage/$it") }
         val painlessStructs = definitionResources.map { it.bufferedReader() }.map { stream ->
             val fileClasses = mutableListOf<DefClass>()
             var currentClass: DefClass? = null

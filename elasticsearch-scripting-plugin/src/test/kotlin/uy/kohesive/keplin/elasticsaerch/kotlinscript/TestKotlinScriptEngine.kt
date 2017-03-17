@@ -3,9 +3,12 @@ package uy.kohesive.keplin.elasticsaerch.kotlinscript
 import org.elasticsearch.action.search.SearchRequestBuilder
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.Client
+import org.elasticsearch.common.bytes.BytesReference
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.xcontent.XContentFactory
 import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.ingest.common.IngestCommonPlugin
+import org.elasticsearch.painless.PainlessPlugin
 import org.elasticsearch.plugins.Plugin
 import org.elasticsearch.script.Script
 import org.elasticsearch.script.ScriptType
@@ -38,10 +41,42 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
 
     private lateinit var client: Client
 
-    override fun nodePlugins(): Collection<Class<out Plugin>> = listOf(KotlinScriptPlugin::class.java)
+    override fun nodePlugins(): Collection<Class<out Plugin>> =
+            listOf(
+                    KotlinScriptPlugin::class.java,
+                    IngestCommonPlugin::class.java,
+                    PainlessPlugin::class.java
+            )
 
     fun <T : Any?> SearchRequestBuilder.addScriptField(name: String, params: Map<String, Any> = emptyMap(), lambda: EsKotlinScriptTemplate.() -> T): SearchRequestBuilder {
         return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", ClassSerDesUtil.serializeLambdaToBase64(lambda), params))
+    }
+
+    fun <T : Any?> makeSimulatePipelineJsonForLambda(lambda: EsKotlinScriptTemplate.() -> T): BytesReference {
+        val pipelineDef = XContentFactory.jsonBuilder()
+                .startObject()
+                .field("description", "Kotlin lambda test pipeline")
+                .startArray("processors")
+                .startObject()
+                .startObject("script")
+                .field("lang", "kotlin")
+                .field("inline", ClassSerDesUtil.serializeLambdaToBase64(lambda))
+                .startObject("params").endObject()
+                .endObject()
+                .endObject()
+                .endArray()
+                .endObject()
+
+        val simulationJson = XContentFactory.jsonBuilder()
+                .startObject()
+                .rawField("pipeline", pipelineDef.bytes())
+                .startArray("docs")
+                .startObject().startObject("_source").field("id", 1).field("badContent", "category:  History, Science, Fish").endObject().endObject()
+                .startObject().startObject("_source").field("id", 2).field("badContent", "category:  monkeys, mountains").endObject().endObject()
+                .endArray()
+                .endObject()
+
+        return simulationJson.bytes()
     }
 
     fun SearchRequestBuilder.addScriptField(name: String, params: Map<String, Any> = emptyMap(), scriptCode: String): SearchRequestBuilder {
@@ -194,16 +229,16 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
         val prep = client.prepareSearch(INDEX_NAME)
                 .addScriptField("scriptField1", emptyMap()) {
-                    val currentValue = docString("badContent") ?: ""
-                    badCategoryPattern.toRegex().matchEntire(currentValue)
-                            ?.takeIf { it.groups.size > 2 }
-                            ?.let {
+                    val currentValue = docStringList("badContent")
+                    currentValue.map { value -> badCategoryPattern.toRegex().matchEntire(value)?.takeIf { it.groups.size > 2 } }
+                            .filterNotNull()
+                            .map {
                                 val typeName = it.groups[1]!!.value.toLowerCase()
                                 it.groups[2]!!.value.split(',')
                                         .map { it.trim().toLowerCase() }
                                         .filterNot { it.isBlank() }
                                         .map { "$typeName: $it" }
-                            } ?: listOf(currentValue)
+                            }.flatten()
                 }.setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
 
@@ -221,21 +256,21 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
     fun testFuncRefWithMockContextAndRealDeal() {
         val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
         val scriptFunc = fun EsKotlinScriptTemplate.(): Any? {
-            val currentValue = docString("badContent") ?: ""
-            return badCategoryPattern.toRegex().matchEntire(currentValue)
-                    ?.takeIf { it.groups.size > 2 }
-                    ?.let {
+            val currentValue = docStringList("badContent")
+            return currentValue.map { value -> badCategoryPattern.toRegex().matchEntire(value)?.takeIf { it.groups.size > 2 } }
+                    .filterNotNull()
+                    .map {
                         val typeName = it.groups[1]!!.value.toLowerCase()
                         it.groups[2]!!.value.split(',')
                                 .map { it.trim().toLowerCase() }
                                 .filterNot { it.isBlank() }
                                 .map { "$typeName: $it" }
-                    } ?: listOf(currentValue)
+                    }.flatten()
         }
 
         val mockContext = ConcreteEsKotlinScriptTemplate(parm = emptyMap(),
-                doc = hashMapOf("badContent" to listOf("category:  History, Science, Fish")),
-                ctx = emptyMap(), _value = 0, _score = 0.0)
+                doc = mutableMapOf("badContent" to mutableListOf<Any>("category:  History, Science, Fish")),
+                ctx = mutableMapOf(), _value = 0, _score = 0.0)
 
         val expectedResults = listOf("category: history", "category: science", "category: fish")
 
@@ -255,6 +290,34 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
             }
             println("  ${time}ms")
         }
+    }
+
+    fun testLambdaAsIngestPipelineStep() {
+        val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
+        val scriptFunc = fun EsKotlinScriptTemplate.(): Any? {
+            val newValue = (ctx["badContent"] as? String)
+                    ?.let { currentValue ->
+                        badCategoryPattern.toRegex().matchEntire(currentValue)?.takeIf { it.groups.size > 2 }
+                                ?.let {
+                                    val typeName = it.groups[1]!!.value.toLowerCase()
+                                    it.groups[2]!!.value.split(',')
+                                            .map { it.trim().toLowerCase() }
+                                            .filterNot { it.isBlank() }
+                                            .map { "$typeName: $it" }
+                                } ?: listOf(currentValue)
+                    } ?: emptyList()
+            ctx["badContent"] = newValue
+            return true
+        }
+
+        val simulateSource = makeSimulatePipelineJsonForLambda(scriptFunc)
+
+        val simulateResults = client.admin().cluster().prepareSimulatePipeline(simulateSource).execute().actionGet()
+        simulateResults.results[0]!!.let {
+            val expectedResults = listOf("category: history", "category: science", "category: fish")
+            // TODO: no response parsing is in the client, need to handle this specially
+        }
+
     }
 
     fun testSecurityViolationInLambdaAsScript() {
@@ -320,7 +383,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                             .field("content", "Hello World $i!")
                             .field("number", i)
                             .field("badContent", "category:  History, Science, Fish")
-                            // badContent is incorrect, should be multi-value ["category: history", "category: science", "category: fish"]
+                            // badContent is incorrect, should be multi-value
+                            // ["category: history", "category: science", "category: fish"]
                             .endObject()
                     )
             )
@@ -331,4 +395,5 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         flushAndRefresh(INDEX_NAME)
         ensureGreen(INDEX_NAME)
     }
+
 }
