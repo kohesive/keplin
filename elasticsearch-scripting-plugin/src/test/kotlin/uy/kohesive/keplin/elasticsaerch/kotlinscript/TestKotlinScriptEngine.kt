@@ -47,13 +47,14 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
     fun testNormalQuery() {
         println("NORMAL QUERY:")
         val prep = client.prepareSearch(INDEX_NAME)
-                .setQuery(QueryBuilders.matchAllQuery())
+                .setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
         val results1 = prep.execute().actionGet()
         if (results1.hits == null || results1.hits.hits == null) {
             fail("no data")
         }
         results1.hits.hits.forEachIndexed { idx, hit ->
-            println("[$idx] ${hit.id} => ${hit.fields["multi"]!!.first()}")
+            println("[$idx] ${hit.id} => ${hit.sourceAsMap()["title"]!!}")
         }
         println("----end----")
     }
@@ -63,7 +64,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         val prep = client.prepareSearch(INDEX_NAME)
                 .addScriptField("multi", mapOf("multiplier" to 2)) {
                     docInt("number", 1) * parmInt("multiplier", 1) + _score
-                }.setQuery(QueryBuilders.matchAllQuery())
+                }.setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
 
         (1..25).forEach { idx ->
             println("...RUN $idx :>>>>")
@@ -83,7 +85,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         val prep = client.prepareSearch(INDEX_NAME)
                 .addScriptField("multi", mapOf("multiplier" to 2), """
                     docInt("number", 1) * parmInt("multiplier", 1) + _score
-                """).setQuery(QueryBuilders.termQuery("title", "Title"))
+                """).setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
 
         (1..25).forEach { idx ->
             println("...RUN $idx :>>>>")
