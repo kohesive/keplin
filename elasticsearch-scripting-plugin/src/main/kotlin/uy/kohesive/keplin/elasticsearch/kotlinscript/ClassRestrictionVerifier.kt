@@ -11,22 +11,34 @@ object ClassRestrictionVerifier {
             "kotlin.jvm.internal.Lambda",
             "kotlin.Metadata",
             "kotlin.Unit",
-            "org.jetbrains.annotations.Nullable")
+            "kotlin.text.Regex",
+            "kotlin.text.MatchResult",
+            "kotlin.text.MatchGroupCollection",
+            "kotlin.text.MatchGroup",
+            "kotlin.TypeCastException",
+            "kotlin.text.StringsKt",
+            "org.jetbrains.annotations.Nullable",
+            "[Ljava.lang.String;", // TODO: this needs other handling
+            "java.util.regex.Pattern")  // TODO: we need a serializable white-list too
 
 
-    val extraAllowedSymbols = listOf(DefClass("StringBuilder", "java.lang.StringBuilder", listOf(
-            DefMethodSig("java.lang.StringBuilder", "append", listOf("java.lang.String")),
-            DefMethodSig("java.lang.StringBuilder", "append", listOf("int")),
-            DefMethodSig("java.lang.StringBuilder", "append", listOf("long")),
-            DefMethodSig("java.lang.StringBuilder", "append", listOf("char")),
-            DefMethodSig("java.lang.StringBuilder", "append", listOf("double")),
-            DefMethodSig("java.lang.StringBuilder", "append", listOf("float")),
-            DefMethodSig("java.lang.StringBuilder", "append", listOf("byte")),
-            DefMethodSig("java.lang.StringBuilder", "append", listOf("short")),
-            DefMethodSig("java.lang.StringBuilder", "append", listOf("boolean")),
-            DefMethodSig("java.lang.String", "toString", emptyList()))))
+    val extraAllowedSymbols = listOf(
+            DefClass("StringBuilder", "java.lang.StringBuilder", listOf(
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("java.lang.String")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("int")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("long")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("char")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("double")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("float")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("byte")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("short")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("boolean")),
+                    DefMethodSig("java.lang.String", "toString", emptyList()))),
+            DefClass("ArrayList", "java.util.ArrayList", listOf(
+                    DefMethodSig("java.util.ArrayList", "<init>", listOf("int"))))
+    )
 
-    val kotlinAllowedPackages = listOf("kotlin.collections.") // TODO: need specific list, these are not sealed
+    val kotlinAllowedPackages = listOf("kotlin.collections.", "kotlin.jvm.functions.") // TODO: need specific list, these are not sealed
 
     fun verifySafeClass(className: String, knownExtraAllowed: Set<String>, newClasses: List<KotlinScriptEngineService.NamedClassBytes>): VerifyResults {
         val readers = newClasses.map { ClassReader(it.bytes) }

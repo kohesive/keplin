@@ -186,12 +186,6 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     override fun close() {
     }
 
-    class ConcreteEsKotlinScriptTemplate(parm: Map<String, EsWrappedValue>,
-                                         doc: MutableMap<String, List<Any>>,
-                                         ctx: Map<Any, Any>,
-                                         _value: Any?,
-                                         _score: Double) : EsKotlinScriptTemplate(parm, doc, ctx, _value, _score)
-
     val scriptTemplateConstructor = ::ConcreteEsKotlinScriptTemplate
 
     override fun compile(scriptName: String?, scriptSource: String, params: Map<String, String>?): Any {
@@ -274,7 +268,9 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
 
         val verification = ClassRestrictionVerifier.verifySafeClass(executableCode.className, emptySet(), executableCode.classes)
         if (verification.failed) {
-            throw  ScriptException("Illegal Access to unauthorized classes/methods", null, verification.violations.sorted(), scriptSource, LANGUAGE_NAME)
+            val violations = verification.violations.sorted()
+            val exp = Exception("Illegal Access to unauthorized classes/methods: ${violations.joinToString()}")
+            throw  ScriptException(exp.message, exp, violations, scriptSource, LANGUAGE_NAME)
         }
         return PreparedScript(executableCode, verification.isScoreAccessed)
     }
@@ -291,5 +287,6 @@ fun toScriptException(message: String, code: String, location: CompilerMessageLo
     val text = msgs[0]
     val snippet = if (msgs.size > 1) msgs[1] else ""
     val errorMarker = if (msgs.size > 2) msgs[2] else ""
-    return ScriptException(text, null, listOf(snippet, errorMarker), code, KotlinScriptEngineService.LANGUAGE_NAME)
+    val exp = Exception(text)
+    return ScriptException(exp.message, exp, listOf(snippet, errorMarker), code, KotlinScriptEngineService.LANGUAGE_NAME)
 }

@@ -1,6 +1,7 @@
 package uy.kohesive.keplin.elasticsaerch.kotlinscript
 
 import org.elasticsearch.action.search.SearchRequestBuilder
+import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.Client
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.xcontent.XContentFactory
@@ -8,11 +9,14 @@ import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.plugins.Plugin
 import org.elasticsearch.script.Script
 import org.elasticsearch.script.ScriptType
+import org.elasticsearch.search.SearchHit
 import org.elasticsearch.test.ESIntegTestCase
 import org.junit.Before
 import uy.kohesive.keplin.elasticsearch.kotlinscript.ClassSerDesUtil
+import uy.kohesive.keplin.elasticsearch.kotlinscript.ConcreteEsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.EsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.KotlinScriptPlugin
+import java.io.File
 import kotlin.system.measureTimeMillis
 
 @ESIntegTestCase.ClusterScope(transportClientRatio = 1.0, numDataNodes = 1)
@@ -44,46 +48,41 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", scriptCode, params))
     }
 
+    fun SearchHit.printHitSourceField(fieldName: String) {
+        println("${id} => ${sourceAsMap()["title"].toString()}")
+    }
+
+    fun SearchHit.printHitField(fieldName: String) {
+        println("${id} => ${fields[fieldName]?.values.toString()}")
+    }
+
+    fun SearchResponse.printHitsSourceField(fieldName: String) {
+        hits.hits.forEach { it.printHitSourceField(fieldName) }
+    }
+
+    fun SearchResponse.printHitsField(fieldName: String) {
+        hits.hits.forEach { it.printHitField(fieldName) }
+    }
+
+    fun SearchResponse.assertHasResults() {
+        if (hits == null || hits.hits == null || hits.hits.isEmpty()) fail("no data returned in query")
+    }
+
     fun testNormalQuery() {
         println("NORMAL QUERY:")
         val prep = client.prepareSearch(INDEX_NAME)
                 .setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
-        val results1 = prep.execute().actionGet()
-        if (results1.hits == null || results1.hits.hits == null) {
-            fail("no data")
-        }
-        results1.hits.hits.forEachIndexed { idx, hit ->
-            println("[$idx] ${hit.id} => ${hit.sourceAsMap()["title"]!!}")
-        }
+        val results = prep.execute().actionGet()
+        results.assertHasResults()
+        results.printHitsSourceField("title")
         println("----end----")
     }
 
-    fun testLambdaAsScript() {
-        println("Elasticsearch Kotlin Script starting")
-        val prep = client.prepareSearch(INDEX_NAME)
-                .addScriptField("multi", mapOf("multiplier" to 2)) {
-                    docInt("number", 1) * parmInt("multiplier", 1) + _score
-                }.setQuery(QueryBuilders.matchQuery("title", "title"))
-                .setFetchSource(true)
-
-        (1..25).forEach { idx ->
-            println("...RUN $idx :>>>>")
-            val time = measureTimeMillis {
-                val results1 = prep.execute().actionGet()
-                results1.hits.hits.forEachIndexed { idx, hit ->
-                    println("[$idx] ${hit.id} => ${hit.fields["multi"]!!.first()}")
-                }
-            }
-            println("  ${time}ms")
-        }
-        println("...END Kotlin Script run")
-    }
 
     fun testStringScript() {
-        println("Elasticsearch Kotlin Script starting")
         val prep = client.prepareSearch(INDEX_NAME)
-                .addScriptField("multi", mapOf("multiplier" to 2), """
+                .addScriptField("scriptField1", mapOf("multiplier" to 2), """
                     docInt("number", 1) * parmInt("multiplier", 1) + _score
                 """).setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
@@ -91,14 +90,186 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         (1..25).forEach { idx ->
             println("...RUN $idx :>>>>")
             val time = measureTimeMillis {
-                val results1 = prep.execute().actionGet()
-                results1.hits.hits.forEachIndexed { idx, hit ->
-                    println("[$idx] ${hit.id} => ${hit.fields["multi"]!!.first()}")
-                }
+                val results = prep.execute().actionGet()
+                results.assertHasResults()
+                results.printHitsField("scriptField1")
             }
             println("  ${time}ms")
         }
-        println("...END Kotlin Script run")
+    }
+
+    fun testSecurityViolationInStringScript() {
+        try {
+            client.prepareSearch(INDEX_NAME)
+                    .addScriptField("scriptField1", mapOf("multiplier" to 2), """
+                    import java.io.*
+
+                    val f = File("howdy")  // violation!
+
+                    docInt("number", 1) * parmInt("multiplier", 1) + _score
+                """).setQuery(QueryBuilders.matchQuery("title", "title"))
+                    .setFetchSource(true).execute().actionGet()
+            fail("security verification should have caught this use of File")
+        } catch (ex: Throwable) {
+            val exceptionStack = generateSequence(ex) { it.cause }
+            assertTrue(exceptionStack.take(5).any { "java.io.File" in it.message!! })
+        }
+    }
+
+    fun testLambdaAsScript() {
+        val prep = client.prepareSearch(INDEX_NAME)
+                .addScriptField("scriptField1", mapOf("multiplier" to 2)) {
+                    docInt("number", 1) * parmInt("multiplier", 1) + _score
+                }.setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
+
+        (1..25).forEach { idx ->
+            println("...RUN $idx :>>>>")
+            val time = measureTimeMillis {
+                val results = prep.execute().actionGet()
+                results.assertHasResults()
+                results.printHitsField("scriptField1")
+            }
+            println("  ${time}ms")
+        }
+    }
+
+    fun testMoreComplexPainlessScript() {
+        val prep = client.prepareSearch(INDEX_NAME)
+                .addScriptField("scriptField1", Script(ScriptType.INLINE, "painless", """
+                    val currentValue = docString("badContent") ?: ""
+                    badCategoryPattern.toRegex().matchEntire(currentValue)
+                            ?.takeIf { it.groups.size > 2 }
+                            ?.let {
+                                val typeName = it.groups[1]!!.value.toLowerCase()
+                                it.groups[2]!!.value.split(',')
+                                        .map { it.trim().toLowerCase() }
+                                        .filterNot { it.isBlank() }
+                                        .map { typeName + ": " + it }
+                            } ?: listOf(currentValue)
+                  """, emptyMap()))
+                .setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
+
+        (1..25).forEach { idx ->
+            println("...RUN $idx :>>>>")
+            val time = measureTimeMillis {
+                val results = prep.execute().actionGet()
+                results.assertHasResults()
+                results.printHitsField("scriptField1")
+            }
+            println("  ${time}ms")
+        }
+    }
+
+    fun testMoreComplexKotlinAsScript() {
+        val prep = client.prepareSearch(INDEX_NAME)
+                .addScriptField("scriptField1", Script(ScriptType.INLINE, "kotlin", """
+                    val currentValue = docString("badContent") ?: ""
+                    "^(\\w+)\\s*\\:\\s*(.+)$".toRegex().matchEntire(currentValue)
+                            ?.takeIf { it.groups.size > 2 }
+                            ?.let {
+                                val typeName = it.groups[1]!!.value.toLowerCase()
+                                it.groups[2]!!.value.split(',')
+                                        .map { it.trim().toLowerCase() }
+                                        .filterNot { it.isBlank() }
+                                        .map { typeName + ": " + it }
+                            } ?: listOf(currentValue)
+                  """, emptyMap()))
+                .setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
+
+        (1..25).forEach { idx ->
+            println("...RUN $idx :>>>>")
+            val time = measureTimeMillis {
+                val results = prep.execute().actionGet()
+                results.assertHasResults()
+                results.printHitsField("scriptField1")
+            }
+            println("  ${time}ms")
+        }
+    }
+
+    fun testMoreComplexLambdaAsScript() {
+        val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
+        val prep = client.prepareSearch(INDEX_NAME)
+                .addScriptField("scriptField1", emptyMap()) {
+                    val currentValue = docString("badContent") ?: ""
+                    badCategoryPattern.toRegex().matchEntire(currentValue)
+                            ?.takeIf { it.groups.size > 2 }
+                            ?.let {
+                                val typeName = it.groups[1]!!.value.toLowerCase()
+                                it.groups[2]!!.value.split(',')
+                                        .map { it.trim().toLowerCase() }
+                                        .filterNot { it.isBlank() }
+                                        .map { "$typeName: $it" }
+                            } ?: listOf(currentValue)
+                }.setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
+
+        (1..25).forEach { idx ->
+            println("...RUN $idx :>>>>")
+            val time = measureTimeMillis {
+                val results = prep.execute().actionGet()
+                results.assertHasResults()
+                results.printHitsField("scriptField1")
+            }
+            println("  ${time}ms")
+        }
+    }
+
+    fun testFuncRefWithMockContextAndRealDeal() {
+        val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
+        val scriptFunc = fun EsKotlinScriptTemplate.(): Any? {
+            val currentValue = docString("badContent") ?: ""
+            return badCategoryPattern.toRegex().matchEntire(currentValue)
+                    ?.takeIf { it.groups.size > 2 }
+                    ?.let {
+                        val typeName = it.groups[1]!!.value.toLowerCase()
+                        it.groups[2]!!.value.split(',')
+                                .map { it.trim().toLowerCase() }
+                                .filterNot { it.isBlank() }
+                                .map { "$typeName: $it" }
+                    } ?: listOf(currentValue)
+        }
+
+        val mockContext = ConcreteEsKotlinScriptTemplate(parm = emptyMap(),
+                doc = hashMapOf("badContent" to listOf("category:  History, Science, Fish")),
+                ctx = emptyMap(), _value = 0, _score = 0.0)
+
+        val expectedResults = listOf("category: history", "category: science", "category: fish")
+
+        assertEquals(expectedResults, mockContext.scriptFunc())
+
+        val prep = client.prepareSearch(INDEX_NAME)
+                .addScriptField("scriptField1", emptyMap(), scriptFunc)
+                .setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
+
+        (1..25).forEach { idx ->
+            println("...RUN $idx :>>>>")
+            val time = measureTimeMillis {
+                val results = prep.execute().actionGet()
+                results.assertHasResults()
+                results.printHitsField("scriptField1")
+            }
+            println("  ${time}ms")
+        }
+    }
+
+    fun testSecurityViolationInLambdaAsScript() {
+        try {
+            client.prepareSearch(INDEX_NAME)
+                    .addScriptField("multi", mapOf("multiplier" to 2)) {
+                        val f = File("asdf") // security violation
+                        docInt("number", 1) * parmInt("multiplier", 1) + _score
+                    }.setQuery(QueryBuilders.matchQuery("title", "title"))
+                    .setFetchSource(true).execute().actionGet()
+            fail("security verification should have caught this use of File")
+        } catch (ex: Throwable) {
+            val exceptionStack = generateSequence(ex) { it.cause }
+            assertTrue(exceptionStack.take(5).any { "java.io.File" in it.message!! })
+        }
     }
 
     @Before
@@ -112,6 +283,31 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
 
         val bulk = client.prepareBulk()
 
+        client.admin().indices().prepareCreate(INDEX_NAME).setSource("""
+               {
+                  "settings": {
+                    "index": {
+                      "number_of_shards": "2",
+                      "number_of_replicas": "0"
+                    }
+                  },
+                  "mappings": {
+                    "test": {
+                      "_all": {
+                        "enabled": false
+                      },
+                      "properties": {
+                        "url": { "type": "keyword" },
+                        "title": { "type": "text" },
+                        "content": { "type": "text" },
+                        "number": { "type": "integer" },
+                        "badContent": { "type": "keyword" }
+                      }
+                    }
+                  }
+               }
+        """).execute().actionGet()
+
         (1..5).forEach { i ->
             bulk.add(client.prepareIndex()
                     .setIndex(INDEX_NAME)
@@ -124,6 +320,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                             .field("content", "Hello World $i!")
                             .field("number", i)
                             .field("badContent", "category:  History, Science, Fish")
+                            // badContent is incorrect, should be multi-value ["category: history", "category: science", "category: fish"]
                             .endObject()
                     )
             )

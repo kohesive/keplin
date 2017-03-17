@@ -15,6 +15,11 @@ internal fun makeArgs(variables: Map<String, EsWrappedValue> = emptyMap(),
     return ScriptArgsWithTypes(arrayOf(variables, doc, ctx, value, score), SCRIPT_ARGS_TYPES)
 }
 
+open class ConcreteEsKotlinScriptTemplate(parm: Map<String, EsWrappedValue>,
+                                          doc: MutableMap<String, List<Any>>,
+                                          ctx: Map<Any, Any>,
+                                          _value: Any?,
+                                          _score: Double) : EsKotlinScriptTemplate(parm, doc, ctx, _value, _score)
 
 abstract class EsKotlinScriptTemplate(val parm: Map<String, EsWrappedValue>,
                                       val doc: MutableMap<String, List<Any>>,
@@ -23,6 +28,11 @@ abstract class EsKotlinScriptTemplate(val parm: Map<String, EsWrappedValue>,
                                       val _score: Double) {
 
     fun docInt(field: String, default: Int): Int = (doc[field]?.single() as? Long)?.toInt() ?: default
+    fun docInt(field: String): Int? = (doc[field]?.single() as? Long)?.toInt()
+
+    fun docString(field: String, default: String): String = (doc[field]?.single() as? String) ?: default
+    fun docString(field: String): String? = (doc[field]?.single() as? String)
+
     fun parmInt(field: String): Int? = parm[field]?.asInt()
     fun parmInt(field: String, default: Int): Int = parm[field].asInt(default)
 
