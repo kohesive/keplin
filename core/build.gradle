@@ -2,4 +2,8 @@ dependencies {
     compile project(":keplin-util")
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: version_kotlin
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-daemon-client', version: version_kotlin
+
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+    testCompile group: 'junit', name: 'junit', version: version_junit
+    testCompile group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit', version: version_kotlin
 }

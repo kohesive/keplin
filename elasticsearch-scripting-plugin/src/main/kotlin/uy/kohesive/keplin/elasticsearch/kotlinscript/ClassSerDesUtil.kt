@@ -15,10 +15,11 @@ object ClassSerDesUtil {
 
     fun isPrefixedBase64(scriptSource: String): Boolean = scriptSource.startsWith(BINARY_PREFIX)
 
-    fun deserFromPrefixedBase64(scriptSource: String): Triple<String, List<ByteArray>, ByteArray> {
+    fun deserFromPrefixedBase64(scriptSource: String): Triple<String, List<KotlinScriptEngineService.NamedClassBytes>, ByteArray> {
         if (!isPrefixedBase64(scriptSource)) throw ClassSerDesException("Script is not valid encoded classes")
         try {
-            val decodedBinary = Base64.getDecoder().decode(scriptSource.substring(BINARY_PREFIX.length))
+            val rawData = scriptSource.substring(BINARY_PREFIX.length)
+            val decodedBinary = Base64.getDecoder().decode(rawData)
             val content = DataInputStream(ByteArrayInputStream(decodedBinary)).use { stream ->
                 val markerSig = stream.readString()
                 val markerVer = stream.readInt()
@@ -29,7 +30,11 @@ object ClassSerDesUtil {
 
                 val className = stream.readString()
                 val classes = stream.readInt().let { count ->
-                    (1..count).map { stream.readByteArray() }
+                    (1..count).map {
+                        val name = stream.readString()
+                        val bytes = stream.readByteArray()
+                        KotlinScriptEngineService.NamedClassBytes(name, bytes)
+                    }
                 }
 
                 val serializedInstance = stream.readByteArray()
@@ -39,17 +44,20 @@ object ClassSerDesUtil {
                 val checkBytes = BytesRefBuilder().apply {
                     copyChars(className)
                     classes.forEach {
-                        append(it, 0, it.size)
+                        val nameAsBytes = it.className.toByteArray()
+                        append(nameAsBytes, 0, nameAsBytes.size)
+                        append(it.bytes, 0, it.bytes.size)
                     }
                     append(serializedInstance, 0, serializedInstance.size)
                 }.toBytesRef()
-                val calcSig = StringHelper.murmurhash3_x86_32(checkBytes, SIG_SEED + className.sumBy(Char::toInt) + classes.size)
+                val calcSig = StringHelper.murmurhash3_x86_32(checkBytes, SIG_SEED)
 
                 if (murmurSig != calcSig) throw ClassSerDesException("Serialized classes signature is not valid")
                 Triple(className, classes, serializedInstance)
             }
             return content
         } catch (ex: Throwable) {
+            if (ex is ClassSerDesException) throw ex
             throw ClassSerDesException(ex.message ?: "unknown error", ex)
         }
     }
@@ -96,7 +104,8 @@ object ClassSerDesUtil {
         }
 
         val classesAsBytes = tracedClasses.filterNot { it.name in otherAllowedSerializedClasses }.map { oneClass ->
-            serClass.classLoader.getResourceAsStream(oneClass.name.replace('.', '/') + ".class").use { it.readBytes() }
+            KotlinScriptEngineService.NamedClassBytes(oneClass.name,
+                    serClass.classLoader.getResourceAsStream(oneClass.name.replace('.', '/') + ".class").use { it.readBytes() })
         }
 
         val verification = ClassRestrictionVerifier.verifySafeClass(className, emptySet(), classesAsBytes)
@@ -111,50 +120,57 @@ object ClassSerDesUtil {
 
                 stream.writeString(className)
                 stream.writeInt(classesAsBytes.size)
-                classesAsBytes.forEach { stream.writeByteArray(it) }
+                classesAsBytes.forEach {
+                    stream.writeString(it.className)
+                    stream.writeByteArray(it.bytes)
+                }
 
                 stream.writeByteArray(serializedBytes)
 
                 val checkBytes = BytesRefBuilder().apply {
                     copyChars(className)
                     classesAsBytes.forEach {
-                        append(it, 0, it.size)
+                        val nameAsBytes = it.className.toByteArray()
+                        append(nameAsBytes, 0, nameAsBytes.size)
+                        append(it.bytes, 0, it.bytes.size)
                     }
                     append(serializedBytes, 0, serializedBytes.size)
                 }.toBytesRef()
-                val calcSig = StringHelper.murmurhash3_x86_32(checkBytes, SIG_SEED + className.sumBy(Char::toInt) + serializedBytes.size)
+                val calcSig = StringHelper.murmurhash3_x86_32(checkBytes, SIG_SEED)
 
                 stream.writeInt(calcSig)
             }
         }.toByteArray()
 
-        val encodedBinary = Base64.getEncoder().encode(content)
+        val encodedBinary = Base64.getEncoder().encodeToString(content)
         return BINARY_PREFIX + encodedBinary
     }
 
-    class TraceUsedClassesObjectInputStream(startingClass: Class<*>, input: InputStream, val classes: MutableSet<Class<out Any>> = mutableSetOf()) : ObjectInputStream(input) {
-        override fun resolveClass(serialInput: ObjectStreamClass): Class<*> {
-            val temp = super.resolveClass(serialInput)
-            return temp
-        } // called second
+    @Suppress("UNCHECKED_CAST")
+    fun deserLambdaInstanceSafely(className: String, serBytes: ByteArray, allowedClassNames: Set<String>): EsKotlinScriptTemplate.() -> Any? {
+        val tracer = RestrictUsedClassesObjectInputStream(className, allowedClassNames, ByteArrayInputStream(serBytes))
+        return tracer.use { stream ->
+            stream.readObject()
+        } as EsKotlinScriptTemplate.() -> Any?
+    }
 
-        override fun resolveProxyClass(interfaces: Array<String>): Class<*> {
-            val temp = super.resolveProxyClass(interfaces)
-            return temp
-        }
-
+    class RestrictUsedClassesObjectInputStream(val className: String, val allowedClassNames: Set<String>, input: InputStream) : ObjectInputStream(input) {
         override fun readClassDescriptor(): ObjectStreamClass {
             val temp = super.readClassDescriptor()
+            val verify = ClassRestrictionVerifier.verifySafeClassForDeser(className, allowedClassNames, temp.name)
+            if (verify.failed) throw IllegalStateException("Invalid class ${temp.name} not allowed for Kotlin Script Lambda deserialization")
             return temp
         } // called first:  we can check the type name here, and the fields it has with their name + signatures /// kotlin.jvm.internal.Lambda
     }
 
     class TraceUsedClassesObjectOutputStream(startingClass: Class<*>, output: OutputStream, val classes: MutableSet<Class<out Any>> = mutableSetOf()) : ObjectOutputStream(output) {
+        // TODO: don't need this method?
         override fun annotateClass(cl: Class<*>) {
             classes.add(cl)
             super.annotateClass(cl)
         }
 
+        // TODO: don't need this method?
         override fun annotateProxyClass(cl: Class<*>) {
             classes.add(cl)
             super.annotateProxyClass(cl)

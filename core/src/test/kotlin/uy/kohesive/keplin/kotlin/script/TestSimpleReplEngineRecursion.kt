@@ -3,16 +3,15 @@ package uy.kohesive.keplin.kotlin.script
 
 import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import org.junit.Test
-import uy.kohesive.keplin.kotlin.script.util.findClassJars
-import uy.kohesive.keplin.kotlin.script.util.findKotlinCompilerJars
+import uy.kohesive.keplin.util.ClassPathUtils
 import kotlin.test.assertEquals
 
 
 class TestSimpleReplEngineRecursion {
     @Test
     fun testRecursingScriptsDifferentEngines() {
-        val extraClasspath = findClassJars(SimplifiedRepl::class) +
-                findKotlinCompilerJars(true)
+        val extraClasspath = ClassPathUtils.findClassJars(SimplifiedRepl::class) +
+                ClassPathUtils.findKotlinCompilerJars(true)
 
         SimplifiedRepl(additionalClasspath = extraClasspath).use { repl ->
             val outerEval = repl.compileAndEval("""
@@ -33,8 +32,8 @@ class TestSimpleReplEngineRecursion {
 
     @Test
     fun testRecursingScriptsSameEngines() {
-        val extraClasspath = findClassJars(SimplifiedRepl::class) +
-                findKotlinCompilerJars(true)
+        val extraClasspath = ClassPathUtils.findClassJars(SimplifiedRepl::class) +
+                ClassPathUtils.findKotlinCompilerJars(true)
         SimplifiedRepl(scriptDefinition = KotlinScriptDefinitionEx(TestRecursiveScriptContext::class, null),
                 additionalClasspath = extraClasspath,
                 sharedHostClassLoader = Thread.currentThread().contextClassLoader).apply {

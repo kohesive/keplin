@@ -6,21 +6,30 @@ import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
 
 object ClassRestrictionVerifier {
-    init {
-        // make sure definitions are loaded for Painless whitelist
-        Definition.getRuntimeClass(String::class.java)
-    }
-
     val kotinAllowedClasses = setOf("org.jetbrains.annotations.NotNull",
             "kotlin.jvm.internal.Intrinsics",
             "kotlin.jvm.internal.Lambda",
             "kotlin.Metadata",
-            "kotlin.Unit")
+            "kotlin.Unit",
+            "org.jetbrains.annotations.Nullable")
+
+
+    val extraAllowedSymbols = listOf(DefClass("StringBuilder", "java.lang.StringBuilder", listOf(
+            DefMethodSig("java.lang.StringBuilder", "append", listOf("java.lang.String")),
+            DefMethodSig("java.lang.StringBuilder", "append", listOf("int")),
+            DefMethodSig("java.lang.StringBuilder", "append", listOf("long")),
+            DefMethodSig("java.lang.StringBuilder", "append", listOf("char")),
+            DefMethodSig("java.lang.StringBuilder", "append", listOf("double")),
+            DefMethodSig("java.lang.StringBuilder", "append", listOf("float")),
+            DefMethodSig("java.lang.StringBuilder", "append", listOf("byte")),
+            DefMethodSig("java.lang.StringBuilder", "append", listOf("short")),
+            DefMethodSig("java.lang.StringBuilder", "append", listOf("boolean")),
+            DefMethodSig("java.lang.String", "toString", emptyList()))))
 
     val kotlinAllowedPackages = listOf("kotlin.collections.") // TODO: need specific list, these are not sealed
 
-    fun verifySafeClass(className: String, knownExtraAllowed: Set<String>, newClasses: List<ByteArray>): VerifyResults {
-        val readers = newClasses.map(::ClassReader)
+    fun verifySafeClass(className: String, knownExtraAllowed: Set<String>, newClasses: List<KotlinScriptEngineService.NamedClassBytes>): VerifyResults {
+        val readers = newClasses.map { ClassReader(it.bytes) }
         val verifier = VerifySafeClassVisitor(className, knownExtraAllowed)
         readers.forEach { reader ->
             reader.accept(verifier, 0)
@@ -28,89 +37,89 @@ object ClassRestrictionVerifier {
         return VerifyResults(verifier.scoreAccessed, verifier.violations)
     }
 
+    // TODO: probably a smaller list for deserializing an instance, because not much is really needed
+    fun verifySafeClassForDeser(mainClassName: String, knownExtraAllowed: Set<String>, checkClassName: String): VerifyResults {
+        val className = mainClassName.fixClassName()
+        val checkName = checkClassName.fixClassName()
+        val allowed = knownExtraAllowed.map { it.fixClassName() }.toSet()
+        val containingClass = className.substringBefore("$")
+
+        if ('.' in checkName && !isSpecialType(className, containingClass, knownExtraAllowed, checkName) && checkName !in allowed) {
+            if (findSymbol(checkName) == null) {
+                return VerifyResults(false, setOf(checkName))
+            }
+        }
+        return VerifyResults(false, emptySet())
+    }
+
+    private fun validClassFilter(baseClass: String, containingClass: String, checkClass: String): Boolean {
+        return checkClass == baseClass
+                || checkClass.startsWith("$baseClass\$")
+                || checkClass == containingClass
+                || checkClass.startsWith("$containingClass\$")
+                || checkClass in ClassSerDesUtil.otherAllowedSerializedClasses
+    }
+
+    private fun String.fixClassName() = this.replace('/', '.')
+
+    private fun findSymbol(rawName: String): DefClass? {
+        val name = rawName.fixClassName()
+        return definitions[name]
+    }
+
+    val validTypes = ClassRestrictionVerifier.kotinAllowedClasses
+
+    private fun isSpecialType(baseClass: String, containingClass: String, extraAllowed: Set<String>, rawName: String): Boolean {
+        val type = rawName.fixClassName()
+        return type in validTypes
+                || type in extraAllowed
+                || validClassFilter(baseClass, containingClass, type)
+                || type.startsWith("${KotlinScriptPlugin::class.java.`package`.name}.")  // TODO specific list, or make sure we seal our package
+                || kotlinAllowedPackages.any { type.startsWith(it) }
+    }
+
     data class VerifyResults(val isScoreAccessed: Boolean, val violations: Set<String>) {
         val failed: Boolean = violations.isNotEmpty()
     }
 
-    class VerifySafeClassVisitor(val myName: String, val knownExtraAllowed: Set<String>) : ClassVisitor(Opcodes.ASM5) {
+    class VerifySafeClassVisitor(val myName: String, val extraAllowed: Set<String>) : ClassVisitor(Opcodes.ASM5) {
         val violations: MutableSet<String> = mutableSetOf()
         var scoreAccessed: Boolean = false
 
-        val validTypes = setOf(myName) + ClassRestrictionVerifier.kotinAllowedClasses + knownExtraAllowed
-
-        val classCache = mutableMapOf<String, Definition.RuntimeClass?>()
-        val classMiss = mutableSetOf<String>()
-
         val containingClass = myName.substringBefore("$")
-
-        fun validClassFilter(x: String): Boolean = x == myName || x.startsWith("$myName\$") || x == containingClass || x.startsWith("$containingClass\$") || x in ClassSerDesUtil.otherAllowedSerializedClasses
-
-        fun String.fixClassName() = this.replace('/', '.')
-
-        fun findClass(rawName: String): Definition.RuntimeClass? {
-            val name = rawName.fixClassName()
-            return if (name in classMiss) null
-            else classCache.computeIfAbsent(name) {
-                val result = try {
-                    if (Definition.isSimpleType(name)) Definition.getRuntimeClass(Definition.getType(name).clazz)
-                    else if (Definition.isType(name)) Definition.getRuntimeClass(Definition.getType(name).clazz)
-                    else Definition.getRuntimeClass(Class.forName(it))
-                } catch (ex: Exception) {
-                    null
-                }
-                if (result == null) classMiss.add(name)
-                result
-            }
-        }
-
-        fun isSpecialType(rawName: String): Boolean {
-            val type = rawName.fixClassName()
-            return type in validTypes || validClassFilter(type)
-                    || type.startsWith("${KotlinScriptPlugin::class.java.`package`.name}.")  // TODO specific list, or make sure we seal our package
-                    || kotlinAllowedPackages.any { type.startsWith(it) }
-        }
 
         fun violation(rawName: String) {
             val type = rawName.fixClassName()
             if (type !in violations) {
-                println("**** VIOLATION: $type ****")
+                // println("**** VIOLATION: $type ****")
                 violations.add(type)
             }
         }
 
         fun assertType(rawName: String?) {
-            if (rawName != null && !isSpecialType(rawName) && findClass(rawName) == null) {
-                println("Asserting: $rawName")
+            if (rawName != null && !isSpecialType(myName, containingClass, extraAllowed, rawName) && findSymbol(rawName) == null) {
+                //  println("Asserting: $rawName")
                 violation(rawName)
             }
         }
 
         fun verify(note: String, owner: String, name: String? = null, desc: String? = null, sig: String? = null, vararg otherNames: String?) {
-            // TODO: handle otherNames
             if (otherNames.isNotEmpty()) {
-                println("asdf")
+                otherNames.filterNotNull().forEach { verify(note + "-on", it) }
             }
 
-            println("${note.padEnd(15)} :> owner: ${owner.padEnd(15)}  name: ${name?.padEnd(15)}  desc: ${desc?.padEnd(25)} sig: ${sig?.padEnd(25)}    otherNames: ${otherNames.filterNotNull().joinToString(",")}")
-            if ('/' in owner && !isSpecialType(owner)) {
-                println("  in owner check)")
-                val ownerDef = findClass(owner)
+            //  println("${note.padEnd(15)} :> owner: ${owner.padEnd(15)}  name: ${name?.padEnd(15)}  desc: ${desc?.padEnd(25)} sig: ${sig?.padEnd(25)}    otherNames: ${otherNames.filterNotNull().joinToString(",")}")
+            if ('/' in owner && !isSpecialType(myName, containingClass, extraAllowed, owner)) {
+                val ownerDef = findSymbol(owner)
                 if (ownerDef == null) {
                     violation(owner)
                 } else {
-                    println("  have owner but not sure about method")
                     if (name != null) {
-                        println("  have method name so checking method")
-                        val methods = ownerDef.methods.map { it.value.method.name to it.value.method }
-                        val getters = ownerDef.getters.map { it.key to it.value.type().toMethodDescriptorString() }
-                        val setters = ownerDef.setters.map { it.key to it.value.type().toMethodDescriptorString() }
-
-                        fun getterName(n: String): String = if (n.startsWith("get")) n.removePrefix("get") else if (n.startsWith("is")) n.removePrefix("is") else n
-                        fun setterName(n: String): String = n.removePrefix("set")
-                        if (methods.none { it.first == name && it.second.descriptor == desc } &&
-                                getters.none { it.first == getterName(name) && it.second == desc } &&
-                                setters.none { it.first == setterName(name) && it.second == desc }) {
-                            violation("${owner}.${name}${desc}")
+                        val className = owner.fixClassName()
+                        val methodSig = "$className.$name$desc"
+                        val methodDef = findSymbol(methodSig)
+                        if (methodDef == null) {
+                            violation(methodSig)
                         }
                     }
                 }
@@ -125,7 +134,7 @@ object ClassRestrictionVerifier {
                 try {
                     it.accept(visitor)
                 } catch (ex: Exception) {
-                    println("ooops")
+                    throw ex // TODO: not really much we can do, maybe better error report
                 }
             }
         }
@@ -356,5 +365,166 @@ object ClassRestrictionVerifier {
             // owner = "java/lang/System" name = "out" desc = "Ljava/io/PrintStream;"  /// owner Line_1 name z desc Ljava/util/List; /// owner Line_1 name = q desc = [Ljava/lang/Integer;
             // owner = "Line_1" name = "$$result" desc = "Ljava/lang/Object;"
         }
+    }
+
+    private val DEFINITION_FILES = listOf("org.elasticsearch.txt",
+            "java.lang.txt",
+            "java.math.txt",
+            "java.text.txt",
+            "java.time.txt",
+            "java.time.chrono.txt",
+            "java.time.format.txt",
+            "java.time.temporal.txt",
+            "java.time.zone.txt",
+            "java.util.txt",
+            "java.util.function.txt",
+            "java.util.regex.txt",
+            "java.util.stream.txt",
+            "joda.time.txt")
+
+    data class DefClass(val painlessName: String, val javaName: String, val signatures: List<DefMethodSig>)
+    data class DefMethodSig(val returnType: String, val methodName: String, val paramTypes: List<String>, val isProperty: Boolean = false)
+
+    private fun String.upperFirst(): String = this.first().toUpperCase() + this.drop(1)
+    private fun String.javaSigPart(): String {
+        val baseName = this.substringBefore('[')
+        val suffix = this.removePrefix(baseName)
+
+        val typeChar = when (baseName) {
+            "void" -> 'V'
+            "boolean" -> 'Z'
+            "byte" -> 'B'
+            "short" -> 'S'
+            "char" -> 'C'
+            "int" -> 'I'
+            "long" -> 'L'
+            "float" -> 'F'
+            "double" -> 'D'
+            else -> 'L'
+        }
+
+        val bracketCount = suffix.count { it == '[' }
+
+        return "[".repeat(bracketCount) + typeChar + if (typeChar == 'L') baseName + ";" else ""
+    }
+
+    // read painless definitions and map things by java names
+    //      fullClassName
+    //      fullClassName.<init>(sig)
+    //      fullClassName.foo(sig)
+    //      fullClassName.getVar()Lwhatever;
+    //
+    val definitions = readDefinitions()
+
+    private fun readDefinitions(): Map<String, DefClass> {
+        val classSigRegex = """^class\s+([\w\_][\w\_\d\.\$]*)\s+\-\>\s+([\w\_][\w\_\d\.\$]*)(?:\s+extend[s]?\s+([\w\_][\w\_\d\.\,\$]*)\s*)?\s*\{$""".toRegex()
+        val methodPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+((?:[\w\_][\w\_\d\.]*|\<init\>)\*?)\(([\w\_][\w\_\d\.\,\[\]]*)?\)[;]?$""".toRegex()
+        val propertyPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+([\w\_][\w\_\d\.]*\*?)$""".toRegex()
+
+        val definitionResources = DEFINITION_FILES.map { Definition::class.java.getResourceAsStream(it) }
+        val painlessStructs = definitionResources.map { it.bufferedReader() }.map { stream ->
+            val fileClasses = mutableListOf<DefClass>()
+            var currentClass: DefClass? = null
+            val signatures = mutableListOf<DefMethodSig>()
+
+            stream.useLines { lines ->
+                lines.filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.forEach { line ->
+                    if (line.startsWith("class ")) {
+                        val parts = classSigRegex.matchEntire(line)
+                        if (parts == null || parts.groups.size < 2) throw IllegalStateException("Invalid struct definition [ $line ]")
+
+                        val painlessClassName = parts.groups[1]!!.value
+                        val javaRawClassName = parts.groups[2]!!.value
+                        val javaClassName = when (javaRawClassName) {
+                            "void" -> Unit::class.java.name
+                            "boolean" -> Boolean::class.javaPrimitiveType!!.name
+                            "byte" -> Byte::class.javaPrimitiveType!!.name
+                            "short" -> Short::class.javaPrimitiveType!!.name
+                            "char" -> Char::class.javaPrimitiveType!!.name
+                            "int" -> Int::class.javaPrimitiveType!!.name
+                            "long" -> Long::class.javaPrimitiveType!!.name
+                            "float" -> Float::class.javaPrimitiveType!!.name
+                            "double" -> Double::class.javaPrimitiveType!!.name
+                            else -> javaRawClassName
+                        }
+
+                        currentClass = DefClass(painlessClassName, javaClassName, emptyList())
+                    } else if (line.startsWith("}")) {
+                        fileClasses.add(currentClass!!.copy(signatures = signatures.toList()))
+                        signatures.clear()
+                        currentClass = null
+                    } else {
+                        val parts = methodPartsRegex.matchEntire(line)
+                        if (parts != null) {
+                            if (parts.groups.size < 2) {
+                                throw IllegalStateException("Invalid method definition [ $currentClass => $line ]")
+                            }
+                            val returnType = parts.groups[1]!!.value
+                            val methodName = parts.groups[2]!!.value
+                            val paramTypes = parts.groups[3]?.value?.split(',') ?: emptyList()
+
+                            signatures.add(DefMethodSig(returnType, methodName, paramTypes))
+                        } else {
+                            val propParts = propertyPartsRegex.matchEntire(line)
+                            if (propParts == null || propParts.groups.size < 2) {
+                                throw IllegalStateException("Invalid property definition [ $currentClass => $line ]")
+                            }
+                            val returnType = propParts.groups[1]!!.value
+                            val methodName = propParts.groups[2]!!.value
+                            signatures.add(DefMethodSig(returnType, methodName, emptyList(), true))
+                        }
+                    }
+                }
+            }
+            fileClasses
+        }.flatten()
+
+        val structsByPainlessName = painlessStructs.map { it.painlessName to it }.toMap()
+        // val structsByJavaName = painlessStructs.map { it.javaName to it }.toMap()
+
+        fun lookup(painlessName: String): String {
+            val baseName = painlessName.substringBefore('[')
+            val suffix = painlessName.removePrefix(baseName)
+
+            val javaName = when (baseName) {
+                "void" -> Unit::class.java.name
+                "def" -> Any::class.java.name
+                "boolean" -> Boolean::class.javaPrimitiveType!!.name
+                "byte" -> Byte::class.javaPrimitiveType!!.name
+                "short" -> Short::class.javaPrimitiveType!!.name
+                "char" -> Char::class.javaPrimitiveType!!.name
+                "int" -> Int::class.javaPrimitiveType!!.name
+                "long" -> Long::class.javaPrimitiveType!!.name
+                "float" -> Float::class.javaPrimitiveType!!.name
+                "double" -> Double::class.javaPrimitiveType!!.name
+                else -> structsByPainlessName.get(baseName)?.javaName
+                        ?: throw IllegalStateException("Invalid reference to non-existanct struct $painlessName")
+            }
+            return javaName + suffix
+        }
+
+        val otherSigsByJavaName = extraAllowedSymbols.map { it.javaName to it }.toMap()
+
+        val structsWithJavaTypes = painlessStructs.map {
+            val signatures = it.signatures.map { sig -> sig.copy(returnType = lookup(sig.returnType), paramTypes = sig.paramTypes.map { lookup(it) }) }
+            val mergedSignatures = otherSigsByJavaName.get(it.javaName)?.signatures?.plus(signatures) ?: signatures
+            it.copy(signatures = mergedSignatures)
+        }
+
+        return (extraAllowedSymbols + structsWithJavaTypes).map { def ->
+            listOf(def.javaName to def) + def.signatures.map { sig ->
+                val temp = if (sig.isProperty) {
+                    listOf("${def.javaName}.get${sig.methodName.upperFirst()}()${sig.returnType.javaSigPart()}",
+                            "${def.javaName}.is${sig.methodName.upperFirst()}()${sig.returnType.javaSigPart()}",
+                            "${def.javaName}.has${sig.methodName.upperFirst()}()${sig.returnType.javaSigPart()}",
+                            "${def.javaName}.set${sig.methodName.upperFirst()}(${sig.returnType.javaSigPart()})V")
+                } else {
+                    listOf("${def.javaName}.${sig.methodName}(${sig.paramTypes.map { it.javaSigPart() }.joinToString("")})${sig.returnType.javaSigPart()}") +
+                            if (sig.methodName == "<init>") listOf("${def.javaName}.${sig.methodName}(${sig.paramTypes.map { it.javaSigPart() }.joinToString("")})V") else emptyList()
+                    // previous line is adding the extra <init>()V signature
+                }
+                temp.map { it to def }
+            }.flatten()
+        }.flatten().toMap()
     }
 }

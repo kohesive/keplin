@@ -1,7 +1,7 @@
 package uy.kohesive.keplin.kotlin.script.resolver
 
 import org.jetbrains.kotlin.script.*
-import uy.kohesive.keplin.kotlin.script.util.containingClasspath
+import uy.kohesive.keplin.util.ClassPathUtils
 import java.io.File
 import java.util.concurrent.Future
 import kotlin.reflect.KClass
@@ -38,8 +38,7 @@ class AnnotationTriggeredResolutionManager(val resolvers: List<AnnotationTrigger
         val defaultClassPath: List<File> = if (previousDependencies == null) {
             resolvers.map {
                 it.acceptedAnnotations.map {
-                    it.containingClasspath()
-                            ?: throw IllegalStateException("Missing JAR containing ${it} annotation")
+                    ClassPathUtils.classPathOf(it) ?: throw IllegalStateException("Missing JAR containing ${it} annotation")
                 }
             }.flatten().distinct()
         } else emptyList()

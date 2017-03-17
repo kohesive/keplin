@@ -153,6 +153,10 @@ object ClassPathUtils {
         return filePathRegex.find(url)?.let { it.groupValues[1].removeSuffix(resource) }
     }
 
+    fun <T : Any> classPathOf(clazz: KClass<T>, filterJarName: Regex = ".*".toRegex()): File? {
+        return clazz.containingClasspath(filterJarName)
+    }
+
     private fun <T : Any> KClass<T>.containingClasspath(filterJarName: Regex = ".*".toRegex()): File? {
         val clp = "${qualifiedName?.replace('.', '/')}.class"
         val baseList = Thread.currentThread().contextClassLoader.getResources(clp)

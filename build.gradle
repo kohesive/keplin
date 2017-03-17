@@ -28,11 +28,7 @@ subprojects {
     }
 
     dependencies {
-        if (name != "elasticsearch-kotlinscript") {
-            compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
-            testCompile group: 'junit', name: 'junit', version: version_junit
-            testCompile group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit', version: version_kotlin
-        }
+
     }
 
     tasks.withType(JavaCompile) {
