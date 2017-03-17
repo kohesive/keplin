@@ -163,13 +163,13 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                 }
                 val goodClassNames = (classesAsBytes.map { it.className } + className).toSet()
                 ExecutableCode(className, scriptSource, classesAsBytes, serInstance) { scriptArgs ->
-                    val scriptTemplate = scriptTemplateConstructor.call(*scriptArgs.scriptArgs)
                     val ocl = Thread.currentThread().contextClassLoader
                     try {
                         Thread.currentThread().contextClassLoader = classLoader
                         // deser every time in case it is mutable, we don't want a changing base (or is that really possible?)
                         try {
                             val lambda = ClassSerDesUtil.deserLambdaInstanceSafely(className, serInstance, goodClassNames)
+                            val scriptTemplate = scriptTemplateConstructor.call(*scriptArgs.scriptArgs)
                             lambda.invoke(scriptTemplate)
                         } catch (ex: Exception) {
                             throw ScriptException(ex.message ?: "Error executing Lambda", ex, emptyList(), scriptSource, LANGUAGE_NAME)
