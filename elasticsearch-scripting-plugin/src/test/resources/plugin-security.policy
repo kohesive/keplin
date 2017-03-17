@@ -1,8 +1,5 @@
 grant {
   permission java.security.AllPermission;
-  permission java.io.FilePermission "<<ALL FILES>>", "execute";
-   permission java.io.FilePermission "<<ALL FILES>>", "read";
-    permission java.io.FilePermission "<<ALL FILES>>", "write";
 
   permission java.lang.RuntimePermission "accessDeclaredMembers";
   permission java.lang.RuntimePermission "createClassLoader";

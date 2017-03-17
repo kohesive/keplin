@@ -7,14 +7,49 @@ import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.script.*
 import org.elasticsearch.search.lookup.LeafSearchLookup
 import org.elasticsearch.search.lookup.SearchLookup
-import uy.kohesive.keplin.util.ClassPathUtils
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
+import org.jetbrains.kotlin.cli.common.repl.ReplCompileResult
+import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
+import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
+import org.jetbrains.kotlin.cli.jvm.repl.GenericReplCompiler
+import org.jetbrains.kotlin.com.intellij.openapi.project.Project
+import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.config.CommonConfigurationKeys
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.script.KotlinScriptDefinition
+import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
+import org.jetbrains.kotlin.utils.PathUtil
+import uy.kohesive.keplin.util.ClassPathUtils.findRequiredScriptingJarFiles
 import java.io.File
-import java.rmi.RemoteException
 import java.security.AccessController
 import java.security.PrivilegedAction
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.reflect.KClass
 
+
+interface ScriptTemplateEmptyArgsProvider {
+    val defaultEmptyArgs: ScriptArgsWithTypes?
+}
+
+open class KotlinScriptDefinitionEx(template: KClass<out Any>,
+                                    override val defaultEmptyArgs: ScriptArgsWithTypes?,
+                                    val defaultImports: List<String> = emptyList())
+    : KotlinScriptDefinition(template), ScriptTemplateEmptyArgsProvider {
+    class EmptyDependencies() : KotlinScriptExternalDependencies
+    class DefaultImports(val defaultImports: List<String>, val base: KotlinScriptExternalDependencies) : KotlinScriptExternalDependencies by base {
+        override val imports: List<String> get() = (defaultImports + base.imports).distinct()
+    }
+
+    override fun <TF : Any> getDependenciesFor(file: TF, project: Project, previousDependencies: KotlinScriptExternalDependencies?): KotlinScriptExternalDependencies? {
+        val base = super.getDependenciesFor(file, project, previousDependencies)
+        return if (previousDependencies == null && defaultImports.isNotEmpty()) DefaultImports(defaultImports, base ?: EmptyDependencies())
+        else base
+    }
+}
 
 class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     companion object {
@@ -26,15 +61,6 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
 
     val sm = System.getSecurityManager()
 
-    init {
-        sm.checkPermission(SpecialPermission())
-        AccessController.doPrivileged(PrivilegedAction {
-            val proc = ProcessBuilder("/Library/Java/JavaVirtualMachines/jdk1.8.0_112.jdk/Contents/Home/jre/bin/java", "-version").start()
-            Runtime.getRuntime().exec(arrayOf("/bin/sh", "-c", "/Library/Java/JavaVirtualMachines/jdk1.8.0_112.jdk/Contents/Home/jre/bin/java"))
-            println("hello")
-        })
-    }
-
     val uniqueSessionId = UUID.randomUUID().toString()
 
     val tempDir = createTempDir("keplin-es-kotlinscript", uniqueSessionId)
@@ -45,23 +71,31 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     val kotlinInstallDir = File(kotlinInstallDirName).absoluteFile
 
     // TODO: improve this handling, test this all during plugin loading
-    val kotlinCompilerJar = File(kotlinInstallDir, "lib/kotlin-compiler.jar").takeIf { it.exists() } ?: throw IllegalStateException("Invalid/missing Kotlin compiler JAR: ${kotlinInstallDir}/lib/kotlin-compiler.jar")
+//    val kotlinCompilerJar = File(kotlinInstallDir, "lib/kotlin-compiler.jar").takeIf { it.exists() } ?: throw IllegalStateException("Invalid/missing Kotlin compiler JAR: ${kotlinInstallDir}/lib/kotlin-compiler.jar")
 
-    val compilerClasspath = listOf(kotlinCompilerJar) + ClassPathUtils.findClassJars(EsKotlinScriptTemplate::class)
+    //  val compilerClasspath = listOf(kotlinCompilerJar) + ClassPathUtils.findClassJars(EsKotlinScriptTemplate::class)
 
-    val compilerService by lazy {
+    val disposable = Disposer.newDisposable()
+    val repl by lazy {
         sm.checkPermission(SpecialPermission())
         AccessController.doPrivileged(PrivilegedAction {
-            val compilerId = CompilerId.makeCompilerId(compilerClasspath)
-            val daemonOptions = DaemonOptions(runFilesPath = File(tempDir, "daemonRunPath").absolutePath,
-                    verbose = true,
-                    reportPerf = true)
-            val daemonJVMOptions = org.jetbrains.kotlin.daemon.common.DaemonJVMOptions()
-            val daemonReportMessages = arrayListOf<DaemonReportMessage>()
+            val scriptDefinition = KotlinScriptDefinitionEx(EsKotlinScriptTemplate::class, makeArgs())
+            val additionalClasspath = emptyList<File>()
+            val moduleName = "kotlin-script-module-${uniqueSessionId}"
+            val messageCollector = compilerMessages
+            val compilerConfig = CompilerConfiguration().apply {
+                addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
+                addJvmClasspathRoots(findRequiredScriptingJarFiles(scriptDefinition.template,
+                        includeScriptEngine = false,
+                        includeKotlinCompiler = false,
+                        includeStdLib = true,
+                        includeRuntime = true))
+                addJvmClasspathRoots(additionalClasspath)
+                put(CommonConfigurationKeys.MODULE_NAME, moduleName)
+                put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
+            }
 
-            KotlinCompilerClient.connectToCompileService(compilerId, clientAliveFile, daemonJVMOptions, daemonOptions,
-                    DaemonReportingTargets(messages = daemonReportMessages, messageCollector = compilerMessages), true)
-                    ?: throw IllegalStateException("Unable to connect to repl server:" + daemonReportMessages.joinToString("\n  ", prefix = "\n  ") { "${it.category.name} ${it.message}" })
+            GenericReplCompiler(disposable, scriptDefinition, compilerConfig, messageCollector)
         })
     }
 
@@ -150,7 +184,6 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     }
 
     override fun close() {
-
     }
 
     class ConcreteEsKotlinScriptTemplate(parm: Map<String, EsWrappedValue>,
@@ -160,7 +193,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                                          _score: Double) : EsKotlinScriptTemplate(parm, doc, ctx, _value, _score)
 
     val scriptTemplateConstructor = ::ConcreteEsKotlinScriptTemplate
-    
+
     override fun compile(scriptName: String?, scriptSource: String, params: Map<String, String>?): Any {
         val executableCode = if (ClassSerDesUtil.isPrefixedBase64(scriptSource)) {
             try {
@@ -198,58 +231,40 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             try {
                 sm.checkPermission(SpecialPermission())
                 AccessController.doPrivileged(PrivilegedAction {
-                    // val sessionId: Int = leaseSession(compiler, compilerOutCapture, compilerOutputs)
-                    val compilerArgs = arrayOf<String>()
-                    val compiler = KotlinRemoteReplCompilerClient(compilerService, clientAliveFile, CompileService.TargetPlatform.JVM, compilerArgs,
-                            compilerMessages, ClassPathUtils.findClassJars(EsKotlinScriptTemplate::class),
-                            EsKotlinScriptTemplate::class.java.canonicalName)
+
+                    val codeLine = ReplCodeLine(scriptId, 0, scriptSource)
                     try {
-                        val codeLine = ReplCodeLine(scriptId, 0, scriptSource)
-                        try {
-                            val replState = compiler.createState()
-                            val replResult = compiler.compile(replState, codeLine)
-                            // val replState = compiler.replCreateState(sessionId).get().getId()
-                            // val daemonResult = compiler.replCompile(sessionId, replState, codeLine)
-                            // if (!daemonResult.isGood) {
-                            //     throw ScriptException("Unknown daemon compiling failure", null, emptyList<String>(), scriptSource, LANGUAGE_NAME)
-                            // }
-                            // val replResult = daemonResult.get()
-                            val compiledCode = when (replResult) {
-                                is ReplCompileResult.Error -> throw toScriptException(replResult.message, scriptSource, replResult.location)
-                                is ReplCompileResult.Incomplete -> throw toScriptException("Incomplete code", scriptSource, CompilerMessageLocation.NO_LOCATION)
-                                is ReplCompileResult.CompiledClasses -> replResult
-                            }
-
-                            val classesAsBytes = compiledCode.classes.map {
-                                NamedClassBytes(it.path.removeSuffix(".class").replace('/', '.'), it.bytes)
-                            }
-
-                            val classLoader = ScriptClassLoader(Thread.currentThread().contextClassLoader).apply {
-                                classesAsBytes.forEach {
-                                    addClass(it.className, it.bytes)
-                                }
-                            }
-
-                            val goodClassNames = (classesAsBytes.map { it.className } + compiledCode.mainClassName).toSet()
-                            val scriptClass = classLoader.loadClass(compiledCode.mainClassName)
-                            val scriptConstructor = scriptClass.constructors.first()
-                            val resultField = scriptClass.getDeclaredField(SCRIPT_RESULT_FIELD_NAME).apply { isAccessible = true }
-
-                            ExecutableCode(compiledCode.mainClassName, scriptSource, classesAsBytes) { scriptArgs ->
-                                val completedScript = scriptConstructor.newInstance(*scriptArgs.scriptArgs)
-                                resultField.get(completedScript)
-                            }
-                        } catch (ex: Exception) {
-                            throw ScriptException(ex.message ?: "unknown error", ex, emptyList<String>(), scriptSource, LANGUAGE_NAME)
+                        val replState = repl.createState()
+                        val replResult = repl.compile(replState, codeLine)
+                        val compiledCode = when (replResult) {
+                            is ReplCompileResult.Error -> throw toScriptException(replResult.message, scriptSource, replResult.location)
+                            is ReplCompileResult.Incomplete -> throw toScriptException("Incomplete code", scriptSource, CompilerMessageLocation.NO_LOCATION)
+                            is ReplCompileResult.CompiledClasses -> replResult
                         }
-                    } finally {
-                        try {
-                            compiler.dispose()
-                            //compiler.releaseReplSession(sessionId)
-                        } catch (ex: RemoteException) {
-                            // assuming that communication failed and daemon most likely is already down
+
+                        val classesAsBytes = compiledCode.classes.map {
+                            NamedClassBytes(it.path.removeSuffix(".class").replace('/', '.'), it.bytes)
                         }
+
+                        val classLoader = ScriptClassLoader(Thread.currentThread().contextClassLoader).apply {
+                            classesAsBytes.forEach {
+                                addClass(it.className, it.bytes)
+                            }
+                        }
+
+                        val goodClassNames = (classesAsBytes.map { it.className } + compiledCode.mainClassName).toSet()
+                        val scriptClass = classLoader.loadClass(compiledCode.mainClassName)
+                        val scriptConstructor = scriptClass.constructors.first()
+                        val resultField = scriptClass.getDeclaredField(SCRIPT_RESULT_FIELD_NAME).apply { isAccessible = true }
+
+                        ExecutableCode(compiledCode.mainClassName, scriptSource, classesAsBytes) { scriptArgs ->
+                            val completedScript = scriptConstructor.newInstance(*scriptArgs.scriptArgs)
+                            resultField.get(completedScript)
+                        }
+                    } catch (ex: Exception) {
+                        throw ScriptException(ex.message ?: "unknown error", ex, emptyList<String>(), scriptSource, LANGUAGE_NAME)
                     }
+
                 })
             } catch (ex: Exception) {
                 if (ex is ScriptException) throw ex
@@ -262,25 +277,6 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             throw  ScriptException("Illegal Access to unauthorized classes/methods", null, verification.violations.sorted(), scriptSource, LANGUAGE_NAME)
         }
         return PreparedScript(executableCode, verification.isScoreAccessed)
-    }
-
-    private fun leaseSession(compiler: CompileService, messageCollector: MessageCollector, outputs: MutableList<File>): Int {
-        val compilerArgs = arrayOf<String>()
-        val compilerOptions = CompilationOptions(CompilerMode.NON_INCREMENTAL_COMPILER, CompileService.TargetPlatform.JVM,
-                arrayOf(ReportCategory.COMPILER_MESSAGE.code, ReportCategory.EXCEPTION.code),
-                ReportSeverity.ERROR.code, arrayOf())
-        val sessionId = compiler.leaseReplSession(clientAliveFile.absolutePath,
-                compilerArgs, compilerOptions,
-                BasicCompilerServicesWithResultsFacadeServer(messageCollector, { outFile, sourceFiles ->
-                    outputs.add(outFile)
-                }),
-                ClassPathUtils.findClassJars(EsKotlinScriptTemplate::class),
-                EsKotlinScriptTemplate::class.java.canonicalName)
-        return sessionId.get()
-    }
-
-    private fun makeLocalCompilerService(): CompileService {
-        TODO()
     }
 
     data class ExecutableCode(val className: String, val code: String, val classes: List<NamedClassBytes>, val extraData: Any? = null, val invoker: ExecutableCode.(ScriptArgsWithTypes) -> Any?)
