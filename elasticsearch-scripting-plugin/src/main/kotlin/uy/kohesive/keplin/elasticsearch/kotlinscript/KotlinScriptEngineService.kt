@@ -19,7 +19,6 @@ import java.io.File
 import java.rmi.RemoteException
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.reflect.full.primaryConstructor
 
 
 class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
@@ -70,8 +69,8 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
 
         override fun run(): Any? {
             val args = makeArgs(variables = _mutableVars.toWrapped())
-            val executable = compiledScript.compiled() as ExecutableCode
-            return executable.invoker(executable, args)
+            val executable = compiledScript.compiled() as PreparedScript
+            return executable.code.invoker(executable.code, args)
         }
 
         override fun setNextVar(name: String, value: Any) {
@@ -83,7 +82,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     override fun search(compiledScript: CompiledScript, lookup: SearchLookup, vars: Map<String, Any>?): SearchScript {
         return object : SearchScript {
             override fun needsScores(): Boolean {
-                return true // TODO: ASM scan to find if we reference the score getter
+                return (compiledScript.compiled() as PreparedScript).scoreFieldAccessed
             }
 
             override fun getLeafSearchScript(context: LeafReaderContext?): LeafSearchScript {
@@ -108,8 +107,8 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             val score = _scorer?.score()?.toDouble() ?: 0.0
             val ctx = _mutableVars.get("ctx") as? Map<Any, Any> ?: emptyMap()
             val args = makeArgs(_mutableVars.toWrapped(), score, _doc, ctx, _aggregationValue)
-            val executable = compiledScript.compiled() as ExecutableCode
-            return executable.invoker(executable, args)
+            val executable = compiledScript.compiled() as PreparedScript
+            return executable.code.invoker(executable.code, args)
         }
 
         override fun setScorer(scorer: Scorer?) {
@@ -145,7 +144,13 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
 
     }
 
-    val scriptTemplateConstructor = EsKotlinScriptTemplate::class.primaryConstructor!!
+    class ConcreteEsKotlinScriptTemplate(parm: Map<String, EsWrappedValue>,
+                                         doc: MutableMap<String, List<Any>>,
+                                         ctx: Map<Any, Any>,
+                                         _value: Any?,
+                                         _score: Double) : EsKotlinScriptTemplate(parm, doc, ctx, _value, _score)
+
+    val scriptTemplateConstructor = ::ConcreteEsKotlinScriptTemplate
     
     override fun compile(scriptName: String?, scriptSource: String, params: Map<String, String>?): Any {
         val executableCode = if (ClassSerDesUtil.isPrefixedBase64(scriptSource)) {
@@ -158,12 +163,17 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                 }
                 val goodClassNames = (classesAsBytes.map { it.className } + className).toSet()
                 ExecutableCode(className, scriptSource, classesAsBytes, serInstance) { scriptArgs ->
+                    val scriptTemplate = scriptTemplateConstructor.call(*scriptArgs.scriptArgs)
                     val ocl = Thread.currentThread().contextClassLoader
                     try {
                         Thread.currentThread().contextClassLoader = classLoader
                         // deser every time in case it is mutable, we don't want a changing base (or is that really possible?)
-                        val lambda = ClassSerDesUtil.deserLambdaInstanceSafely(className, serInstance, goodClassNames)
-                        lambda.invoke(scriptTemplateConstructor.call(scriptArgs.scriptArgs))
+                        try {
+                            val lambda = ClassSerDesUtil.deserLambdaInstanceSafely(className, serInstance, goodClassNames)
+                            lambda.invoke(scriptTemplate)
+                        } catch (ex: Exception) {
+                            throw ScriptException(ex.message ?: "Error executing Lambda", ex, emptyList(), scriptSource, LANGUAGE_NAME)
+                        }
                     } finally {
                         Thread.currentThread().contextClassLoader = ocl
                     }
@@ -215,7 +225,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                         val resultField = scriptClass.getDeclaredField(SCRIPT_RESULT_FIELD_NAME).apply { isAccessible = true }
 
                         ExecutableCode(compiledCode.mainClassName, scriptSource, classesAsBytes) { scriptArgs ->
-                            val completedScript = scriptConstructor.newInstance(scriptArgs.scriptArgs)
+                            val completedScript = scriptConstructor.newInstance(*scriptArgs.scriptArgs)
                             resultField.get(completedScript)
                         }
                     } catch (ex: Exception) {

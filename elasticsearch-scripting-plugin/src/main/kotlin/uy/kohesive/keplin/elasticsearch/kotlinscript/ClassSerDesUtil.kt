@@ -15,7 +15,9 @@ object ClassSerDesUtil {
 
     fun isPrefixedBase64(scriptSource: String): Boolean = scriptSource.startsWith(BINARY_PREFIX)
 
-    fun deserFromPrefixedBase64(scriptSource: String): Triple<String, List<KotlinScriptEngineService.NamedClassBytes>, ByteArray> {
+    data class DeserResponse(val className: String, val classes: List<KotlinScriptEngineService.NamedClassBytes>, val serializedLambda: ByteArray)
+
+    fun deserFromPrefixedBase64(scriptSource: String): DeserResponse {
         if (!isPrefixedBase64(scriptSource)) throw ClassSerDesException("Script is not valid encoded classes")
         try {
             val rawData = scriptSource.substring(BINARY_PREFIX.length)
@@ -53,7 +55,7 @@ object ClassSerDesUtil {
                 val calcSig = StringHelper.murmurhash3_x86_32(checkBytes, SIG_SEED)
 
                 if (murmurSig != calcSig) throw ClassSerDesException("Serialized classes signature is not valid")
-                Triple(className, classes, serializedInstance)
+                DeserResponse(className, classes, serializedInstance)
             }
             return content
         } catch (ex: Throwable) {
