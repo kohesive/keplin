@@ -31,6 +31,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                 put(it.key, it.value)
             }
             put(KotlinScriptPlugin.KotlinPath, "/Users/jminard/Downloads/kotlinc-2")
+            put("script.painless.regex.enabled", true)
         }
         return builder.build()
     }
@@ -42,66 +43,9 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
     private lateinit var client: Client
 
     override fun nodePlugins(): Collection<Class<out Plugin>> =
-            listOf(
-                    KotlinScriptPlugin::class.java,
+            listOf(KotlinScriptPlugin::class.java,
                     IngestCommonPlugin::class.java,
-                    PainlessPlugin::class.java
-            )
-
-    fun <T : Any?> SearchRequestBuilder.addScriptField(name: String, params: Map<String, Any> = emptyMap(), lambda: EsKotlinScriptTemplate.() -> T): SearchRequestBuilder {
-        return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", ClassSerDesUtil.serializeLambdaToBase64(lambda), params))
-    }
-
-    fun <T : Any?> makeSimulatePipelineJsonForLambda(lambda: EsKotlinScriptTemplate.() -> T): BytesReference {
-        val pipelineDef = XContentFactory.jsonBuilder()
-                .startObject()
-                .field("description", "Kotlin lambda test pipeline")
-                .startArray("processors")
-                .startObject()
-                .startObject("script")
-                .field("lang", "kotlin")
-                .field("inline", ClassSerDesUtil.serializeLambdaToBase64(lambda))
-                .startObject("params").endObject()
-                .endObject()
-                .endObject()
-                .endArray()
-                .endObject()
-
-        val simulationJson = XContentFactory.jsonBuilder()
-                .startObject()
-                .rawField("pipeline", pipelineDef.bytes())
-                .startArray("docs")
-                .startObject().startObject("_source").field("id", 1).field("badContent", "category:  History, Science, Fish").endObject().endObject()
-                .startObject().startObject("_source").field("id", 2).field("badContent", "category:  monkeys, mountains").endObject().endObject()
-                .endArray()
-                .endObject()
-
-        return simulationJson.bytes()
-    }
-
-    fun SearchRequestBuilder.addScriptField(name: String, params: Map<String, Any> = emptyMap(), scriptCode: String): SearchRequestBuilder {
-        return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", scriptCode, params))
-    }
-
-    fun SearchHit.printHitSourceField(fieldName: String) {
-        println("${id} => ${sourceAsMap()["title"].toString()}")
-    }
-
-    fun SearchHit.printHitField(fieldName: String) {
-        println("${id} => ${fields[fieldName]?.values.toString()}")
-    }
-
-    fun SearchResponse.printHitsSourceField(fieldName: String) {
-        hits.hits.forEach { it.printHitSourceField(fieldName) }
-    }
-
-    fun SearchResponse.printHitsField(fieldName: String) {
-        hits.hits.forEach { it.printHitField(fieldName) }
-    }
-
-    fun SearchResponse.assertHasResults() {
-        if (hits == null || hits.hits == null || hits.hits.isEmpty()) fail("no data returned in query")
-    }
+                    PainlessPlugin::class.java)
 
     fun testNormalQuery() {
         println("NORMAL QUERY:")
@@ -114,6 +58,27 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         println("----end----")
     }
 
+    fun testMoreComplexPainlessScript() {
+        val prep = client.prepareSearch(INDEX_NAME)
+                .addScriptField("scriptField1", Script(ScriptType.INLINE, "painless", """
+                    String currentValue = doc['badContent'][0]; // bad, need to handle multiple values but is painful
+
+                    Pattern badCategoryRegex = /^(\w+)\s*\:\s*(.+)$/;
+                    if (currentValue ==~ badCategoryRegex) {
+                        String[] parts = /:/.split(currentValue);
+                        String typeName = parts[0];
+                        /,/.splitAsStream(parts[1]).map(item -> typeName + ": " + item.trim()).collect(Collectors.toList())
+                    } else {
+                        currentValue;
+                    }
+                  """, emptyMap()))
+                .setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
+
+        prep.runManyTimes {
+            printHitsField("scriptField1")
+        }
+    }
 
     fun testStringScript() {
         val prep = client.prepareSearch(INDEX_NAME)
@@ -122,14 +87,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                 """).setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
 
-        (1..25).forEach { idx ->
-            println("...RUN $idx :>>>>")
-            val time = measureTimeMillis {
-                val results = prep.execute().actionGet()
-                results.assertHasResults()
-                results.printHitsField("scriptField1")
-            }
-            println("  ${time}ms")
+        prep.runManyTimes {
+            printHitsField("scriptField1")
         }
     }
 
@@ -151,52 +110,6 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         }
     }
 
-    fun testLambdaAsScript() {
-        val prep = client.prepareSearch(INDEX_NAME)
-                .addScriptField("scriptField1", mapOf("multiplier" to 2)) {
-                    docInt("number", 1) * parmInt("multiplier", 1) + _score
-                }.setQuery(QueryBuilders.matchQuery("title", "title"))
-                .setFetchSource(true)
-
-        (1..25).forEach { idx ->
-            println("...RUN $idx :>>>>")
-            val time = measureTimeMillis {
-                val results = prep.execute().actionGet()
-                results.assertHasResults()
-                results.printHitsField("scriptField1")
-            }
-            println("  ${time}ms")
-        }
-    }
-
-    fun testMoreComplexPainlessScript() {
-        val prep = client.prepareSearch(INDEX_NAME)
-                .addScriptField("scriptField1", Script(ScriptType.INLINE, "painless", """
-                    val currentValue = docString("badContent") ?: ""
-                    badCategoryPattern.toRegex().matchEntire(currentValue)
-                            ?.takeIf { it.groups.size > 2 }
-                            ?.let {
-                                val typeName = it.groups[1]!!.value.toLowerCase()
-                                it.groups[2]!!.value.split(',')
-                                        .map { it.trim().toLowerCase() }
-                                        .filterNot { it.isBlank() }
-                                        .map { typeName + ": " + it }
-                            } ?: listOf(currentValue)
-                  """, emptyMap()))
-                .setQuery(QueryBuilders.matchQuery("title", "title"))
-                .setFetchSource(true)
-
-        (1..25).forEach { idx ->
-            println("...RUN $idx :>>>>")
-            val time = measureTimeMillis {
-                val results = prep.execute().actionGet()
-                results.assertHasResults()
-                results.printHitsField("scriptField1")
-            }
-            println("  ${time}ms")
-        }
-    }
-
     fun testMoreComplexKotlinAsScript() {
         val prep = client.prepareSearch(INDEX_NAME)
                 .addScriptField("scriptField1", Script(ScriptType.INLINE, "kotlin", """
@@ -214,14 +127,20 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                 .setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
 
-        (1..25).forEach { idx ->
-            println("...RUN $idx :>>>>")
-            val time = measureTimeMillis {
-                val results = prep.execute().actionGet()
-                results.assertHasResults()
-                results.printHitsField("scriptField1")
-            }
-            println("  ${time}ms")
+        prep.runManyTimes {
+            printHitsField("scriptField1")
+        }
+    }
+
+    fun testLambdaAsScript() {
+        val prep = client.prepareSearch(INDEX_NAME)
+                .addScriptField("scriptField1", mapOf("multiplier" to 2)) {
+                    docInt("number", 1) * parmInt("multiplier", 1) + _score
+                }.setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
+
+        prep.runManyTimes {
+            printHitsField("scriptField1")
         }
     }
 
@@ -242,14 +161,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                 }.setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
 
-        (1..25).forEach { idx ->
-            println("...RUN $idx :>>>>")
-            val time = measureTimeMillis {
-                val results = prep.execute().actionGet()
-                results.assertHasResults()
-                results.printHitsField("scriptField1")
-            }
-            println("  ${time}ms")
+        prep.runManyTimes {
+            printHitsField("scriptField1")
         }
     }
 
@@ -281,14 +194,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                 .setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
 
-        (1..25).forEach { idx ->
-            println("...RUN $idx :>>>>")
-            val time = measureTimeMillis {
-                val results = prep.execute().actionGet()
-                results.assertHasResults()
-                results.printHitsField("scriptField1")
-            }
-            println("  ${time}ms")
+        prep.runManyTimes {
+            printHitsField("scriptField1")
         }
     }
 
@@ -394,6 +301,74 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
 
         flushAndRefresh(INDEX_NAME)
         ensureGreen(INDEX_NAME)
+    }
+
+
+    fun <T : Any?> SearchRequestBuilder.addScriptField(name: String, params: Map<String, Any> = emptyMap(), lambda: EsKotlinScriptTemplate.() -> T): SearchRequestBuilder {
+        return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", ClassSerDesUtil.serializeLambdaToBase64(lambda), params))
+    }
+
+    fun <T : Any?> makeSimulatePipelineJsonForLambda(lambda: EsKotlinScriptTemplate.() -> T): BytesReference {
+        val pipelineDef = XContentFactory.jsonBuilder()
+                .startObject()
+                .field("description", "Kotlin lambda test pipeline")
+                .startArray("processors")
+                .startObject()
+                .startObject("script")
+                .field("lang", "kotlin")
+                .field("inline", ClassSerDesUtil.serializeLambdaToBase64(lambda))
+                .startObject("params").endObject()
+                .endObject()
+                .endObject()
+                .endArray()
+                .endObject()
+
+        val simulationJson = XContentFactory.jsonBuilder()
+                .startObject()
+                .rawField("pipeline", pipelineDef.bytes())
+                .startArray("docs")
+                .startObject().startObject("_source").field("id", 1).field("badContent", "category:  History, Science, Fish").endObject().endObject()
+                .startObject().startObject("_source").field("id", 2).field("badContent", "category:  monkeys, mountains").endObject().endObject()
+                .endArray()
+                .endObject()
+
+        return simulationJson.bytes()
+    }
+
+    fun SearchRequestBuilder.addScriptField(name: String, params: Map<String, Any> = emptyMap(), scriptCode: String): SearchRequestBuilder {
+        return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", scriptCode, params))
+    }
+
+    fun SearchHit.printHitSourceField(fieldName: String) {
+        println("${id} => ${sourceAsMap()["title"].toString()}")
+    }
+
+    fun SearchHit.printHitField(fieldName: String) {
+        println("${id} => ${fields[fieldName]?.values.toString()}")
+    }
+
+    fun SearchResponse.printHitsSourceField(fieldName: String) {
+        hits.hits.forEach { it.printHitSourceField(fieldName) }
+    }
+
+    fun SearchResponse.printHitsField(fieldName: String) {
+        hits.hits.forEach { it.printHitField(fieldName) }
+    }
+
+    fun SearchResponse.assertHasResults() {
+        if (hits == null || hits.hits == null || hits.hits.isEmpty()) fail("no data returned in query")
+    }
+
+    fun SearchRequestBuilder.runManyTimes(func: SearchResponse.() -> Unit) {
+        (1..25).forEach { idx ->
+            println("...RUN $idx :>>>>")
+            val time = measureTimeMillis {
+                val results = execute().actionGet()
+                results.assertHasResults()
+                results.func()
+            }
+            println("  ${time}ms")
+        }
     }
 
 }
