@@ -1,9 +1,8 @@
-include 'util', 'core', 'maven-resolver', 'jsr223-engine', 'elasticsearch-scripting-plugin'
+include 'util', 'cuarentena', 'core', 'chilambda', 'maven-resolver', 'jsr223-engine', 'elasticsearch-lang-kotlin-plugin'
 
 project(':util').name = 'keplin-util'
 project(':core').name = 'keplin-core'
 project(':maven-resolver').name = 'keplin-maven-resolver'
 project(':jsr223-engine').name = 'keplin-jsr223-kotlin-engine'
-project(':elasticsearch-scripting-plugin').name = 'elasticsearch-kotlinscript-plugin'
 
 
