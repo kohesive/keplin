@@ -15,7 +15,7 @@ http://dl.bintray.com/jaysonminard/kohesive
 |`keplin-core`|`uy.kohesive.keplin:keplin-core:1.0.0-BETA-03`|
 |`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-BETA-03`|
 |`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-BETA-03`|
-|`elasticsearch-kotlin-plugin`|coming soon https://vimeo.com/apatrida/es-lang-kotlin|
+|`elasticsearch-kotlin-plugin`|coming soon https://vimeo.com/apatrida/es-lang-kotlin |
 
 # Current Modules:
 
