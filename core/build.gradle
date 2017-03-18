@@ -2,8 +2,6 @@ dependencies {
     compile project(":keplin-util")
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: version_kotlin
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-daemon-client', version: version_kotlin
-  //  compile fileTree(dir: 'lib', include: '*.jar')
-  //  testRuntime group: 'net.java.dev.jna', name: 'jna', version: '4.2.2'
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
     testCompile group: 'junit', name: 'junit', version: version_junit

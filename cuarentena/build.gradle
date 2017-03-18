@@ -1,0 +1,9 @@
+dependencies {
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+
+    // ASM is included by too many things at different version levels, it should eventually be shaded/renamed into this JAR
+    compileOnly group: 'org.ow2.asm', name: 'asm-debug-all', version: version_elasticsearch_asm
+
+    testCompile group: 'junit', name: 'junit', version: version_junit
+    testCompile group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit', version: version_kotlin
+}
