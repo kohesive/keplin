@@ -26,6 +26,8 @@ TODO:
 
 * finish breaking out the new "coming soon" modules
 * security reviews on `keplin-quarantine`
+* document the modules
+* elasticsearch script client, containing Kotlin extensions to the Java client to easily add Lambda-scripts anywhere scripting would be used
 * add `keplin-quarantine` support to Kotlin and Keplin JSR223 engines
 * add maven / file resolver quarantine support for whitelisting GAV, and local file patterns
 
