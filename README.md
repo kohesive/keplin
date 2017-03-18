@@ -19,6 +19,10 @@ http://dl.bintray.com/jaysonminard/kohesive
 
 # Current Modules:
 
+### Elasticsearch-Kotlin-Plugin
+
+Kotlin as a secure scripting language for Elasticsearch.  Using the same whitelist security model as Painless scripting.  Combined with allowing you to use client Lambda and Functions as binary scripts, sent to the cluster for execution with the same protection and security of scripts.  Coming soon:  https://vimeo.com/apatrida/es-lang-kotlin
+
 ### keplin-core
 
 * a simple Repl class [SimplifiedRepl](./core/src/main/kotlin/uy/kohesive/keplin/kotlin/script/SimplifiedRepl.kt)
