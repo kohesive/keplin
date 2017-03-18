@@ -60,20 +60,8 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     }
 
     val sm = System.getSecurityManager()
-
     val uniqueSessionId = UUID.randomUUID().toString()
-
-    val tempDir = createTempDir("keplin-es-kotlinscript", uniqueSessionId)
-    val clientAliveFile: File = File.createTempFile("keplin-es-kotlinscript", uniqueSessionId)
     val compilerMessages: MessageCollector = CapturingMessageCollector()
-
-    val kotlinInstallDirName = settings.get(KotlinScriptPlugin.KotlinPath) ?: throw IllegalStateException("Invalid/missing setting ${KotlinScriptPlugin.KotlinPath} which should point to Kotlin install directory")
-    val kotlinInstallDir = File(kotlinInstallDirName).absoluteFile
-
-    // TODO: improve this handling, test this all during plugin loading
-//    val kotlinCompilerJar = File(kotlinInstallDir, "lib/kotlin-compiler.jar").takeIf { it.exists() } ?: throw IllegalStateException("Invalid/missing Kotlin compiler JAR: ${kotlinInstallDir}/lib/kotlin-compiler.jar")
-
-    //  val compilerClasspath = listOf(kotlinCompilerJar) + ClassPathUtils.findClassJars(EsKotlinScriptTemplate::class)
 
     val disposable = Disposer.newDisposable()
     val repl by lazy {

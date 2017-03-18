@@ -50,14 +50,15 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                     PainlessPlugin::class.java)
 
     fun testNormalQuery() {
-        println("NORMAL QUERY:")
+
         val prep = client.prepareSearch(INDEX_NAME)
                 .setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
         val results = prep.execute().actionGet()
+
         results.assertHasResults()
         results.printHitsSourceField("title")
-        println("----end----")
+
     }
 
     fun testMoreComplexPainlessScript() {
@@ -146,6 +147,21 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         }
     }
 
+    fun testSecurityViolationInLambdaAsScript() {
+        try {
+            client.prepareSearch(INDEX_NAME)
+                    .addScriptField("multi", mapOf("multiplier" to 2)) {
+                        val f = File("asdf") // security violation
+                        docInt("number", 1) * parmInt("multiplier", 1) + _score
+                    }.setQuery(QueryBuilders.matchQuery("title", "title"))
+                    .setFetchSource(true).execute().actionGet()
+            fail("security verification should have caught this use of File")
+        } catch (ex: Throwable) {
+            val exceptionStack = generateSequence(ex) { it.cause }
+            assertTrue(exceptionStack.take(5).any { "java.io.File" in it.message!! })
+        }
+    }
+
     fun testMoreComplexLambdaAsScript() {
         val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
         val prep = client.prepareSearch(INDEX_NAME)
@@ -201,7 +217,6 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         }
     }
 
-
     fun testLambdaAsIngestPipelineStep() {
         val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
         val scriptFunc = fun EsKotlinScriptTemplate.(): Any? {
@@ -228,21 +243,6 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
             // TODO: no response parsing is in the client, need to handle this specially
         }
 
-    }
-
-    fun testSecurityViolationInLambdaAsScript() {
-        try {
-            client.prepareSearch(INDEX_NAME)
-                    .addScriptField("multi", mapOf("multiplier" to 2)) {
-                        val f = File("asdf") // security violation
-                        docInt("number", 1) * parmInt("multiplier", 1) + _score
-                    }.setQuery(QueryBuilders.matchQuery("title", "title"))
-                    .setFetchSource(true).execute().actionGet()
-            fail("security verification should have caught this use of File")
-        } catch (ex: Throwable) {
-            val exceptionStack = generateSequence(ex) { it.cause }
-            assertTrue(exceptionStack.take(5).any { "java.io.File" in it.message!! })
-        }
     }
 
     @Before

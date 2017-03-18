@@ -11,11 +11,10 @@ import org.elasticsearch.script.ScriptEngineService
 class KotlinScriptPlugin : Plugin(), ScriptPlugin {
     companion object {
         val LANGUAGE_NAME = "kotlin"
-        val KotlinPath = "plugin.keplin.kotlinscript.compiler.path"
     }
 
     override fun getSettings(): List<Setting<*>> {
-        return listOf(Setting.simpleString(KotlinPath, Setting.Property.NodeScope))
+        return emptyList() // listOf(Setting.simpleString(KotlinPath, Setting.Property.NodeScope))
     }
 
     override fun getScriptEngineService(settings: Settings): ScriptEngineService {
