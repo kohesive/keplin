@@ -1,3 +1,5 @@
+@file:Suppress("NOTHING_TO_INLINE")
+
 package uy.kohesive.keplin.elasticsaerch.kotlinscript
 
 import org.elasticsearch.action.search.SearchRequestBuilder
@@ -20,6 +22,7 @@ import uy.kohesive.keplin.elasticsearch.kotlinscript.ConcreteEsKotlinScriptTempl
 import uy.kohesive.keplin.elasticsearch.kotlinscript.EsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.KotlinScriptPlugin
 import java.io.File
+import java.util.regex.Pattern
 import kotlin.system.measureTimeMillis
 
 @ESIntegTestCase.ClusterScope(transportClientRatio = 1.0, numDataNodes = 1)
@@ -30,7 +33,6 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
             temp.asMap.forEach {
                 put(it.key, it.value)
             }
-            put(KotlinScriptPlugin.KotlinPath, "/Users/jminard/Downloads/kotlinc-2")
             put("script.painless.regex.enabled", true)
         }
         return builder.build()
@@ -199,12 +201,13 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         }
     }
 
+
     fun testLambdaAsIngestPipelineStep() {
         val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
         val scriptFunc = fun EsKotlinScriptTemplate.(): Any? {
             val newValue = (ctx["badContent"] as? String)
                     ?.let { currentValue ->
-                        badCategoryPattern.toRegex().matchEntire(currentValue)?.takeIf { it.groups.size > 2 }
+                        badCategoryPattern.takeIfMatching(currentValue, 3)
                                 ?.let {
                                     val typeName = it.groups[1]!!.value.toLowerCase()
                                     it.groups[2]!!.value.split(',')
@@ -372,3 +375,6 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
     }
 
 }
+
+inline fun Pattern.takeIfMatching(text: String, minGroups: Int) =
+        toRegex().matchEntire(text)?.takeIf { it.groups.size >= minGroups }
