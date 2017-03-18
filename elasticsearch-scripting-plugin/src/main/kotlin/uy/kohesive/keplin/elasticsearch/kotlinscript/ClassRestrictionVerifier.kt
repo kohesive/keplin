@@ -4,6 +4,10 @@ import org.objectweb.asm.*
 import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
 
+// TODO: this is from first round of exploring and work, needs overhauled to take those learnings into account, simplify
+//       and develop the formal Kotlin whitelist, and then the lambda serializeable tiny whitelist.  More checking, more
+//       eyes, continue to be more secure.
+
 object ClassRestrictionVerifier {
     val kotinAllowedClasses = setOf("org.jetbrains.annotations.NotNull",
             "kotlin.jvm.internal.Intrinsics",
@@ -102,14 +106,12 @@ object ClassRestrictionVerifier {
         fun violation(rawName: String) {
             val type = rawName.fixClassName()
             if (type !in violations) {
-                // println("**** VIOLATION: $type ****")
                 violations.add(type)
             }
         }
 
         fun assertType(rawName: String?) {
             if (rawName != null && !isSpecialType(myName, containingClass, extraAllowed, rawName) && findSymbol(rawName) == null) {
-                //  println("Asserting: $rawName")
                 violation(rawName)
             }
         }
@@ -119,7 +121,6 @@ object ClassRestrictionVerifier {
                 otherNames.filterNotNull().forEach { verify(note + "-on", it) }
             }
 
-            //  println("${note.padEnd(15)} :> owner: ${owner.padEnd(15)}  name: ${name?.padEnd(15)}  desc: ${desc?.padEnd(25)} sig: ${sig?.padEnd(25)}    otherNames: ${otherNames.filterNotNull().joinToString(",")}")
             if ('/' in owner && !isSpecialType(myName, containingClass, extraAllowed, owner)) {
                 val ownerDef = findSymbol(owner)
                 if (ownerDef == null) {
@@ -206,9 +207,6 @@ object ClassRestrictionVerifier {
             verify("method", myName, name, desc = desc, sig = signature, otherNames = *exceptions ?: emptyArray())
             return VerifySafeMethodVisitor(this, "${myName}.${name}")
         }
-// desc = ()Ljava/io/File; name = getX   (now ()Ljava/util/List; sig ()Ljava/util/List<Ljava/io/File;>;)
-// desc = (Ljava/io/File;)Z ; name = foo  /// name = getZ ... desc ()Ljava/util/List; sig ()Ljava/util/List<Ljava/lang/String;>; // name = getQ desc = ()[Ljava/lang/Integer; // name = getS desc = ()Ljava/lang/String;
-// desc = (Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/lang/Object;D)V  name = <init>
 
         override fun visitInnerClass(name: String, outerName: String?, innerName: String?, access: Int) {
             verify("innerClass", myName, name, otherNames = *arrayOf(innerName, outerName))
@@ -233,14 +231,11 @@ object ClassRestrictionVerifier {
 
             }
         }
-// desc Ljava/io/File;  name x      (now:  desc Ljava/util/List; sig Ljava/util/List<Ljava/io/File;>;)
-// desc Ljava/lang/Object; name $$result   /// name z desc Ljava/util/List; sig Ljava/util/List<Ljava/lang/String;>; /// name q desc [Ljava/lang/Integer; sign null /// name s desc Ljava/lang/String; sig null /// $$result desc Ljava/lang/Object; sig null
 
         override fun visitAnnotation(desc: String?, visible: Boolean): AnnotationVisitor? {
             verify("myAnn", myName, desc = desc)
             return VerifySafeAnnotationVisitor(this@VerifySafeClassVisitor, myName)
         }
-// desc = Lkotlin/Metadata;
 
         override fun visitTypeAnnotation(typeRef: Int, typePath: TypePath?, desc: String?, visible: Boolean): AnnotationVisitor? {
             verify("myTypeAnn", myName, desc = desc, sig = typePath?.toString())
@@ -288,14 +283,12 @@ object ClassRestrictionVerifier {
         }
 
         override fun visitFrame(type: Int, nLocal: Int, local: Array<out Any>?, nStack: Int, stack: Array<out Any>?) {
-
-        } // should we scan the local or stack for objects we don't like as a backup?
-
+            // TODO: should we scan the frame for extra safety?
+        }
 
         override fun visitTypeInsn(opcode: Int, type: String) {
             verifyOther("mv.type", owner = type)
-        } // java/io/File  opcode 187 = new  // java/util/ArrayList opcode 187 = new // java/lang/String 189 = newArray // Line_1  opcode 192 = checkCast  // java/lang/Iterable opcode 192 = checkCast // java.io.File opcode 192 // java/util/collection 192  // java/util/list 192
-
+        }
         override fun visitAnnotationDefault(): AnnotationVisitor? {
             return VerifySafeAnnotationVisitor(classVisitor, methodName)
         }
@@ -303,8 +296,7 @@ object ClassRestrictionVerifier {
         override fun visitAnnotation(desc: String?, visible: Boolean): AnnotationVisitor? {
             verify("mv.ann", desc = desc)
             return VerifySafeAnnotationVisitor(classVisitor, methodName)
-        } // Lorg/jetbrains/annotations/NotNull;
-
+        }
         override fun visitTypeAnnotation(typeRef: Int, typePath: TypePath?, desc: String?, visible: Boolean): AnnotationVisitor? {
             verify("mv.typeAnn", desc = desc, sig = typePath?.toString())
             return VerifySafeAnnotationVisitor(classVisitor, methodName)
@@ -323,7 +315,7 @@ object ClassRestrictionVerifier {
         override fun visitParameterAnnotation(parameter: Int, desc: String?, visible: Boolean): AnnotationVisitor? {
             verify("mv.parAnn", desc = desc)
             return VerifySafeAnnotationVisitor(classVisitor, methodName)
-        } // Lorg/jetbrains/annotations/NotNull;
+        }
 
         override fun visitInvokeDynamicInsn(name: String?, desc: String?, bsm: Handle?, vararg bsmArgs: Any?) {
             verify("mv.invDyn", name = name, desc = desc)
@@ -337,13 +329,6 @@ object ClassRestrictionVerifier {
         override fun visitLocalVariable(name: String?, desc: String?, signature: String?, start: Label?, end: Label?, index: Int) {
             verify("mv.local", name = name, desc = desc, sig = signature)
         }
-        // name = "this" ... desc = "LLine_1;"
-        // name = "y" ... desc = "Ljava/io/File;"
-        // name it Ljava/io/File;
-        // name $i$a$1$forEach desc I
-        // name element$iv desc Ljava/lang/Object;
-        // name $receiver$iv desc Ljava/lang/Iterable;
-        // name $i$f$forEach desc I
 
         override fun visitParameter(name: String?, access: Int) {
             verify("mv.parm", name = name)
@@ -356,15 +341,6 @@ object ClassRestrictionVerifier {
                 classVisitor.scoreAccessed = true
             }
         }
-        // owner = kotlin/jvm/internal/Intrinsics | name = checkParameterIsNotNull | desc = (Ljava/lang/Object;Ljava/lang/String;)V  ...
-        // owner = com/bremeld/es/topology/planner/plugin/EsKotlinScriptTemplate | name = "<init>" | value = "(Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/lang/Object;D)V"
-        // owner = java/io/File | name = exists | desc = ()Z
-        // owner = java/io/PrintStream  | name = println | desc = (Ljava/lang/Object;)V /// owner = java/util/Collection | name = "add" | desc = (Ljava/lang/Object;)Z
-        // owner = java/io/File | name = "<init>" | desc = (Ljava/lang/String;)V  /// owner = java/lang/Boolean | name = valueOf | desc = (Z)Ljava/lang/Boolean;
-        // owner = Line_1 | name = docInt | desc = (Ljava/lang/String;I)I  /// owner = java/util/ArrayList | name = "<init>" | desc = (I)V
-        // owner = Line_1 | name = "parmInt" | desc = (Ljava/lang/String;I)I /// owner = kotlin/collections/CollectionsKt | name = collectionSizeOrDefault | desc = (Ljava/lang/Iterable;I)I
-        // owner = Line_1 name = "get_score" desc = "()D"    /// owner = java/util/Iterator | name = next | desc = ()Ljava/lang/Object;
-        // owner = "java/lang/Double" name = "valueOf" desc = "(D)Ljava/lang/Double;" /// onwer = kotlin/collections/CollectionsKt | name = listOf | desc = (Ljava/lang/Object;)Ljava/util/List; /// owner = java/lang/Iterable | name = iterator | desc = ()Ljava/util/Iterator; /// owner = java/util/Iterator | name = hasNext | desc = ()Z
 
         override fun visitFieldInsn(op: Int, owner: String, name: String?, desc: String?) {
             verifyOther("mv.fieldIns", owner = owner, name = name, desc = desc)
@@ -372,9 +348,6 @@ object ClassRestrictionVerifier {
             if (op == Opcodes.GETFIELD && name == "_score") {
                 classVisitor.scoreAccessed = true
             }
-            // owner = "Line_1" ... name = "x"  ... desc = "Ljava/io/File;"  (now desc = Ljava/util/List;)
-            // owner = "java/lang/System" name = "out" desc = "Ljava/io/PrintStream;"  /// owner Line_1 name z desc Ljava/util/List; /// owner Line_1 name = q desc = [Ljava/lang/Integer;
-            // owner = "Line_1" name = "$$result" desc = "Ljava/lang/Object;"
         }
     }
 
@@ -420,11 +393,6 @@ object ClassRestrictionVerifier {
     }
 
     // read painless definitions and map things by java names
-    //      fullClassName
-    //      fullClassName.<init>(sig)
-    //      fullClassName.foo(sig)
-    //      fullClassName.getVar()Lwhatever;
-    //
     val definitions = readDefinitions()
 
     private fun readDefinitions(): Map<String, DefClass> {
