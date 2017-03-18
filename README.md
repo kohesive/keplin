@@ -21,7 +21,7 @@ http://dl.bintray.com/jaysonminard/kohesive
 
 ### Elasticsearch-Kotlin-Plugin
 
-Kotlin as a secure scripting language for Elasticsearch.  Using the same whitelist security model as Painless scripting.  Combined with allowing you to use client Lambda and Functions as binary scripts, sent to the cluster for execution with the same protection and security of scripts.  Coming soon:  https://vimeo.com/apatrida/es-lang-kotlin
+Kotlin as a secure scripting language for Elasticsearch.  Using the same whitelist security model as Painless scripting.  Combined with allowing you to use client native Lambda and Functions as binary scripts from within your client code, sent to the cluster for execution with the same protection and security of scripts.  Coming soon:  https://vimeo.com/apatrida/es-lang-kotlin
 
 ### keplin-core
 
