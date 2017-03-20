@@ -1,4 +1,7 @@
-package uy.kohesive.keplin.quarantine.painless
+package uy.kohesive.keplin.cuarentena.painless
+
+import uy.kohesive.keplin.cuarentena.policy.DefClass
+import uy.kohesive.keplin.cuarentena.policy.DefMethodSig
 
 object PainlessWhitelistParser {
     fun readDefinitions(): Map<String, DefClass> {
@@ -129,8 +132,21 @@ object PainlessWhitelistParser {
             "java.util.stream.txt",
             "joda.time.txt")
 
-    data class DefClass(val painlessName: String, val javaName: String, val signatures: List<DefMethodSig>)
-    data class DefMethodSig(val returnType: String, val methodName: String, val paramTypes: List<String>, val isProperty: Boolean = false)
+    val extraAllowedSymbols = listOf(
+            DefClass("StringBuilder", "java.lang.StringBuilder", listOf(
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("java.lang.String")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("int")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("long")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("char")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("double")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("float")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("byte")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("short")),
+                    DefMethodSig("java.lang.StringBuilder", "append", listOf("boolean")),
+                    DefMethodSig("java.lang.String", "toString", emptyList()))),
+            DefClass("ArrayList", "java.util.ArrayList", listOf(
+                    DefMethodSig("java.util.ArrayList", "<init>", listOf("int"))))
+    )
 
     private fun String.upperFirst(): String = this.first().toUpperCase() + this.drop(1)
     private fun String.javaSigPart(): String {

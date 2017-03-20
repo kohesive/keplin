@@ -1,9 +1,10 @@
-package uy.kohesive.keplin.elasticsearch.kotlinscript
+package uy.kohesive.keplin.chilamda
 
-import org.apache.lucene.util.BytesRefBuilder
-import org.apache.lucene.util.StringHelper
+import uy.kohesive.keplin.cuarentena.ClassRestrictionVerifier
+import uy.kohesive.keplin.cuarentena.NamedClassBytes
 import java.io.*
 import java.util.*
+
 
 object ClassSerDesUtil {
     val BINARY_PREFIX = "keplinbin~~"
@@ -15,7 +16,7 @@ object ClassSerDesUtil {
 
     fun isPrefixedBase64(scriptSource: String): Boolean = scriptSource.startsWith(BINARY_PREFIX)
 
-    data class DeserResponse(val className: String, val classes: List<KotlinScriptEngineService.NamedClassBytes>, val serializedLambda: ByteArray)
+    data class DeserResponse(val className: String, val classes: List<NamedClassBytes>, val serializedLambda: ByteArray)
 
     fun deserFromPrefixedBase64(scriptSource: String): DeserResponse {
         if (!isPrefixedBase64(scriptSource)) throw ClassSerDesException("Script is not valid encoded classes")
@@ -35,7 +36,7 @@ object ClassSerDesUtil {
                     (1..count).map {
                         val name = stream.readString()
                         val bytes = stream.readByteArray()
-                        KotlinScriptEngineService.NamedClassBytes(name, bytes)
+                        NamedClassBytes(name, bytes)
                     }
                 }
 
@@ -106,7 +107,7 @@ object ClassSerDesUtil {
         }
 
         val classesAsBytes = tracedClasses.filterNot { it.name in otherAllowedSerializedClasses }.map { oneClass ->
-            KotlinScriptEngineService.NamedClassBytes(oneClass.name,
+            NamedClassBytes(oneClass.name,
                     serClass.classLoader.getResourceAsStream(oneClass.name.replace('.', '/') + ".class").use { it.readBytes() })
         }
 

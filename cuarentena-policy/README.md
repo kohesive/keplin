@@ -27,13 +27,13 @@ For a given package:
 
 #### Class Serialization
 
-**Scope of serialization rules**
+Scope of serialization rules
              
 * Allow containing classes
 * Allow contained classes (by Parent$child naming pattern only)
 * Allow other classes (caused by references, or inner/contained that do not follow a Parent$child naming pattern)
 
-**Class specific policies**
+Class specific policies
              
 * Classes that can be referenced  (the Class<T> would be loaded because of the reference)
 * Other Class instances that can be ser/deser (the other instance of T can be serialized, and the Class<T> would be loaded on deser)

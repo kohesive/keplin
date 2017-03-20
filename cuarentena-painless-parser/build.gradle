@@ -1,4 +1,6 @@
 dependencies {
+    compile project(":cuarentena-policy")
+
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
 
     // We use the definition files from the lang-painless module of elastic

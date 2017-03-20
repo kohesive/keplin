@@ -22,6 +22,8 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
 import org.jetbrains.kotlin.utils.PathUtil
+import uy.kohesive.keplin.cuarentena.ClassRestrictionVerifier
+import uy.kohesive.keplin.cuarentena.NamedClassBytes
 import uy.kohesive.keplin.util.ClassPathUtils.findRequiredScriptingJarFiles
 import java.io.File
 import java.security.AccessController
@@ -268,8 +270,6 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     data class ExecutableCode(val className: String, val code: String, val classes: List<NamedClassBytes>, val extraData: Any? = null, val invoker: ExecutableCode.(ScriptArgsWithTypes) -> Any?)
 
     data class PreparedScript(val code: ExecutableCode, val scoreFieldAccessed: Boolean)
-
-    data class NamedClassBytes(val className: String, val bytes: ByteArray)
 }
 
 fun toScriptException(message: String, code: String, location: CompilerMessageLocation): ScriptException {

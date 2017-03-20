@@ -12,20 +12,22 @@ println("kepling elasticsearch kotlinscript lib version will be $version")
 
 dependencies {
     compile project(":keplin-util")
-   // compile group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: version_kotlin
-   // compile group: 'org.jetbrains.kotlin', name: 'kotlin-daemon-client', version: version_kotlin
-   compile fileTree(dir: 'lib', include: '*.jar')
-    //compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
-    //compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
+    compile project(":cuarentena-policy")
 
-    //compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jre8', version: version_kotlin
+    compile(project(":cuarentena-painless-parser")) {
+       exclude group: 'org.codelibs.elasticsearch.module'
+    }
+    compile(project(":cuarentena")) {
+        exclude group: 'org.ow2.asm"'
+    }
+
+    compile fileTree(dir: 'lib', include: '*.jar')
 
     compile group: 'org.elasticsearch', name: 'elasticsearch', version: version_elasticsearch
 
-    // temporarily, we need to just link with submodule to the files and parse them ourselves
-    testCompile group: 'org.codelibs.elasticsearch.module', name: 'lang-painless', version: version_elasticsearch
+    // at runtime we use the ones within Elasticsearch
     testCompile group: 'org.codelibs.elasticsearch.module', name: 'ingest-common', version: version_elasticsearch
-    compileOnly group: 'org.ow2.asm', name: 'asm-debug-all', version: version_elasticsearch_asm
+    testCompile group: 'org.codelibs.elasticsearch.module', name: 'lang-painless', version: version_elasticsearch
 
     testCompile group: 'org.elasticsearch.test', name: 'framework', version: version_elasticsearch
     testRuntime group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_elasticsearch_log4j
