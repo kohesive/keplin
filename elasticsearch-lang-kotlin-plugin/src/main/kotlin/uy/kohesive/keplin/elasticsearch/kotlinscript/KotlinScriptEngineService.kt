@@ -22,8 +22,9 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
 import org.jetbrains.kotlin.utils.PathUtil
-import uy.kohesive.keplin.cuarentena.ClassRestrictionVerifier
-import uy.kohesive.keplin.cuarentena.NamedClassBytes
+import uy.kohesive.chillamda.ClassSerDesUtil
+import uy.kohesive.cuarentena.ClassRestrictionVerifier
+import uy.kohesive.cuarentena.NamedClassBytes
 import uy.kohesive.keplin.util.ClassPathUtils.findRequiredScriptingJarFiles
 import java.io.File
 import java.security.AccessController
@@ -183,7 +184,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     override fun compile(scriptName: String?, scriptSource: String, params: Map<String, String>?): Any {
         val executableCode = if (ClassSerDesUtil.isPrefixedBase64(scriptSource)) {
             try {
-                val (className, classesAsBytes, serInstance) = ClassSerDesUtil.deserFromPrefixedBase64(scriptSource)
+                val (className, classesAsBytes, serInstance) = ClassSerDesUtil.deserFromPrefixedBase64<EsKotlinScriptTemplate, Any>(scriptSource)
                 val classLoader = ScriptClassLoader(Thread.currentThread().contextClassLoader).apply {
                     classesAsBytes.forEach {
                         addClass(it.className, it.bytes)
@@ -196,7 +197,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                         Thread.currentThread().contextClassLoader = classLoader
                         // deser every time in case it is mutable, we don't want a changing base (or is that really possible?)
                         try {
-                            val lambda = ClassSerDesUtil.deserLambdaInstanceSafely(className, serInstance, goodClassNames)
+                            val lambda: EsKotlinScriptTemplate.() -> Any? = ClassSerDesUtil.deserLambdaInstanceSafely(className, serInstance, goodClassNames)
                             val scriptTemplate = scriptTemplateConstructor.call(*scriptArgs.scriptArgs)
                             lambda.invoke(scriptTemplate)
                         } catch (ex: Exception) {
@@ -258,7 +259,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             }
         }
 
-        val verification = ClassRestrictionVerifier.verifySafeClass(executableCode.className, emptySet(), executableCode.classes)
+        val verification = ClassRestrictionVerifier(emptySet(), setOf("${KotlinScriptPlugin::class.java.`package`.name}.")).verifySafeClass(executableCode.className, emptySet(), executableCode.classes)
         if (verification.failed) {
             val violations = verification.violations.sorted()
             val exp = Exception("Illegal Access to unauthorized classes/methods: ${violations.joinToString()}")

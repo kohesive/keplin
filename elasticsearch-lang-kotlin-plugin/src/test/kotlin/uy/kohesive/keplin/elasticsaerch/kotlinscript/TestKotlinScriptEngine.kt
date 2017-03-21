@@ -17,7 +17,7 @@ import org.elasticsearch.script.ScriptType
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.test.ESIntegTestCase
 import org.junit.Before
-import uy.kohesive.keplin.elasticsearch.kotlinscript.ClassSerDesUtil
+import uy.kohesive.chillamda.ClassSerDesUtil
 import uy.kohesive.keplin.elasticsearch.kotlinscript.ConcreteEsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.EsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.KotlinScriptPlugin
@@ -308,7 +308,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
 
 
     fun <T : Any?> SearchRequestBuilder.addScriptField(name: String, params: Map<String, Any> = emptyMap(), lambda: EsKotlinScriptTemplate.() -> T): SearchRequestBuilder {
-        return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", ClassSerDesUtil.serializeLambdaToBase64(lambda), params))
+        return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", ClassSerDesUtil.serializeLambdaToBase64<EsKotlinScriptTemplate, Any>(lambda), params))
     }
 
     fun <T : Any?> makeSimulatePipelineJsonForLambda(lambda: EsKotlinScriptTemplate.() -> T): BytesReference {
@@ -319,7 +319,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                 .startObject()
                 .startObject("script")
                 .field("lang", "kotlin")
-                .field("inline", ClassSerDesUtil.serializeLambdaToBase64(lambda))
+                .field("inline", ClassSerDesUtil.serializeLambdaToBase64<EsKotlinScriptTemplate, Any>(lambda))
                 .startObject("params").endObject()
                 .endObject()
                 .endObject()

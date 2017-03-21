@@ -12,18 +12,28 @@ println("kepling elasticsearch kotlinscript lib version will be $version")
 
 dependencies {
     compile project(":keplin-util")
-    compile project(":cuarentena-policy")
 
+    compile(project(":cuarentena-policy")) {
+        exclude group: 'org.jetbrains.kotlin'
+    }
     compile(project(":cuarentena-painless-parser")) {
-       exclude group: 'org.codelibs.elasticsearch.module'
+        exclude group: 'org.codelibs.elasticsearch.module'
+        exclude group: 'org.jetbrains.kotlin'
     }
     compile(project(":cuarentena")) {
-        exclude group: 'org.ow2.asm"'
+        exclude group: 'org.ow2.asm'
+        exclude group: 'org.jetbrains.kotlin'
     }
 
-    compile fileTree(dir: 'lib', include: '*.jar')
+    compile project(":chillambda")
+
+    // special Kotlin temporary builds, avoiding conflicts with ES classpath (JarHell checker)
+    compile fileTree(dir: '../lib', include: 'kotlin-compiler-embeddable-nud-*.jar')
 
     compile group: 'org.elasticsearch', name: 'elasticsearch', version: version_elasticsearch
+
+  //  compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+  //  compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
 
     // at runtime we use the ones within Elasticsearch
     testCompile group: 'org.codelibs.elasticsearch.module', name: 'ingest-common', version: version_elasticsearch
@@ -35,8 +45,8 @@ dependencies {
 
 configurations.all {
     // these are in the embeddable compiler already, to avoid jarhell check we cannot have two copies
-    // exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib'
-    // exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
     // this is a problem, we need it excluded from Kotlin compiler embeddable so we can use the ES version instead, because this won't work in real life:
     // exclude group: 'net.java.dev.jna', module: 'jna'
 }

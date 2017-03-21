@@ -1,16 +1,12 @@
-include 'util',
-        'cuarentena',
+include 'cuarentena',
         'cuarentena-policy',
         'cuarentena-painless-parser',
-        'core',
-        'chilambda',
-        'maven-resolver',
-        'jsr223-engine',
+        'keplin-util',
+        'keplin-core',
+        'keplin-maven-resolver',
+        'keplin-jsr223-kotlin-engine',
+        'chillambda',
         'elasticsearch-lang-kotlin-plugin'
 
-project(':util').name = 'keplin-util'
-project(':core').name = 'keplin-core'
-project(':maven-resolver').name = 'keplin-maven-resolver'
-project(':jsr223-engine').name = 'keplin-jsr223-kotlin-engine'
 
 

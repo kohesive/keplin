@@ -1,4 +1,0 @@
-dependencies {
-    compileOnly group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: version_kotlin
-    compileOnly group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
-}

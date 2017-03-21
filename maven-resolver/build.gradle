@@ -1,9 +1,0 @@
-dependencies {
-    compile project(":keplin-core")
-    compile group: "com.jcabi", name: "jcabi-aether", version: version_jcabi
-    compile group: "org.sonatype.aether", name: "aether-api", version: version_aether
-    compile group: "org.apache.maven", name: "maven-core", version: version_maven
-
-    testCompile group: 'junit', name: 'junit', version: version_junit
-    testCompile group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit', version: version_kotlin
-}

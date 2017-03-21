@@ -1,0 +1,6 @@
+dependencies {
+    // special Kotlin temporary builds, avoiding conflicts with ES classpath (JarHell checker)
+    compile fileTree(dir: '../lib', include: 'kotlin-compiler-embeddable-nud-*.jar')
+
+    compileOnly group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+}

@@ -3,6 +3,7 @@ dependencies {
     compile project(':cuarentena-painless-parser')
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+    compile group: 'com.zackehh', name: 'siphash', version: version_zacsiphash
 
     // ASM is included by too many things at different version levels, it should eventually be shaded/renamed into this JAR
     compile group: 'org.ow2.asm', name: 'asm-debug-all', version: version_elasticsearch_asm

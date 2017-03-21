@@ -22,6 +22,14 @@ subprojects {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
+    if (project.name.startsWith("cuarentena")) {
+        project.group="uy.kohesive.cuarentena"
+    } else if (project.name.startsWith("chillambda")) {
+        project.group="uy.kohesive.chillambda"
+    } else {
+        project.group="uy.kohesive.keplin"
+    }
+
     repositories {
         jcenter()
         mavenCentral()

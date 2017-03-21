@@ -1,9 +1,11 @@
 package uy.kohesive.keplin.elasticsaerch.kotlinscript
 
+import org.junit.Ignore
 import org.junit.Test
 
 class TestDaemonCompilationOutsideEs {
     @Test
+    @Ignore
     fun testProcRun() {
         val proc = ProcessBuilder("/Library/Java/JavaVirtualMachines/jdk1.8.0_112.jdk/Contents/Home/jre/bin/java", "-version").start()
         Runtime.getRuntime().exec(arrayOf("/bin/sh", "-c", "/Library/Java/JavaVirtualMachines/jdk1.8.0_112.jdk/Contents/Home/jre/bin/java"))
@@ -11,6 +13,7 @@ class TestDaemonCompilationOutsideEs {
     }
 
     @Test
+    @Ignore
     fun testCompileAScript() {
         /*
         val uniqueSessionId = UUID.randomUUID().toString()
