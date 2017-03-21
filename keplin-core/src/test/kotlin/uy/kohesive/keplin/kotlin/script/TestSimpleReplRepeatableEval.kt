@@ -141,15 +141,10 @@ class TestRepeatableEval {
             val secondArgs = ScriptArgsWithTypes(arrayOf(mapOf<String, Any?>("x" to 200, "y" to 70)), arrayOf(Map::class))
 
             // eval line1 with different args affects it and would only affect line2
-            // but not line3 until line2 is re-eval'd
             repl.eval(line1, secondArgs)
-            val result3 = repl.eval(line3)
-            assertEquals(160, result3.resultValue)
-
-            // but if we do line2 again, the line3 will change...
             repl.eval(line2, secondArgs)
-            val result4 = repl.eval(line3)
-            assertEquals(280, result4.resultValue)
+            val result3 = repl.eval(line3)
+            assertEquals(280, result3.resultValue)
         }
     }
 }
