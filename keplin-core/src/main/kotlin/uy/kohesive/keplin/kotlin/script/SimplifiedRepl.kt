@@ -172,6 +172,7 @@ private fun ReplEvalResult.toResult(codeLine: LineId): EvalResult {
         is ReplEvalResult.Error.CompileTime -> throw ReplCompilerException(this)
         is ReplEvalResult.Error.Runtime -> throw ReplEvalRuntimeException(this)
         is ReplEvalResult.Incomplete -> throw ReplCompilerException(this)
+        is ReplEvalResult.HistoryMismatch -> throw ReplCompilerException(this)
         is ReplEvalResult.UnitResult -> {
             EvalResult(codeLine, Unit)
         }
