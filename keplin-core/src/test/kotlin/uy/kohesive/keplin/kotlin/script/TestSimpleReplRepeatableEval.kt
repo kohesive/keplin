@@ -7,7 +7,6 @@ import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import org.junit.Test
 import kotlin.script.templates.standard.ScriptTemplateWithBindings
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.junit.JUnitAsserter
 
 
@@ -25,8 +24,8 @@ class TestRepeatableEval {
             try {
                 repl.eval(line3)
                 JUnitAsserter.fail("Expecting history mismatch error")
-            } catch (ex: ReplCompilerException) {
-                assertTrue("History Mismatch" in ex.message!!)
+            } catch (ex: ReplException) {
+                NO_ACTION()
             }
         }
     }
@@ -45,8 +44,8 @@ class TestRepeatableEval {
             try {
                 repl.eval(line2)
                 JUnitAsserter.fail("Expecting history mismatch error")
-            } catch (ex: ReplCompilerException) {
-                assertTrue("History Mismatch" in ex.message!!)
+            } catch (ex: ReplException) {
+                NO_ACTION()
             }
         }
     }
