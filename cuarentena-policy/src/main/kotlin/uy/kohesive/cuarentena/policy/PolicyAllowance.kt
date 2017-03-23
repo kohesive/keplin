@@ -13,6 +13,10 @@ sealed class PolicyAllowance(_fqnTarget: String, val actions: Set<AccessTypes>, 
     abstract fun asPolicyStrings(): List<String>
 
     class PackageAccess(fqPackageName: String, actions: Set<AccessTypes>, val requireSealed: Boolean = true) : PolicyAllowance(fqPackageName, actions, ALL_PACKAGE_ACCESS_TYPES) {
+        init {
+            TODO("DISABLED")
+        }
+
         override fun asPolicyStrings(): List<String> {
             val packageId = fqnTarget + if (requireSealed) ":sealed" else ""
             return actions.addDefaultClassActions().asStrings().map { "$packageId * $it" }
