@@ -3,8 +3,7 @@ package uy.kohesive.cuarentena
 import org.objectweb.asm.*
 import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
-import uy.kohesive.cuarentena.painless.PainlessWhitelistParser
-import uy.kohesive.cuarentena.policy.DefClass
+import uy.kohesive.cuarentena.policy.CuarentenaPolicyLoader
 
 
 // TODO: this is from first round of exploring and work, needs overhauled to take those learnings into account, simplify
@@ -17,7 +16,7 @@ class ClassRestrictionVerifier(val otherAllowedClasses: Set<String>, val otherAl
 
     companion object {
         // TODO: change to use cuarentena policy files, and have no link to painless dependencies
-        val definitions = PainlessWhitelistParser.readDefinitions()
+        val definitions = CuarentenaPolicyLoader.loadPolicy("painless-base-java")
 
         val kotinAllowedClasses = setOf("org.jetbrains.annotations.NotNull",
                 "kotlin.jvm.internal.Intrinsics",
@@ -74,9 +73,10 @@ class ClassRestrictionVerifier(val otherAllowedClasses: Set<String>, val otherAl
     }
 
 
-    private fun findSymbol(rawName: String): DefClass? {
+    // TODO: change all this
+    private fun findSymbol(rawName: String): String? {
         val name = rawName.fixClassName()
-        return definitions[name]
+        return definitions.first()
     }
 
     val validTypes = ClassRestrictionVerifier.kotinAllowedClasses

@@ -3,6 +3,10 @@ dependencies {
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
 
+    compile group: 'org.elasticsearch', name: 'elasticsearch', version: version_elasticsearch
+
+    compile gradleApi()
+
     // We use the definition files from the lang-painless module of elastic
     // search.
     // It is not available directly, but is via the org.codelibs module extraction

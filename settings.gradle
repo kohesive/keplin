@@ -1,6 +1,7 @@
 include 'cuarentena',
         'cuarentena-policy',
         'cuarentena-painless-parser',
+        'cuarentena-painless-policy',
         'keplin-util',
         'keplin-core',
         'keplin-maven-resolver',

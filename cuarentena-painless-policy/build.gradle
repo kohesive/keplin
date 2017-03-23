@@ -1,0 +1,52 @@
+import java.util.stream.*
+
+def outputDir = new File(project.getBuildDir(), "generated-src/policy")
+
+task("makePolicy") {
+    dependsOn(":cuarentena-painless-parser:build")
+    dependsOn(":cuarentena-painless-parser:jar")
+    doLast {
+        def output = findProject(':cuarentena-painless-parser').configurations.runtime.allArtifacts.files.files.stream()
+                .map { x -> new URL("file://${x.canonicalFile.absolutePath}") }
+                .collect(Collectors.toList())
+        def depends = findProject(':cuarentena-painless-parser').configurations.runtime.collect { it as File }.stream()
+                .map { x -> new URL("file://${x.canonicalFile.absolutePath}") }
+                .collect(Collectors.toList())
+        output.forEach { x -> println(x.toString()) }
+        depends.forEach { x -> println(x.toString()) }
+        def path = output + depends
+        outputDir.mkdirs()
+
+        def outputFile = new File(outputDir, "uy/kohesive/cuarentena/painless-base-policy.ctena")
+        outputFile.parentFile.mkdirs()
+
+        def oldClassLoader = Thread.currentThread().contextClassLoader
+        def tempClassLoader = new URLClassLoader(path.toArray() as URL[], oldClassLoader)
+
+        Thread.currentThread().contextClassLoader = tempClassLoader
+        try {
+            tempClassLoader.loadClass("uy.kohesive.cuarentena.painless.PainlessWhitelistParser").newInstance().writePolicy(outputFile)
+        }
+        finally {
+            Thread.currentThread().contextClassLoader = oldClassLoader
+        }
+
+        def metaInfDir = new File(outputDir, "META-INF/cuarentena")
+        metaInfDir.mkdirs()
+
+        def metadataFile = new File(metaInfDir, "painless-base-java.properties")
+        metadataFile.write("resource=uy/kohesive/cuarentena/painless-base-policy.ctena\n")
+
+    }
+}
+
+compileJava.dependsOn makePolicy
+compileKotlin.dependsOn makePolicy
+
+sourceSets {
+    main.kotlin.srcDirs = [outputDir]
+    main.java.srcDirs = [outputDir]
+    sourceSets.main.resources {
+        srcDirs = [outputDir]
+    }
+}

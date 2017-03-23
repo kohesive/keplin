@@ -78,7 +78,7 @@ open class SimplifiedRepl protected constructor(protected val disposable: Dispos
 
     private val state = evaluator.createState(stateLock)
 
-    fun nextCodeLine(code: String) = ReplCodeLine(state.getNextLineNo(), state.currentGeneration, code)
+    fun nextCodeLine(code: String) = stateLock.write { ReplCodeLine(state.getNextLineNo(), state.currentGeneration, code) }
 
     fun resetToLine(lineNumber: Int): List<ILineId> {
         stateLock.write {

@@ -1,23 +1,37 @@
 package uy.kohesive.cuarentena.painless
 
-import uy.kohesive.cuarentena.policy.DefClass
-import uy.kohesive.cuarentena.policy.DefMethodSig
+import uy.kohesive.cuarentena.policy.AccessPolicies
+import uy.kohesive.cuarentena.policy.AccessTypes
+import uy.kohesive.cuarentena.policy.PolicyAllowance
+import uy.kohesive.cuarentena.policy.typeToSigPart
+import java.io.File
+import java.lang.reflect.AnnotatedType
+import java.lang.reflect.Modifier
+import java.lang.reflect.Type
 
-object PainlessWhitelistParser {
-    fun readDefinitions(): Map<String, DefClass> {
-        val classSigRegex = """^class\s+([\w\_][\w\_\d\.\$]*)\s+\-\>\s+([\w\_][\w\_\d\.\$]*)(?:\s+extend[s]?\s+([\w\_][\w\_\d\.\,\$]*)\s*)?\s*\{$""".toRegex()
-        val methodPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+((?:[\w\_][\w\_\d\.]*|\<init\>)\*?)\(([\w\_][\w\_\d\.\,\[\]]*)?\)[;]?$""".toRegex()
-        val propertyPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+([\w\_][\w\_\d\.]*\*?)$""".toRegex()
+class PainlessWhitelistParser() {
+    private fun definitionResources() = DEFINITION_FILES.map { Thread.currentThread().contextClassLoader.getResourceAsStream("$painlessPackage/$it") }
+    private val classSigRegex = """^class\s+([\w\_][\w\_\d\.\$]*)\s+\-\>\s+([\w\_][\w\_\d\.\$]*)(?:\s+extend[s]?\s+([\w\_][\w\_\d\.\,\$]*)\s*)?\s*\{$""".toRegex()
+    private val methodPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+((?:[\w\_][\w\_\d\.]*|\<init\>)\*?)\(([\w\_][\w\_\d\.\,\[\]]*)?\)[;]?$""".toRegex()
+    private val propertyPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+([\w\_][\w\_\d\.]*\*?)$""".toRegex()
+    private val painlessPackage = "org.elasticsearch.painless".replace('.', '/')
+    private val debugOut = false
 
-        val painlessPackage = "org.elasticsearch.painless".replace('.', '/')
-        val definitionResources = DEFINITION_FILES.map { Thread.currentThread().contextClassLoader.getResourceAsStream("$painlessPackage/$it") }
-        val painlessStructs = definitionResources.map { it.bufferedReader() }.map { stream ->
-            val fileClasses = mutableListOf<DefClass>()
-            var currentClass: DefClass? = null
-            val signatures = mutableListOf<DefMethodSig>()
+    fun makePolicy(): List<String> = readDefinitions().toPolicy()
 
-            stream.useLines { lines ->
-                lines.filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.forEach { line ->
+    fun writePolicy(output: File): Unit = output.bufferedWriter().use { writer ->
+        makePolicy().forEach {
+            writer.write(it)
+            writer.newLine()
+        }
+    }
+
+    fun readDefinitions(): AccessPolicies {
+        // two passes, first to pick up the painless class => java class names ... second to build policies
+
+        val painlessClassMappings = definitionResources().map { it.bufferedReader() }.map { stream ->
+            stream.use { input ->
+                input.lineSequence().filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.map { line ->
                     if (line.startsWith("class ")) {
                         val parts = classSigRegex.matchEntire(line)
                         if (parts == null || parts.groups.size < 2) throw IllegalStateException("Invalid struct definition [ $line ]")
@@ -36,86 +50,226 @@ object PainlessWhitelistParser {
                             "double" -> Double::class.javaPrimitiveType!!.name
                             else -> javaRawClassName
                         }
-
-                        currentClass = DefClass(painlessClassName, javaClassName, emptyList())
+                        painlessClassName to javaClassName
                     } else if (line.startsWith("}")) {
-                        fileClasses.add(currentClass!!.copy(signatures = signatures.toList()))
-                        signatures.clear()
+                        // noop this pass
+                        null
+                    } else {
+                        // noop this pass
+                        null
+                    }
+                }.filterNotNull().toList()
+            }
+        }.flatten().toMap()
+
+        fun getJavaType(painlessName: String): String {
+            val baseName = painlessName.substringBefore('[')
+            val suffix = painlessName.substring(baseName.length)
+            return painlessClassMappings.get(baseName)?.plus(suffix) ?: throw IllegalStateException("Unknown type $baseName")
+        }
+
+        fun Class<*>.safeName() = this.typeName
+        fun Type.safeName() = this.erasedType().typeName
+        fun AnnotatedType.safeName() = this.type.erasedType().typeName
+        fun String.asGetterNames(): List<String> = (this.first().toUpperCase() + this.substring(1)).let { listOf("get$it", "is$it", "has$it") }
+        fun String.asSetterNames(): List<String> = (this.first().toUpperCase() + this.substring(1)).let { listOf("set$it") }
+
+        var currentClassName: String? = null
+        var currentClass: Class<*>? = null
+
+        fun debug(f: () -> Unit) {
+            if (debugOut) {
+                f()
+            }
+        }
+
+        val painlessPolicies: AccessPolicies = definitionResources().map { it.bufferedReader() }.map { stream ->
+            stream.use { input ->
+                input.lineSequence().filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.map { line ->
+
+                    if (line.startsWith("class ")) {
+                        val parts = classSigRegex.matchEntire(line)
+                        if (parts == null || parts.groups.size < 2) throw IllegalStateException("Invalid struct definition [ $line ]")
+
+                        val painlessClassName = parts.groups[1]!!.value
+                        currentClassName = getJavaType(painlessClassName)
+                        currentClass = loadClass(currentClassName!!)
+                        null
+                    } else if (line.startsWith("}")) {
+                        currentClassName = null
                         currentClass = null
+                        null
                     } else {
                         val parts = methodPartsRegex.matchEntire(line)
                         if (parts != null) {
                             if (parts.groups.size < 2) {
-                                throw IllegalStateException("Invalid method definition [ $currentClass => $line ]")
+                                throw IllegalStateException("Invalid method definition [ $currentClassName => $line ]")
                             }
                             val returnType = parts.groups[1]!!.value
                             val methodName = parts.groups[2]!!.value
                             val paramTypes = parts.groups[3]?.value?.split(',') ?: emptyList()
 
-                            signatures.add(DefMethodSig(returnType, methodName, paramTypes))
+                            val seekParams = paramTypes.map { typeToSigPart(getJavaType(it)) }
+                            val seekReturn = returnType.let { typeToSigPart(getJavaType(it)) }
+                            val methodSig = "(${seekParams.joinToString("")})${seekReturn}"
+
+                            if (methodName.endsWith('*')) {
+                                // TODO: these likely should instead be Kotlin extensions and in a Kotlin specific extension to painless policy
+                                println("NOT YET HANDLED (extension): $currentClassName.$methodName$methodSig")
+                                /*
+                                    java.lang.CharSequence.replaceAll*(Ljava.util.regex.Pattern;Ljava.util.function.Function;)Ljava.lang.String;
+                                    java.lang.CharSequence.replaceFirst*(Ljava.util.regex.Pattern;Ljava.util.function.Function;)Ljava.lang.String;
+                                    java.lang.Iterable.any*(Ljava.util.function.Predicate;)Z
+                                    java.lang.Iterable.asCollection*()Ljava.util.Collection;
+                                    java.lang.Iterable.asList*()Ljava.util.List;
+                                    java.lang.Iterable.each*(Ljava.util.function.Consumer;)Ljava.lang.Object;
+                                    java.lang.Iterable.eachWithIndex*(Ljava.util.function.ObjIntConsumer;)Ljava.lang.Object;
+                                    java.lang.Iterable.every*(Ljava.util.function.Predicate;)Z
+                                    java.lang.Iterable.findResults*(Ljava.util.function.Function;)Ljava.util.List;
+                                    java.lang.Iterable.groupBy*(Ljava.util.function.Function;)Ljava.util.Map;
+                                    java.lang.Iterable.join*(Ljava.lang.String;)Ljava.lang.String;
+                                    java.lang.Iterable.sum*()D
+                                    java.lang.Iterable.sum*(Ljava.util.function.ToDoubleFunction;)D
+                                    java.util.Collection.collect*(Ljava.util.function.Function;)Ljava.util.List;
+                                    java.util.Collection.collect*(Ljava.util.Collection;Ljava.util.function.Function;)Ljava.lang.Object;
+                                    java.util.Collection.find*(Ljava.util.function.Predicate;)Ljava.lang.Object;
+                                    java.util.Collection.findAll*(Ljava.util.function.Predicate;)Ljava.util.List;
+                                    java.util.Collection.findResult*(Ljava.util.function.Function;)Ljava.lang.Object;
+                                    java.util.Collection.findResult*(Ljava.lang.Object;Ljava.util.function.Function;)Ljava.lang.Object;
+                                    java.util.Collection.split*(Ljava.util.function.Predicate;)Ljava.util.List;
+                                    java.util.List.getLength*()I
+                                    java.util.Map.collect*(Ljava.util.function.BiFunction;)Ljava.util.List;
+                                    java.util.Map.collect*(Ljava.util.Collection;Ljava.util.function.BiFunction;)Ljava.lang.Object;
+                                    java.util.Map.count*(Ljava.util.function.BiPredicate;)I
+                                    java.util.Map.each*(Ljava.util.function.BiConsumer;)Ljava.lang.Object;
+                                    java.util.Map.every*(Ljava.util.function.BiPredicate;)Z
+                                    java.util.Map.find*(Ljava.util.function.BiPredicate;)Ljava.util.Map$Entry;
+                                    java.util.Map.findAll*(Ljava.util.function.BiPredicate;)Ljava.util.Map;
+                                    java.util.Map.findResult*(Ljava.util.function.BiFunction;)Ljava.lang.Object;
+                                    java.util.Map.findResult*(Ljava.lang.Object;Ljava.util.function.BiFunction;)Ljava.lang.Object;
+                                    java.util.Map.findResults*(Ljava.util.function.BiFunction;)Ljava.util.List;
+                                    java.util.Map.groupBy*(Ljava.util.function.BiFunction;)Ljava.util.Map;
+                                    java.util.regex.Matcher.namedGroup*(Ljava.lang.String;)Ljava.lang.String;
+                                 */
+                                null
+                            } else {
+                                if (methodName == "<init>") {
+                                    val constructorName = currentClassName
+                                    val constructor = currentClass!!.declaredConstructors
+                                            .filter { Modifier.isPublic(it.modifiers) && constructorName == it.name }
+                                            .singleOrNull {
+                                                val checkParams = it.parameterTypes.map { typeToSigPart(it.safeName()) }
+                                                val checkReturn = it.annotatedReturnType.type.let { typeToSigPart(it.safeName()) }
+                                                val checkSig1 = "(${checkParams.joinToString("")})${checkReturn}"
+                                                debug { println("check:  $currentClassName.$methodName$checkSig1  = ${checkSig1 == methodSig}") }
+                                                checkSig1 == methodSig
+                                            }
+                                    if (constructor == null) {
+                                        throw IllegalStateException("Method not found! $currentClassName.$constructorName$methodSig")
+                                    }
+                                    PolicyAllowance.ClassLevel.ClassConstructorAccess(currentClassName!!, methodSig, setOf(AccessTypes.call_Class_Constructor))
+                                } else {
+                                    val method = (currentClass!!.declaredMethods + currentClass!!.methods)
+                                            .filter { Modifier.isPublic(it.modifiers) && methodName == it.name }
+                                            .firstOrNull {
+                                                val checkParams = it.parameterTypes.map { typeToSigPart(it.safeName()) }
+                                                val checkReturn = it.returnType.let { typeToSigPart(it.safeName()) }
+                                                val checkSig = "(${checkParams.joinToString("")})${checkReturn}"
+                                                debug { println("check:  $currentClassName.$methodName$checkSig  = ${checkSig == methodSig}") }
+                                                checkSig == methodSig
+                                            }
+                                    if (method == null) {
+                                        throw IllegalStateException("Method not found! $currentClassName.$methodName$methodSig")
+                                    }
+
+                                    val access = if (Modifier.isStatic(method.modifiers)) AccessTypes.call_Class_Static_Method
+                                    else AccessTypes.call_Class_Instance_Method
+                                    PolicyAllowance.ClassLevel.ClassMethodAccess(currentClassName!!, methodName, methodSig, setOf(access))
+                                }
+                            }
                         } else {
                             val propParts = propertyPartsRegex.matchEntire(line)
                             if (propParts == null || propParts.groups.size < 2) {
-                                throw IllegalStateException("Invalid property definition [ $currentClass => $line ]")
+                                throw IllegalStateException("Invalid property definition [ $currentClassName => $line ]")
                             }
                             val returnType = propParts.groups[1]!!.value
-                            val methodName = propParts.groups[2]!!.value
-                            signatures.add(DefMethodSig(returnType, methodName, emptyList(), true))
+                            val propertyName = propParts.groups[2]!!.value
+
+                            // TODO: this is error in Painless Definition
+                            val seekReturn = if (propertyName == "MIN_CODE_POINT") typeToSigPart(getJavaType("int"))
+                            else returnType.let { typeToSigPart(getJavaType(it)) }
+
+                            val propertySig = seekReturn
+                            val propertyGetters = propertyName.asGetterNames()
+                            val propertySetters = propertyName.asSetterNames()
+
+                            val getter = currentClass!!.declaredMethods
+                                    .filter { met -> Modifier.isPublic(met.modifiers) && met.name in propertyGetters }
+                                    .firstOrNull {
+                                        val checkReturn = it.returnType.let { typeToSigPart(it.safeName()) }
+                                        debug { println("check:  $currentClassName.i@$propertyName:$checkReturn  = ${checkReturn == seekReturn}") }
+                                        checkReturn == seekReturn
+                                    }
+                            val setter = currentClass!!.declaredMethods
+                                    .filter { met -> Modifier.isPublic(met.modifiers) && met.name in propertySetters }
+                                    .firstOrNull {
+                                        val checkReturn = it.returnType.let { typeToSigPart(it.safeName()) }
+                                        debug { println("check:  $currentClassName.i@$propertyName:$checkReturn  = ${checkReturn == seekReturn}") }
+                                        checkReturn == seekReturn
+                                    }
+
+                            if (getter != null) {
+                                if (Modifier.isStatic(getter.modifiers)) {
+                                    val access = setOf(AccessTypes.read_Class_Static_Property) + if (setter != null && Modifier.isStatic(setter.modifiers)) listOf(AccessTypes.write_Class_Static_Property) else emptyList()
+                                    PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access)
+                                } else {
+                                    val access = setOf(AccessTypes.read_Class_Instance_Property) + if (setter != null && !Modifier.isStatic(setter.modifiers)) listOf(AccessTypes.write_Class_Instance_Property) else emptyList()
+                                    PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access)
+                                }
+                            } else {
+                                // sometimes painless accesses fields instead
+                                val field = currentClass!!.declaredFields
+                                        .filter { Modifier.isPublic(it.modifiers) && propertyName == it.name }
+                                        .firstOrNull {
+                                            val checkReturn = it.type.let { typeToSigPart(it.safeName()) }
+                                            debug { println("check:  $currentClassName.!$propertyName:$checkReturn  = ${checkReturn == seekReturn}") }
+                                            checkReturn == seekReturn
+                                        }
+                                if (field != null) {
+                                    val access = when {
+                                        Modifier.isStatic(field.modifiers) && Modifier.isFinal(field.modifiers) -> setOf(AccessTypes.read_Class_Static_Field)
+                                        Modifier.isStatic(field.modifiers) -> setOf(AccessTypes.read_Class_Static_Field, AccessTypes.write_Class_Static_Field)
+                                        Modifier.isFinal(field.modifiers) -> setOf(AccessTypes.read_Class_Instance_Field)
+                                        else -> setOf(AccessTypes.read_Class_Instance_Field, AccessTypes.write_Class_Instance_Field)
+                                    }
+                                    PolicyAllowance.ClassLevel.ClassFieldAccess(currentClassName!!, propertyName, propertySig, access)
+                                } else {
+                                    throw IllegalStateException("Property/Field not found! $currentClassName.$propertyName:$propertySig")
+                                }
+                            }
                         }
                     }
-                }
+
+                }.filterNotNull().toList()
             }
-            fileClasses
-        }.flatten()
-
-        val structsByPainlessName = painlessStructs.map { it.painlessName to it }.toMap()
-        // val structsByJavaName = painlessStructs.map { it.javaName to it }.toMap()
-
-        fun lookup(painlessName: String): String {
-            val baseName = painlessName.substringBefore('[')
-            val suffix = painlessName.removePrefix(baseName)
-
-            val javaName = when (baseName) {
-                "void" -> Unit::class.java.name
-                "def" -> Any::class.java.name
-                "boolean" -> Boolean::class.javaPrimitiveType!!.name
-                "byte" -> Byte::class.javaPrimitiveType!!.name
-                "short" -> Short::class.javaPrimitiveType!!.name
-                "char" -> Char::class.javaPrimitiveType!!.name
-                "int" -> Int::class.javaPrimitiveType!!.name
-                "long" -> Long::class.javaPrimitiveType!!.name
-                "float" -> Float::class.javaPrimitiveType!!.name
-                "double" -> Double::class.javaPrimitiveType!!.name
-                else -> structsByPainlessName.get(baseName)?.javaName
-                        ?: throw IllegalStateException("Invalid reference to non-existanct struct $painlessName")
-            }
-            return javaName + suffix
-        }
-
-        val otherSigsByJavaName = extraAllowedSymbols.map { it.javaName to it }.toMap()
-
-        val structsWithJavaTypes = painlessStructs.map {
-            val signatures = it.signatures.map { sig -> sig.copy(returnType = lookup(sig.returnType), paramTypes = sig.paramTypes.map { lookup(it) }) }
-            val mergedSignatures = otherSigsByJavaName.get(it.javaName)?.signatures?.plus(signatures) ?: signatures
-            it.copy(signatures = mergedSignatures)
-        }
-
-        return (extraAllowedSymbols + structsWithJavaTypes).map { def ->
-            listOf(def.javaName to def) + def.signatures.map { sig ->
-                val temp = if (sig.isProperty) {
-                    listOf("${def.javaName}.get${sig.methodName.upperFirst()}()${sig.returnType.javaSigPart()}",
-                            "${def.javaName}.is${sig.methodName.upperFirst()}()${sig.returnType.javaSigPart()}",
-                            "${def.javaName}.has${sig.methodName.upperFirst()}()${sig.returnType.javaSigPart()}",
-                            "${def.javaName}.set${sig.methodName.upperFirst()}(${sig.returnType.javaSigPart()})V")
-                } else {
-                    listOf("${def.javaName}.${sig.methodName}(${sig.paramTypes.map { it.javaSigPart() }.joinToString("")})${sig.returnType.javaSigPart()}") +
-                            if (sig.methodName == "<init>") listOf("${def.javaName}.${sig.methodName}(${sig.paramTypes.map { it.javaSigPart() }.joinToString("")})V") else emptyList()
-                    // previous line is adding the extra <init>()V signature
-                }
-                temp.map { it to def }
-            }.flatten()
-        }.flatten().toMap()
+        }.flatten().toList()
+        return painlessPolicies
     }
+
+    private fun loadClass(className: String): Class<*> {
+        return when (className) {
+            "boolean" -> Boolean::class.javaPrimitiveType!!
+            "byte" -> Byte::class.javaPrimitiveType!!
+            "short" -> Short::class.javaPrimitiveType!!
+            "char" -> Char::class.javaPrimitiveType!!
+            "int" -> Int::class.javaPrimitiveType!!
+            "long" -> Long::class.javaPrimitiveType!!
+            "float" -> Float::class.javaPrimitiveType!!
+            "double" -> Double::class.javaPrimitiveType!!
+            else -> Class.forName(className)
+        }
+    }
+
 
     private val DEFINITION_FILES = listOf("org.elasticsearch.txt",
             "java.lang.txt",
@@ -131,44 +285,23 @@ object PainlessWhitelistParser {
             "java.util.regex.txt",
             "java.util.stream.txt",
             "joda.time.txt")
-
-    val extraAllowedSymbols = listOf(
-            DefClass("StringBuilder", "java.lang.StringBuilder", listOf(
-                    DefMethodSig("java.lang.StringBuilder", "append", listOf("java.lang.String")),
-                    DefMethodSig("java.lang.StringBuilder", "append", listOf("int")),
-                    DefMethodSig("java.lang.StringBuilder", "append", listOf("long")),
-                    DefMethodSig("java.lang.StringBuilder", "append", listOf("char")),
-                    DefMethodSig("java.lang.StringBuilder", "append", listOf("double")),
-                    DefMethodSig("java.lang.StringBuilder", "append", listOf("float")),
-                    DefMethodSig("java.lang.StringBuilder", "append", listOf("byte")),
-                    DefMethodSig("java.lang.StringBuilder", "append", listOf("short")),
-                    DefMethodSig("java.lang.StringBuilder", "append", listOf("boolean")),
-                    DefMethodSig("java.lang.String", "toString", emptyList()))),
-            DefClass("ArrayList", "java.util.ArrayList", listOf(
-                    DefMethodSig("java.util.ArrayList", "<init>", listOf("int"))))
-    )
-
-    private fun String.upperFirst(): String = this.first().toUpperCase() + this.drop(1)
-    private fun String.javaSigPart(): String {
-        val baseName = this.substringBefore('[')
-        val suffix = this.removePrefix(baseName)
-
-        val typeChar = when (baseName) {
-            "void" -> 'V'
-            "boolean" -> 'Z'
-            "byte" -> 'B'
-            "short" -> 'S'
-            "char" -> 'C'
-            "int" -> 'I'
-            "long" -> 'L'
-            "float" -> 'F'
-            "double" -> 'D'
-            else -> 'L'
-        }
-
-        val bracketCount = suffix.count { it == '[' }
-
-        return "[".repeat(bracketCount) + typeChar + if (typeChar == 'L') baseName + ";" else ""
-    }
-
 }
+
+// TODO:  corrections like this should go elsewhere
+/*
+val painlessMissingItems = listOf(
+        DefClass("StringBuilder", "java.lang.StringBuilder", listOf(
+                DefMethodSig("java.lang.StringBuilder", "append", listOf("java.lang.String")),
+                DefMethodSig("java.lang.StringBuilder", "append", listOf("int")),
+                DefMethodSig("java.lang.StringBuilder", "append", listOf("long")),
+                DefMethodSig("java.lang.StringBuilder", "append", listOf("char")),
+                DefMethodSig("java.lang.StringBuilder", "append", listOf("double")),
+                DefMethodSig("java.lang.StringBuilder", "append", listOf("float")),
+                DefMethodSig("java.lang.StringBuilder", "append", listOf("byte")),
+                DefMethodSig("java.lang.StringBuilder", "append", listOf("short")),
+                DefMethodSig("java.lang.StringBuilder", "append", listOf("boolean")),
+                DefMethodSig("java.lang.String", "toString", emptyList()))),
+        DefClass("ArrayList", "java.util.ArrayList", listOf(
+                DefMethodSig("java.util.ArrayList", "<init>", listOf("int"))))
+)
+*/
