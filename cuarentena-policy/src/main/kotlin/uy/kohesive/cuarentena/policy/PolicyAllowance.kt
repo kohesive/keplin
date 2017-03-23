@@ -2,7 +2,8 @@ package uy.kohesive.cuarentena.policy
 
 typealias AccessPolicies = List<PolicyAllowance>
 
-sealed class PolicyAllowance(val fqnTarget: String, val actions: Set<AccessTypes>, val validActions: Set<AccessTypes>) {
+sealed class PolicyAllowance(_fqnTarget: String, val actions: Set<AccessTypes>, val validActions: Set<AccessTypes>) {
+    val fqnTarget: String = _fqnTarget.replace('/', '.')
     init {
         if (actions.any { it !in validActions }) {
             throw IllegalArgumentException("Requested actions $actions are not valid for ${this::class.qualifiedName!!} ($validActions)")
@@ -10,14 +11,6 @@ sealed class PolicyAllowance(val fqnTarget: String, val actions: Set<AccessTypes
     }
 
     abstract fun asPolicyStrings(): List<String>
-
-    protected fun Set<AccessTypes>.asStrings() = this.map { it.name }.sorted()
-    protected fun List<AccessTypes>.asStrings() = this.map { it.name }.sorted()
-
-    protected fun Set<AccessTypes>.addDefaultClassActions(): Set<AccessTypes> {
-        return this + if (this.any { it in STATIC_CLASS_ACCESS_TYPES }) listOf(AccessTypes.ref_Class_Static) else emptyList<AccessTypes>() +
-                if (this.any { it in INSTANCE_CLASS_ACCESS_TYPES }) listOf(AccessTypes.ref_Class_Instance) else emptyList<AccessTypes>()
-    }
 
     class PackageAccess(fqPackageName: String, actions: Set<AccessTypes>, val requireSealed: Boolean = true) : PolicyAllowance(fqPackageName, actions, ALL_PACKAGE_ACCESS_TYPES) {
         override fun asPolicyStrings(): List<String> {
@@ -38,7 +31,7 @@ sealed class PolicyAllowance(val fqnTarget: String, val actions: Set<AccessTypes
             val list2 = actions.filterNot { it in ALL_CLASS_ACCESS_TYPES }
                     .asStrings()
                     .map { access -> "$packageId $classId.$sig $access" }
-            return (list1 + list2).distinct()
+            return (list1 + list2).toSet().toList()
         }
 
         protected abstract fun sigPart(): String
@@ -47,19 +40,23 @@ sealed class PolicyAllowance(val fqnTarget: String, val actions: Set<AccessTypes
             override fun sigPart(): String = ""
         }
 
-        class ClassMethodAccess(fqClassName: String, val methodName: String, val methodSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_METHOD_ACCESS_TYPES) {
+        class ClassMethodAccess(fqClassName: String, val methodName: String, _methodSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_METHOD_ACCESS_TYPES) {
+            val methodSig: String = _methodSig.replace('.', '/')
             override fun sigPart(): String = "$methodName$methodSig"
         }
 
-        class ClassConstructorAccess(fqClassName: String, val constructorSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_CONSTUCTOR_ACCESS_TYPES) {
-            override fun sigPart(): String = "<init>:$constructorSig"
+        class ClassConstructorAccess(fqClassName: String, _constructorSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_CONSTUCTOR_ACCESS_TYPES) {
+            val constructorSig: String = _constructorSig.replace('.', '/')
+            override fun sigPart(): String = "<init>:${constructorSig.substringBefore(')') + ")L$fqnTarget;"}"
         }
 
-        class ClassFieldAccess(fqClassName: String, val fieldName: String, val fieldTypeSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_FIELD_ACCESS_TYPES) {
+        class ClassFieldAccess(fqClassName: String, val fieldName: String, _fieldTypeSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_FIELD_ACCESS_TYPES) {
+            val fieldTypeSig: String = _fieldTypeSig.replace('.', '/')
             override fun sigPart(): String = "$fieldName:$fieldTypeSig"
         }
 
-        class ClassPropertyAccess(fqClassName: String, val propertyName: String, val propertyTypeSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_PROP_ACCESS_TYPES) {
+        class ClassPropertyAccess(fqClassName: String, val propertyName: String, _propertyTypeSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_PROP_ACCESS_TYPES) {
+            val propertyTypeSig: String = _propertyTypeSig.replace('.', '/')
             override fun sigPart(): String = "@$propertyName:$propertyTypeSig"
         }
     }

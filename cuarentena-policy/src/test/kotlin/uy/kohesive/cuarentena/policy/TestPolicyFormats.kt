@@ -61,7 +61,7 @@ class TestPolicyFormats {
                 "com.test.stuff SafeClass.foo(Ljava/lang/String;)Z call_Class_Static_Method"
         )
 
-        val actualStrings = statements.map { it.asPolicyStrings() }.flatten().distinct().sorted()
+        val actualStrings = statements.map { it.asPolicyStrings() }.flatten().toSet().sorted()
 
         //println(actualStrings.map { "\"$it\"," }.joinToString("\n"))
 

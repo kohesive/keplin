@@ -1,6 +1,11 @@
 package uy.kohesive.cuarentena.policy
 
 
+// TODO: access types that are manipulations:  i.e. remove all calls to println and java.io.PrintStream and System.out
+//  i.e. null out references to objects during serializations that are not accessed
+// TODO: other access types
+//  allow null references to some objects, but not actual references
+
 enum class AccessTypes {
     ref_Class,
     ref_Class_Static,
@@ -51,6 +56,8 @@ internal fun Set<AccessTypes>.asStrings() = this.map { it.name }.sorted()
 internal fun List<AccessTypes>.asStrings() = this.map { it.name }.sorted()
 
 internal fun Set<AccessTypes>.addDefaultClassActions(): Set<AccessTypes> {
-    return this + if (this.any { it in STATIC_CLASS_ACCESS_TYPES }) listOf(AccessTypes.ref_Class_Static) else emptyList<AccessTypes>() +
+    val temp = this + if (this.any { it in STATIC_CLASS_ACCESS_TYPES }) listOf(AccessTypes.ref_Class_Static) else emptyList<AccessTypes>() +
             if (this.any { it in INSTANCE_CLASS_ACCESS_TYPES }) listOf(AccessTypes.ref_Class_Instance) else emptyList<AccessTypes>()
+
+    return if (AccessTypes.ref_Class !in temp && ALL_CLASS_ACCESS_TYPES.any { it in temp }) temp + AccessTypes.ref_Class else temp
 }

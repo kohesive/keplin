@@ -287,21 +287,3 @@ class PainlessWhitelistParser() {
             "joda.time.txt")
 }
 
-// TODO:  corrections like this should go elsewhere
-/*
-val painlessMissingItems = listOf(
-        DefClass("StringBuilder", "java.lang.StringBuilder", listOf(
-                DefMethodSig("java.lang.StringBuilder", "append", listOf("java.lang.String")),
-                DefMethodSig("java.lang.StringBuilder", "append", listOf("int")),
-                DefMethodSig("java.lang.StringBuilder", "append", listOf("long")),
-                DefMethodSig("java.lang.StringBuilder", "append", listOf("char")),
-                DefMethodSig("java.lang.StringBuilder", "append", listOf("double")),
-                DefMethodSig("java.lang.StringBuilder", "append", listOf("float")),
-                DefMethodSig("java.lang.StringBuilder", "append", listOf("byte")),
-                DefMethodSig("java.lang.StringBuilder", "append", listOf("short")),
-                DefMethodSig("java.lang.StringBuilder", "append", listOf("boolean")),
-                DefMethodSig("java.lang.String", "toString", emptyList()))),
-        DefClass("ArrayList", "java.util.ArrayList", listOf(
-                DefMethodSig("java.util.ArrayList", "<init>", listOf("int"))))
-)
-*/

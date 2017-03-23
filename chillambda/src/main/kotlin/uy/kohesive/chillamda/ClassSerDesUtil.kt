@@ -188,7 +188,7 @@ object ClassSerDesUtil {
         } // called first:  we can check the type name here, and the fields it has with their name + signatures /// kotlin.jvm.internal.Lambda
     }
 
-    class TraceUsedClassesObjectOutputStream(startingClass: Class<*>, output: OutputStream, val classes: MutableSet<Class<out Any>> = mutableSetOf()) : ObjectOutputStream(output) {
+    class TraceUsedClassesObjectOutputStream(output: OutputStream, val classes: MutableSet<Class<out Any>> = mutableSetOf()) : ObjectOutputStream(output) {
         // TODO: don't need this method?
         override fun annotateClass(cl: Class<*>) {
             classes.add(cl)
