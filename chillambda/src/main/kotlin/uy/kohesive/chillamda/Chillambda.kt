@@ -68,7 +68,7 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
 
                 val verification = verifier.verifyClassAgainstPolicies(classes, additionalPolicies)
                 if (verification.failed) {
-                    throw ClassSerDesException("The serialized Lambda contains invalid classes: ${verification.violations.joinToString()}")
+                    throw ClassSerDerViolationsException("The Lambda classes have invalid references:  \n${verification.violationsAsString()}", verification.violations)
                 }
 
                 SerializedLambdaClassData(className, verification.filteredClasses, serializedInstance, verification)
@@ -144,7 +144,7 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
         val serializedClassesToVerifyAccess = serializedClassNames.filterNot { it in serClassRelatives }
         val serializedClassVerifactionResult = verifier.verifyClassNamesAgainstPolicies(serializedClassesToVerifyAccess, additionalPolicies)
         if (serializedClassVerifactionResult.failed) {
-            throw ClassSerDesException("The Lambda causes serialization of classes not in policy: ${serializedClassVerifactionResult.violations.joinToString()}")
+            throw ClassSerDerViolationsException("The Lambda causes serialization of classes not in policy:  \n${serializedClassVerifactionResult.violationsAsString()}", serializedClassVerifactionResult.violations)
         }
 
         val classesToVerifyAndShipAsBytes = classesToVerifyAndShip.map { name ->
@@ -154,7 +154,7 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
 
         val verification = verifier.verifyClassAgainstPolicies(classesToVerifyAndShipAsBytes)
         if (verification.failed) {
-            throw ClassSerDesException("The Lambda references invalid classes: ${verification.violations.joinToString()}")
+            throw ClassSerDerViolationsException("The Lambda classes have invalid references:  \n${verification.violationsAsString()}", verification.violations)
         }
 
         val actualClassesToShipAsBytes = verification.filteredClasses
@@ -210,7 +210,9 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
         override fun readClassDescriptor(): ObjectStreamClass {
             val temp = super.readClassDescriptor()
             val verify = verifier.verifyClassNamesAgainstPolicies(listOf(temp.name), additionalPolicies)
-            if (verify.failed) throw IllegalStateException("Invalid class ${temp.name} not allowed for Kotlin Script Lambda deserialization")
+            if (verify.failed) {
+                throw ClassSerDerViolationsException("Invalid class ${temp.name} not allowed for Kotlin Script Lambda deserialization, violations: ${verify.violationsAsString()}", verify.violations)
+            }
             return temp
         } // called first:  we can check the type name here, and the fields it has with their name + signatures /// kotlin.jvm.internal.Lambda
     }
@@ -234,6 +236,7 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
         }
     }
 
-    class ClassSerDesException(msg: String, cause: Throwable? = null) : Exception(msg, cause)
+    open class ClassSerDesException(msg: String, cause: Throwable? = null) : Exception(msg, cause)
+    class ClassSerDerViolationsException(msg: String, val violations: Set<String>, cause: Throwable? = null) : ClassSerDesException(msg, cause)
 }
 

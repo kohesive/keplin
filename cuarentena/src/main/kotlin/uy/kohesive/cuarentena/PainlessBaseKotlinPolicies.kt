@@ -29,17 +29,42 @@ object KotlinPolicies {
             PolicyAllowance.ClassLevel.ClassMethodAccess("java.util.regex.Pattern", "compile", "(Ljava/lang/String;I)Ljava/util/regex/Pattern;", setOf(AccessTypes.call_Class_Static_Method)),
 
             // kotlin.text
-            PolicyAllowance.ClassLevel.ClassConstructorAccess("kotlin.text.Regex", "(Ljava/lang/String;)Lkotlin.text.Regex;", setOf(AccessTypes.call_Class_Constructor)),
+            PolicyAllowance.ClassLevel.ClassConstructorAccess("kotlin.text.Regex", "(Ljava/lang/String;)Lkotlin/text/Regex;", setOf(AccessTypes.call_Class_Constructor)),
+            PolicyAllowance.ClassLevel.ClassConstructorAccess("kotlin.text.Regex", "(Ljava.util.regex.Pattern;)Lkotlin.text.Regex;", setOf(AccessTypes.call_Class_Constructor)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.Regex", "matchEntire", "(Ljava.lang.CharSequence;)Lkotlin.text.MatchResult;", setOf(AccessTypes.call_Class_Instance_Method)),
+
+            PolicyAllowance.ClassLevel.ClassAccess("kotlin.text.MatchGroup", setOf(AccessTypes.ref_Class_Instance)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.MatchGroup", "getValue", "()Ljava.lang.String;", setOf(AccessTypes.call_Class_Instance_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.MatchGroup", "get", "(I)Lkotlin.text.MatchGroup;", setOf(AccessTypes.call_Class_Instance_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.MatchGroup", "size", "()I", setOf(AccessTypes.call_Class_Instance_Method)),
+
+            PolicyAllowance.ClassLevel.ClassAccess("kotlin.text.MatchGroupCollection", setOf(AccessTypes.ref_Class_Instance)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.MatchGroupCollection", "size", "()I", setOf(AccessTypes.call_Class_Instance_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.MatchGroupCollection", "get", "(I)Lkotlin.text.MatchGroup;", setOf(AccessTypes.call_Class_Instance_Method)),
+
+            PolicyAllowance.ClassLevel.ClassAccess("kotlin.text.MatchResult", setOf(AccessTypes.ref_Class_Instance)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.MatchResult", "getGroups", "()Lkotlin.text.MatchGroupCollection;", setOf(AccessTypes.call_Class_Instance_Method)),
+
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.StringsKt", "split\$default", "(Ljava.lang.CharSequence;[CZIILjava.lang.Object;)Ljava.util.List;", setOf(AccessTypes.call_Class_Static_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.StringsKt", "trim", "(Ljava.lang.CharSequence;)Ljava.lang.CharSequence;", setOf(AccessTypes.call_Class_Static_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.text.StringsKt", "isBlank", "(Ljava.lang.CharSequence;)Z", setOf(AccessTypes.call_Class_Static_Method)),
+
 
             // kotlin misc
             PolicyAllowance.ClassLevel.ClassAccess("kotlin.Metadata", setOf(AccessTypes.ref_Class)),
+            PolicyAllowance.ClassLevel.ClassAccess("kotlin.TypeCastException", setOf(AccessTypes.ref_Class)),
+            PolicyAllowance.ClassLevel.ClassConstructorAccess("kotlin.TypeCastException", "(Ljava/lang/String;)Lkotlin/TypeCastException;", setOf(AccessTypes.call_Class_Constructor)),
             PolicyAllowance.ClassLevel.ClassAccess("org.jetbrains.annotations.NotNull", setOf(AccessTypes.ref_Class)),
+            PolicyAllowance.ClassLevel.ClassAccess("org.jetbrains.annotations.Nullable", setOf(AccessTypes.ref_Class)),
 
             // kotlin.collections
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "emptyList", "()Ljava/util/List;", setOf(AccessTypes.call_Class_Static_Method)),
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "listOf", "(Ljava/lang/Object;)Ljava/util/List;", setOf(AccessTypes.call_Class_Static_Method)),
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "listOf", "([Ljava/lang/Object;)Ljava/util/List;", setOf(AccessTypes.call_Class_Static_Method)),
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "plus", "(Ljava/util/Collection;Ljava/lang/Iterable;)Ljava/util/List;", setOf(AccessTypes.call_Class_Static_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "collectionSizeOrDefault", "(Ljava.lang.Iterable;I)I", setOf(AccessTypes.call_Class_Static_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "filterNotNull", "(Ljava.lang.Iterable;)Ljava.util.List;", setOf(AccessTypes.call_Class_Static_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "flatten", "(Ljava.lang.Iterable;)Ljava.util.List;", setOf(AccessTypes.call_Class_Static_Method)),
 
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.SetsKt", "emptySet", "()Ljava/util/Set;", setOf(AccessTypes.call_Class_Static_Method)),
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.SetsKt", "setOf", "(Ljava/lang/Object;)Ljava/util/Set;", setOf(AccessTypes.call_Class_Static_Method)),
@@ -50,6 +75,8 @@ object KotlinPolicies {
             PolicyAllowance.ClassLevel.ClassAccess("kotlin.jvm.internal.Lambda", setOf(AccessTypes.ref_Class_Instance)),
             PolicyAllowance.ClassLevel.ClassConstructorAccess("kotlin.jvm.internal.Lambda", "(I)Lkotlin.jvm.internal.Lambda;", setOf(AccessTypes.call_Class_Constructor)),
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.jvm.internal.Intrinsics", "checkExpressionValueIsNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V", setOf(AccessTypes.call_Class_Static_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.jvm.internal.Intrinsics", "checkParameterIsNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V", setOf(AccessTypes.call_Class_Static_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.jvm.internal.Intrinsics", "throwNpe", "()V", setOf(AccessTypes.call_Class_Static_Method)),
 
             // kotlin.Unit
             PolicyAllowance.ClassLevel.ClassFieldAccess("kotlin.Unit", "INSTANCE", "Lkotlin/Unit;", setOf(AccessTypes.read_Class_Static_Field))

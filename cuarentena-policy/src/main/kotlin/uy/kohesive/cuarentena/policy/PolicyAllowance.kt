@@ -69,8 +69,8 @@ sealed class PolicyAllowance(_fqnTarget: String, val actions: Set<AccessTypes>, 
         }
 
         class ClassConstructorAccess(fqClassName: String, _constructorSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_CONSTUCTOR_ACCESS_TYPES) {
-            val constructorSig: String = _constructorSig.replace('.', '/')
-            override fun sigPart(): String = "<init>:${constructorSig.substringBefore(')') + ")L$fqnTarget;"}"
+            val constructorSig: String = _constructorSig.replace('/', '.')
+            override fun sigPart(): String = if (constructorSig == "*") "*" else "<init>:${constructorSig.substringBefore(')') + ")L${fqnTarget};"}"
         }
 
         class ClassFieldAccess(fqClassName: String, val fieldName: String, _fieldTypeSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_FIELD_ACCESS_TYPES) {

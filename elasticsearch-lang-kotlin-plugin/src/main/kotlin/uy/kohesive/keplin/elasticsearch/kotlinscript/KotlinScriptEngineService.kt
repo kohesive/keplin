@@ -65,11 +65,17 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
 
         val SCRIPT_RESULT_FIELD_NAME = "\$\$result"
 
-        val receiverCuarentenaPolicies = listOf(
+        val sharedReceiverCuarentenaPolicies = listOf(
                 PolicyAllowance.ClassLevel.ClassAccess(EsKotlinScriptTemplate::class.java.canonicalName, setOf(AccessTypes.ref_Class_Instance)),
                 PolicyAllowance.ClassLevel.ClassMethodAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", "*", setOf(AccessTypes.call_Class_Instance_Method)),
                 PolicyAllowance.ClassLevel.ClassPropertyAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", "*", setOf(AccessTypes.read_Class_Instance_Property))
-        ).toPolicy().toSet()
+        )
+
+        val receiverCuarentenaPolicies = sharedReceiverCuarentenaPolicies.toPolicy().toSet()
+
+        val scriptTemplateCuarentenaPolicies = (sharedReceiverCuarentenaPolicies + listOf(
+                PolicyAllowance.ClassLevel.ClassConstructorAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", setOf(AccessTypes.call_Class_Constructor))
+        )).toPolicy().toSet()
 
         val cuarentena = Cuarentena(painlessCombinedPolicy + receiverCuarentenaPolicies)
         val chillambda = Chillambda(cuarentena)
@@ -255,10 +261,10 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                         val scriptConstructor = scriptClass.constructors.first()
                         val resultField = scriptClass.getDeclaredField(SCRIPT_RESULT_FIELD_NAME).apply { isAccessible = true }
 
-                        val verification = cuarentena.verifyClassAgainstPolicies(classesAsBytes)
+                        val verification = cuarentena.verifyClassAgainstPolicies(classesAsBytes, additionalPolicies = scriptTemplateCuarentenaPolicies)
                         if (verification.failed) {
                             val violations = verification.violations.sorted()
-                            val exp = Exception("Illegal Access to unauthorized classes/methods: ${violations.joinToString()}")
+                            val exp = Exception("Illegal Access to unauthorized classes/methods: ${verification.violationsAsString()}")
                             throw  ScriptException(exp.message, exp, violations, scriptSource, LANGUAGE_NAME)
                         }
 

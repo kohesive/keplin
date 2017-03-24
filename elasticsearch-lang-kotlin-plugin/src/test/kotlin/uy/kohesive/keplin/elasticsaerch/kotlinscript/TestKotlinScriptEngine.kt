@@ -17,6 +17,7 @@ import org.elasticsearch.script.ScriptType
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.test.ESIntegTestCase
 import org.junit.Before
+import uy.kohesive.chillamda.Chillambda
 import uy.kohesive.keplin.elasticsearch.kotlinscript.ConcreteEsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.EsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.KotlinScriptEngineService
@@ -156,9 +157,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                     }.setQuery(QueryBuilders.matchQuery("title", "title"))
                     .setFetchSource(true).execute().actionGet()
             fail("security verification should have caught this use of File")
-        } catch (ex: Exception) {
-            val exceptionStack = generateSequence(ex as Throwable) { it.cause }
-            assertTrue(exceptionStack.take(5).any { "java.io.File" in it.message!! })
+        } catch (ex: Chillambda.ClassSerDerViolationsException) {
+            assertTrue(ex.violations.all { "java.io File" in it })
         }
     }
 
@@ -359,7 +359,9 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
     }
 
     fun SearchResponse.assertHasResults() {
-        if (hits == null || hits.hits == null || hits.hits.isEmpty()) fail("no data returned in query")
+        if (hits == null || hits.hits == null || hits.hits.isEmpty()) {
+            fail("no data returned in query:\n${this.toString()}")
+        }
     }
 
     fun SearchRequestBuilder.runManyTimes(func: SearchResponse.() -> Unit) {

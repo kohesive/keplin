@@ -67,10 +67,14 @@ class Cuarentena(val policies: Set<String> = painlessCombinedPolicy) {
 
     data class VerifyResults(val scanResults: ClassAllowanceDetector.ScanState, val violations: Set<String>, val filteredClasses: List<NamedClassBytes>) {
         val failed: Boolean = violations.isNotEmpty()
+
+        fun violationsAsString() = violations.joinToString()
     }
 
     data class VerifyNameResults(val violations: Set<String>) {
         val failed: Boolean = violations.isNotEmpty()
+
+        fun violationsAsString() = violations.joinToString()
     }
 
     fun PolicyAllowance.assertAllowance(additionalPolicies: Set<String> = emptySet()): Boolean
