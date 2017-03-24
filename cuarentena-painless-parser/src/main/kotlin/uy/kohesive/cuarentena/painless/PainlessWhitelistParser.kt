@@ -1,9 +1,6 @@
 package uy.kohesive.cuarentena.painless
 
-import uy.kohesive.cuarentena.policy.AccessPolicies
-import uy.kohesive.cuarentena.policy.AccessTypes
-import uy.kohesive.cuarentena.policy.PolicyAllowance
-import uy.kohesive.cuarentena.policy.typeToSigPart
+import uy.kohesive.cuarentena.policy.*
 import java.io.File
 import java.lang.reflect.AnnotatedType
 import java.lang.reflect.Modifier

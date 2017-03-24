@@ -2,6 +2,7 @@ package uy.kohesive.cuarentena
 
 import uy.kohesive.cuarentena.policy.AccessTypes
 import uy.kohesive.cuarentena.policy.PolicyAllowance
+import uy.kohesive.cuarentena.policy.toPolicy
 
 object KotlinPolicies {
     // TODO: move to a policy file/generator outside of here for Kotlin safe calls
@@ -32,6 +33,7 @@ object KotlinPolicies {
 
             // kotlin misc
             PolicyAllowance.ClassLevel.ClassAccess("kotlin.Metadata", setOf(AccessTypes.ref_Class)),
+            PolicyAllowance.ClassLevel.ClassAccess("org.jetbrains.annotations.NotNull", setOf(AccessTypes.ref_Class)),
 
             // kotlin.collections
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "emptyList", "()Ljava/util/List;", setOf(AccessTypes.call_Class_Static_Method)),
@@ -52,7 +54,7 @@ object KotlinPolicies {
             // kotlin.Unit
             PolicyAllowance.ClassLevel.ClassFieldAccess("kotlin.Unit", "INSTANCE", "Lkotlin/Unit;", setOf(AccessTypes.read_Class_Static_Field))
     ) + (0..22).map { idx -> PolicyAllowance.ClassLevel.ClassAccess("kotlin.jvm.functions.Function$idx", setOf(AccessTypes.ref_Class)) }
-            ).map { it.asPolicyStrings() }.flatten().toSet()
+            ).toPolicy()
 
     private fun safeCodeByExample(): List<PolicyAllowance.ClassLevel> {
         val outsidePrimitive = 22
@@ -116,7 +118,7 @@ object KotlinPolicies {
 
         val goodThings = ClassAllowanceDetector.scanClassByteCodeForDesiredAllowances(listOf(classBytes))
         println("===[ sniffed from safe code ]===")
-        goodThings.allowances.map { it.asPolicyStrings() }.flatten().toSet().sorted().forEach(::println)
+        goodThings.allowances.toPolicy().forEach(::println)
         return goodThings.allowances
     }
 

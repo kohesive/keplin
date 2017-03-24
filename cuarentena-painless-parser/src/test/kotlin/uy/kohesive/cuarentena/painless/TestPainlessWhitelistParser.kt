@@ -1,6 +1,7 @@
 package uy.kohesive.cuarentena.painless
 
 import org.junit.Test
+import uy.kohesive.cuarentena.policy.toPolicy
 
 class TestPainlessWhitelistParser {
     @Test

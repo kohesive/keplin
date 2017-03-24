@@ -11,31 +11,50 @@ sealed class PolicyAllowance(_fqnTarget: String, val actions: Set<AccessTypes>, 
     }
 
     abstract fun asPolicyStrings(): List<String>
+    abstract fun asCheckStrings(explode: Boolean): List<String>
 
     class PackageAccess(fqPackageName: String, actions: Set<AccessTypes>, val requireSealed: Boolean = true) : PolicyAllowance(fqPackageName, actions, ALL_PACKAGE_ACCESS_TYPES) {
-        init {
-            TODO("DISABLED")
-        }
+        val packageId = fqnTarget + if (requireSealed) ":sealed" else ""
 
         override fun asPolicyStrings(): List<String> {
-            val packageId = fqnTarget + if (requireSealed) ":sealed" else ""
             return actions.addDefaultClassActions().asStrings().map { "$packageId * $it" }
         }
+
+        override fun asCheckStrings(explode: Boolean): List<String> = actions.asStrings().map { "$packageId * $it" }
     }
 
     sealed class ClassLevel(fqClassName: String, actions: Set<AccessTypes>, validActions: Set<AccessTypes>) : PolicyAllowance(fqClassName, actions, validActions) {
+        val packageId = fqnTarget.substringBeforeLast('.')
+        val classId = fqnTarget.substringAfterLast('.')
+
         override fun asPolicyStrings(): List<String> {
-            val packageId = fqnTarget.substringBeforeLast('.')
-            val classId = fqnTarget.substringAfterLast('.')
             val sig = sigPart()
 
-            val list1 = actions.addDefaultClassActions().filter { it in ALL_CLASS_ACCESS_TYPES }
+            val classLevel = actions.addDefaultClassActions().filter { it in ALL_CLASS_ACCESS_TYPES }
                     .asStrings()
                     .map { access -> "$packageId $classId $access" }
-            val list2 = actions.filterNot { it in ALL_CLASS_ACCESS_TYPES }
+            val classMember = actions.filterNot { it in ALL_CLASS_ACCESS_TYPES }
                     .asStrings()
                     .map { access -> "$packageId $classId.$sig $access" }
-            return (list1 + list2).toSet().toList()
+            return (classLevel + classMember).toSet().toList()
+        }
+
+        private fun makeList(mandatory: String, explodedExtras: List<String>, explode: Boolean): List<String> {
+            return listOf(mandatory) + if (explode) explodedExtras else emptyList()
+        }
+
+        override fun asCheckStrings(explode: Boolean): List<String> {
+            val classLevel = actions.filter { it in ALL_CLASS_ACCESS_TYPES }.asStrings()
+                    .map {
+                        makeList("$packageId $classId $it",
+                                listOf("$packageId * $it"), explode)
+                    }.flatten()
+            val classMember = actions.filterNot { it in ALL_CLASS_ACCESS_TYPES }.asStrings()
+                    .map {
+                        makeList("$packageId $classId.${sigPart()} $it",
+                                listOf("$packageId $classId.* $it", "$packageId * $it"), explode)
+                    }.flatten()
+            return (classLevel + classMember).toSet().toList()
         }
 
         protected abstract fun sigPart(): String
@@ -45,8 +64,8 @@ sealed class PolicyAllowance(_fqnTarget: String, val actions: Set<AccessTypes>, 
         }
 
         class ClassMethodAccess(fqClassName: String, val methodName: String, _methodSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_METHOD_ACCESS_TYPES) {
-            val methodSig: String = _methodSig.replace('.', '/')
-            override fun sigPart(): String = "$methodName$methodSig"
+            val methodSig: String = _methodSig.replace('/', '.')
+            override fun sigPart(): String = if (methodName == "*") "*" else "$methodName$methodSig"
         }
 
         class ClassConstructorAccess(fqClassName: String, _constructorSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_CONSTUCTOR_ACCESS_TYPES) {
@@ -55,14 +74,15 @@ sealed class PolicyAllowance(_fqnTarget: String, val actions: Set<AccessTypes>, 
         }
 
         class ClassFieldAccess(fqClassName: String, val fieldName: String, _fieldTypeSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_FIELD_ACCESS_TYPES) {
-            val fieldTypeSig: String = _fieldTypeSig.replace('.', '/')
+            val fieldTypeSig: String = _fieldTypeSig.replace('/', '.')
             override fun sigPart(): String = "$fieldName:$fieldTypeSig"
         }
 
         class ClassPropertyAccess(fqClassName: String, val propertyName: String, _propertyTypeSig: String, actions: Set<AccessTypes>) : ClassLevel(fqClassName, actions, ALL_CLASS_PROP_ACCESS_TYPES) {
-            val propertyTypeSig: String = _propertyTypeSig.replace('.', '/')
-            override fun sigPart(): String = "@$propertyName:$propertyTypeSig"
+            val propertyTypeSig: String = _propertyTypeSig.replace('/', '.')
+            override fun sigPart(): String = if (propertyName == "*") "@*" else "@$propertyName:$propertyTypeSig"
         }
     }
 }
 
+fun AccessPolicies.toPolicy() = this.map { it.asPolicyStrings() }.flatten().toSet().sorted()

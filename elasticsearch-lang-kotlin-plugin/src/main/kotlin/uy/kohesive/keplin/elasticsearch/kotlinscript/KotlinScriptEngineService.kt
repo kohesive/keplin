@@ -22,9 +22,13 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
 import org.jetbrains.kotlin.utils.PathUtil
-import uy.kohesive.chillamda.ClassSerDesUtil
-import uy.kohesive.cuarentena.ClassRestrictionVerifier
+import uy.kohesive.chillamda.Chillambda
+import uy.kohesive.cuarentena.Cuarentena
+import uy.kohesive.cuarentena.Cuarentena.Companion.painlessCombinedPolicy
 import uy.kohesive.cuarentena.NamedClassBytes
+import uy.kohesive.cuarentena.policy.AccessTypes
+import uy.kohesive.cuarentena.policy.PolicyAllowance
+import uy.kohesive.cuarentena.policy.toPolicy
 import uy.kohesive.keplin.util.ClassPathUtils.findRequiredScriptingJarFiles
 import java.io.File
 import java.security.AccessController
@@ -60,6 +64,15 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
         val uniqueScriptId: AtomicInteger = AtomicInteger(0)
 
         val SCRIPT_RESULT_FIELD_NAME = "\$\$result"
+
+        val receiverCuarentenaPolicies = listOf(
+                PolicyAllowance.ClassLevel.ClassAccess(EsKotlinScriptTemplate::class.java.canonicalName, setOf(AccessTypes.ref_Class_Instance)),
+                PolicyAllowance.ClassLevel.ClassMethodAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", "*", setOf(AccessTypes.call_Class_Instance_Method)),
+                PolicyAllowance.ClassLevel.ClassPropertyAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", "*", setOf(AccessTypes.read_Class_Instance_Property))
+        ).toPolicy().toSet()
+
+        val cuarentena = Cuarentena(painlessCombinedPolicy + receiverCuarentenaPolicies)
+        val chillambda = Chillambda(cuarentena)
     }
 
     val sm = System.getSecurityManager()
@@ -182,22 +195,21 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     val scriptTemplateConstructor = ::ConcreteEsKotlinScriptTemplate
 
     override fun compile(scriptName: String?, scriptSource: String, params: Map<String, String>?): Any {
-        val executableCode = if (ClassSerDesUtil.isPrefixedBase64(scriptSource)) {
+        val executableCode = if (Chillambda.isPrefixedBase64(scriptSource)) {
             try {
-                val (className, classesAsBytes, serInstance) = ClassSerDesUtil.deserFromPrefixedBase64<EsKotlinScriptTemplate, Any>(scriptSource)
+                val (className, classesAsBytes, serInstance, verification) = chillambda.deserFromPrefixedBase64<EsKotlinScriptTemplate, Any>(scriptSource)
                 val classLoader = ScriptClassLoader(Thread.currentThread().contextClassLoader).apply {
                     classesAsBytes.forEach {
                         addClass(it.className, it.bytes)
                     }
                 }
-                val goodClassNames = (classesAsBytes.map { it.className } + className).toSet()
-                ExecutableCode(className, scriptSource, classesAsBytes, serInstance) { scriptArgs ->
+                ExecutableCode(className, scriptSource, classesAsBytes, verification, serInstance) { scriptArgs ->
                     val ocl = Thread.currentThread().contextClassLoader
                     try {
                         Thread.currentThread().contextClassLoader = classLoader
                         // deser every time in case it is mutable, we don't want a changing base (or is that really possible?)
                         try {
-                            val lambda: EsKotlinScriptTemplate.() -> Any? = ClassSerDesUtil.deserLambdaInstanceSafely(className, serInstance, goodClassNames)
+                            val lambda: EsKotlinScriptTemplate.() -> Any? = chillambda.instantiateSerializedLambdaSafely(className, serInstance)
                             val scriptTemplate = scriptTemplateConstructor.call(*scriptArgs.scriptArgs)
                             lambda.invoke(scriptTemplate)
                         } catch (ex: Exception) {
@@ -239,12 +251,18 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                             }
                         }
 
-                        val goodClassNames = (classesAsBytes.map { it.className } + compiledCode.mainClassName).toSet()
                         val scriptClass = classLoader.loadClass(compiledCode.mainClassName)
                         val scriptConstructor = scriptClass.constructors.first()
                         val resultField = scriptClass.getDeclaredField(SCRIPT_RESULT_FIELD_NAME).apply { isAccessible = true }
 
-                        ExecutableCode(compiledCode.mainClassName, scriptSource, classesAsBytes) { scriptArgs ->
+                        val verification = cuarentena.verifyClassAgainstPolicies(classesAsBytes)
+                        if (verification.failed) {
+                            val violations = verification.violations.sorted()
+                            val exp = Exception("Illegal Access to unauthorized classes/methods: ${violations.joinToString()}")
+                            throw  ScriptException(exp.message, exp, violations, scriptSource, LANGUAGE_NAME)
+                        }
+
+                        ExecutableCode(compiledCode.mainClassName, scriptSource, verification.filteredClasses, verification) { scriptArgs ->
                             val completedScript = scriptConstructor.newInstance(*scriptArgs.scriptArgs)
                             resultField.get(completedScript)
                         }
@@ -259,16 +277,16 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             }
         }
 
-        val verification = ClassRestrictionVerifier(emptySet(), setOf("${KotlinScriptPlugin::class.java.`package`.name}.")).verifySafeClass(executableCode.className, emptySet(), executableCode.classes)
-        if (verification.failed) {
-            val violations = verification.violations.sorted()
-            val exp = Exception("Illegal Access to unauthorized classes/methods: ${violations.joinToString()}")
-            throw  ScriptException(exp.message, exp, violations, scriptSource, LANGUAGE_NAME)
+        val scoreAccessPossibilities = listOf(
+                PolicyAllowance.ClassLevel.ClassPropertyAccess(EsKotlinScriptTemplate::class.java.canonicalName, "_score", "D", setOf(AccessTypes.read_Class_Instance_Property))
+        ).toPolicy()
+        val isScoreAccessed = executableCode.verification.scanResults.allowances.any {
+            it.asCheckStrings(true).any { it in scoreAccessPossibilities }
         }
-        return PreparedScript(executableCode, verification.isScoreAccessed)
+        return PreparedScript(executableCode, isScoreAccessed)
     }
 
-    data class ExecutableCode(val className: String, val code: String, val classes: List<NamedClassBytes>, val extraData: Any? = null, val invoker: ExecutableCode.(ScriptArgsWithTypes) -> Any?)
+    data class ExecutableCode(val className: String, val code: String, val classes: List<NamedClassBytes>, val verification: Cuarentena.VerifyResults, val extraData: Any? = null, val invoker: ExecutableCode.(ScriptArgsWithTypes) -> Any?)
 
     data class PreparedScript(val code: ExecutableCode, val scoreFieldAccessed: Boolean)
 }

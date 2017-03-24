@@ -3,10 +3,11 @@ package uy.kohesive.cuarentena
 import org.junit.Test
 import uy.kohesive.cuarentena.policy.ALL_CLASS_ACCESS_TYPES
 import uy.kohesive.cuarentena.policy.PolicyAllowance
+import uy.kohesive.cuarentena.policy.toPolicy
 import java.io.*
 
 class TestClassAllowanceDetector {
-    val globalPolicies = ClassRestrictionVerifier.painlessCombinedPolicy
+    val globalPolicies = Cuarentena.painlessCombinedPolicy
 
     @Test
     fun testSeeAllImportantThings() {
@@ -40,7 +41,7 @@ class TestClassAllowanceDetector {
         result.print()
     }
 
-    private fun ClassAllowanceDetector.State.print() {
+    private fun ClassAllowanceDetector.ScanState.print() {
         println()
         println("=====[ Classes scan results: ]=======================")
         println()
@@ -58,7 +59,7 @@ class TestClassAllowanceDetector {
         println()
         println("Allowances requested:  (violations marked with '!!'")
         println()
-        this.allowances.map { it.asPolicyStrings() }.flatten().toSet().sorted().forEach {
+        this.allowances.toPolicy().forEach {
             val isViolation = if (it !in globalPolicies) "!!" else "  "
             println("$isViolation  $it")
         }
@@ -77,8 +78,6 @@ class TestClassAllowanceDetector {
             }
         }.toByteArray()
 
-        val outerClass = className.substringBefore('$')
-
         val outerClasses = generateSequence<Class<*>>(serClass) { seed -> seed.declaringClass.takeIf { it != seed } }
         val innerClasses = generateSequence<List<Class<*>>>(listOf<Class<*>>(serClass)) { seed ->
             val l = seed.map { it.classes.filterNot { it == seed }.toList() }.flatten()
@@ -89,7 +88,7 @@ class TestClassAllowanceDetector {
 
         val classesAsBytes = tracedClasses.filterNot {
             // filter out anything we are allowed to access, because we consider that "outside" of our class to serialize
-            PolicyAllowance.ClassLevel.ClassAccess(it.name, ALL_CLASS_ACCESS_TYPES).asPolicyStrings().any { it in globalPolicies }
+            PolicyAllowance.ClassLevel.ClassAccess(it.name, ALL_CLASS_ACCESS_TYPES).asCheckStrings(true).any { it in globalPolicies }
         }.filter {
             // only classes related to the lambda and its containing class matter
             it in allClasses // it.name == outerClass || it.name.startsWith(outerClass+'$')

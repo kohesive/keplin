@@ -8,71 +8,67 @@ import uy.kohesive.cuarentena.policy.PolicyAllowance
 
 object ClassAllowanceDetector {
 
-    fun scanClassByteCodeForDesiredAllowances(classNamesWithBytes: List<NamedClassBytes>): State {
-        val collected = State()
+    fun scanClassByteCodeForDesiredAllowances(classNamesWithBytes: List<NamedClassBytes>): ScanState {
+        val collected = ScanState()
         classNamesWithBytes.forEach { ClassReader(it.bytes).accept(ClassAllowanceScanner(it.className, collected), 0) }
         return collected
     }
 
-    class State(val allowances: MutableList<PolicyAllowance.ClassLevel> = mutableListOf(),
-                val createsMethods: MutableList<CreatedClassMethod> = mutableListOf(),
-                val createsClass: MutableList<CreatedClass> = mutableListOf(),
-                val createsFields: MutableList<CreatedClassField> = mutableListOf()) {
+    class ScanState(val allowances: MutableList<PolicyAllowance.ClassLevel> = mutableListOf(),
+                    val createsMethods: MutableList<CreatedClassMethod> = mutableListOf(),
+                    val createsClass: MutableList<CreatedClass> = mutableListOf(),
+                    val createsFields: MutableList<CreatedClassField> = mutableListOf())
 
+    private fun ScanState.requestClassRef(refClass: String) {
+        allowances.add(PolicyAllowance.ClassLevel.ClassAccess(refClass, setOf(AccessTypes.ref_Class)))
+    }
 
-        fun requestClassRef(refClass: String) {
-            allowances.add(PolicyAllowance.ClassLevel.ClassAccess(refClass, setOf(AccessTypes.ref_Class)))
+    private fun ScanState.requestClassInstanceRef(refClass: String) {
+        allowances.add(PolicyAllowance.ClassLevel.ClassAccess(refClass, setOf(AccessTypes.ref_Class_Instance)))
+    }
+
+    private fun ScanState.requestsFromDescSig(desc: String?, signature: String?) {
+        // desc is sig without generics
+        val sig = signature ?: desc ?: run {
+            throw IllegalArgumentException("Need either a descriptor or signature")
         }
-
-        fun requestClassInstanceRef(refClass: String) {
-            allowances.add(PolicyAllowance.ClassLevel.ClassAccess(refClass, setOf(AccessTypes.ref_Class_Instance)))
-        }
-
-        fun requestsFromDescSig(desc: String?, signature: String?) {
-            // desc is sig without generics
-            val sig = signature ?: desc ?: run {
-                throw IllegalArgumentException("Need either a descriptor or signature")
-            }
-            val sigReader = SignatureReader(sig)
-            sigReader.accept(SignatureAllowanceScanner(this))
-        }
-
-
-        fun createClassMethod(accessFlags: Int, className: String, methodName: String, desc: String?, signature: String?, exceptions: List<String>) {
-            createsMethods.add(CreatedClassMethod(accessFlags, className, methodName, desc, signature, exceptions))
-            exceptions.forEach { requestClassRef(it) }
-            requestsFromDescSig(desc, signature)
-        }
-
-        fun createClassField(accessFlags: Int, className: String, fieldName: String, desc: String?, signature: String?, value: Any?) {
-            createsFields.add(CreatedClassField(accessFlags, className, fieldName, desc, signature, value))
-            requestsFromDescSig(desc, signature)
-        }
-
-
-        fun createClass(accessFlags: Int, className: String, signature: String?, superName: String?, interfaces: List<String> = emptyList()) {
-            createsClass.add(CreatedClass(accessFlags, className, signature, superName, interfaces))
-            superName?.let { requestClassInstanceRef(it) }
-            interfaces.forEach { requestClassRef(it) }
-            signature?.let { requestsFromDescSig(null, it) }
-        }
-
-        data class CreatedClassMethod(val accessFlags: Int, val className: String, val methodName: String, val desc: String?, val signature: String?, val exceptions: List<String>) {
-            val isStatic: Boolean = accessFlags.and(Opcodes.ACC_STATIC) != 0
-        }
-
-        data class CreatedClass(val accessFlags: Int, val className: String, val signature: String?, val superName: String?, val interfaces: List<String> = emptyList()) {
-
-        }
-
-        data class CreatedClassField(val accessFlags: Int, val className: String, val fieldName: String, val desc: String?, val signature: String?, val value: Any?) {
-            val isStatic: Boolean = accessFlags.and(Opcodes.ACC_STATIC) != 0
-        }
-
+        val sigReader = SignatureReader(sig)
+        sigReader.accept(SignatureAllowanceScanner(this))
     }
 
 
-    class ClassAllowanceScanner(val myClassName: String, val collect: State) : ClassVisitor(Opcodes.ASM5) {
+    private fun ScanState.createClassMethod(accessFlags: Int, className: String, methodName: String, desc: String?, signature: String?, exceptions: List<String>) {
+        createsMethods.add(CreatedClassMethod(accessFlags, className, methodName, desc, signature, exceptions))
+        exceptions.forEach { requestClassRef(it) }
+        requestsFromDescSig(desc, signature)
+    }
+
+    private fun ScanState.createClassField(accessFlags: Int, className: String, fieldName: String, desc: String?, signature: String?, value: Any?) {
+        createsFields.add(CreatedClassField(accessFlags, className, fieldName, desc, signature, value))
+        requestsFromDescSig(desc, signature)
+    }
+
+
+    private fun ScanState.createClass(accessFlags: Int, className: String, signature: String?, superName: String?, interfaces: List<String> = emptyList()) {
+        createsClass.add(CreatedClass(accessFlags, className, signature, superName, interfaces))
+        superName?.let { requestClassInstanceRef(it) }
+        interfaces.forEach { requestClassRef(it) }
+        signature?.let { requestsFromDescSig(null, it) }
+    }
+
+    data class CreatedClassMethod(val accessFlags: Int, val className: String, val methodName: String, val desc: String?, val signature: String?, val exceptions: List<String>) {
+        val isStatic: Boolean = accessFlags.and(Opcodes.ACC_STATIC) != 0
+    }
+
+    data class CreatedClass(val accessFlags: Int, val className: String, val signature: String?, val superName: String?, val interfaces: List<String> = emptyList()) {
+
+    }
+
+    data class CreatedClassField(val accessFlags: Int, val className: String, val fieldName: String, val desc: String?, val signature: String?, val value: Any?) {
+        val isStatic: Boolean = accessFlags.and(Opcodes.ACC_STATIC) != 0
+    }
+
+    class ClassAllowanceScanner(val myClassName: String, val collect: ScanState) : ClassVisitor(Opcodes.ASM5) {
         override fun visit(version: Int, access: Int, name: String, signature: String?, superName: String?, interfaces: Array<String>?) {
             collect.createClass(access, name, signature, superName, interfaces?.toList() ?: emptyList())
         }
@@ -119,7 +115,7 @@ object ClassAllowanceDetector {
 
     }
 
-    class MethodAllowanceScanner(val myClassName: String, val methodName: String, val collect: State) : MethodVisitor(Opcodes.ASM5) {
+    class MethodAllowanceScanner(val myClassName: String, val methodName: String, val collect: ScanState) : MethodVisitor(Opcodes.ASM5) {
         override fun visitMultiANewArrayInsn(desc: String?, dims: Int) {
             collect.requestsFromDescSig(desc, null)
         }
@@ -226,7 +222,7 @@ object ClassAllowanceDetector {
         }
     }
 
-    class AnnotationAllowanceScanner(val collect: State) : AnnotationVisitor(Opcodes.ASM5) {
+    class AnnotationAllowanceScanner(val collect: ScanState) : AnnotationVisitor(Opcodes.ASM5) {
         override fun visitAnnotation(name: String, desc: String?): AnnotationVisitor {
             collect.requestsFromDescSig(desc, null)
             return AnnotationAllowanceScanner(collect)
@@ -247,7 +243,7 @@ object ClassAllowanceDetector {
     }
 
 
-    class SignatureAllowanceScanner(val collect: State) : SignatureVisitor(Opcodes.ASM5) {
+    class SignatureAllowanceScanner(val collect: ScanState) : SignatureVisitor(Opcodes.ASM5) {
         override fun visitParameterType(): SignatureVisitor {
             return this
         }

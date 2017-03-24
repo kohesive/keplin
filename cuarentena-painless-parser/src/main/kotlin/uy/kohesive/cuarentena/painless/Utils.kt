@@ -1,6 +1,5 @@
 package uy.kohesive.cuarentena.painless
 
-import uy.kohesive.cuarentena.policy.AccessPolicies
 import java.lang.reflect.*
 
 @Suppress("UNCHECKED_CAST") fun Type.erasedType(): Class<Any> {
@@ -23,5 +22,3 @@ import java.lang.reflect.*
         else -> throw IllegalStateException("Should not get here.")
     }
 }
-
-fun AccessPolicies.toPolicy() = this.map { it.asPolicyStrings() }.flatten().toSet().sorted()

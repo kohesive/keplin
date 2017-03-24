@@ -13,13 +13,6 @@ println("kepling elasticsearch kotlinscript lib version will be $version")
 dependencies {
     compile project(":keplin-util")
 
-    compile(project(":cuarentena-policy")) {
-        exclude group: 'org.jetbrains.kotlin'
-    }
-    compile(project(":cuarentena-painless-parser")) {
-        exclude group: 'org.codelibs.elasticsearch.module'
-        exclude group: 'org.jetbrains.kotlin'
-    }
     compile(project(":cuarentena")) {
         exclude group: 'org.ow2.asm'
         exclude group: 'org.jetbrains.kotlin'

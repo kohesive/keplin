@@ -17,9 +17,9 @@ import org.elasticsearch.script.ScriptType
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.test.ESIntegTestCase
 import org.junit.Before
-import uy.kohesive.chillamda.ClassSerDesUtil
 import uy.kohesive.keplin.elasticsearch.kotlinscript.ConcreteEsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.EsKotlinScriptTemplate
+import uy.kohesive.keplin.elasticsearch.kotlinscript.KotlinScriptEngineService
 import uy.kohesive.keplin.elasticsearch.kotlinscript.KotlinScriptPlugin
 import java.io.File
 import java.util.regex.Pattern
@@ -97,7 +97,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
 
     fun testSecurityViolationInStringScript() {
         try {
-            client.prepareSearch(INDEX_NAME)
+            val response = client.prepareSearch(INDEX_NAME)
                     .addScriptField("scriptField1", mapOf("multiplier" to 2), """
                     import java.io.*
 
@@ -107,8 +107,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                 """).setQuery(QueryBuilders.matchQuery("title", "title"))
                     .setFetchSource(true).execute().actionGet()
             fail("security verification should have caught this use of File")
-        } catch (ex: Throwable) {
-            val exceptionStack = generateSequence(ex) { it.cause }
+        } catch (ex: Exception) {
+            val exceptionStack = generateSequence(ex as Throwable) { it.cause }
             assertTrue(exceptionStack.take(5).any { "java.io.File" in it.message!! })
         }
     }
@@ -149,15 +149,15 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
 
     fun testSecurityViolationInLambdaAsScript() {
         try {
-            client.prepareSearch(INDEX_NAME)
+            val response = client.prepareSearch(INDEX_NAME)
                     .addScriptField("multi", mapOf("multiplier" to 2)) {
                         val f = File("asdf") // security violation
                         docInt("number", 1) * parmInt("multiplier", 1) + _score
                     }.setQuery(QueryBuilders.matchQuery("title", "title"))
                     .setFetchSource(true).execute().actionGet()
             fail("security verification should have caught this use of File")
-        } catch (ex: Throwable) {
-            val exceptionStack = generateSequence(ex) { it.cause }
+        } catch (ex: Exception) {
+            val exceptionStack = generateSequence(ex as Throwable) { it.cause }
             assertTrue(exceptionStack.take(5).any { "java.io.File" in it.message!! })
         }
     }
@@ -308,7 +308,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
 
 
     fun <T : Any?> SearchRequestBuilder.addScriptField(name: String, params: Map<String, Any> = emptyMap(), lambda: EsKotlinScriptTemplate.() -> T): SearchRequestBuilder {
-        return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", ClassSerDesUtil.serializeLambdaToBase64<EsKotlinScriptTemplate, Any>(lambda), params))
+        return this.addScriptField(name, Script(ScriptType.INLINE, "kotlin", KotlinScriptEngineService.chillambda.serializeLambdaToBase64<EsKotlinScriptTemplate, Any>(lambda), params))
     }
 
     fun <T : Any?> makeSimulatePipelineJsonForLambda(lambda: EsKotlinScriptTemplate.() -> T): BytesReference {
@@ -319,7 +319,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                 .startObject()
                 .startObject("script")
                 .field("lang", "kotlin")
-                .field("inline", ClassSerDesUtil.serializeLambdaToBase64<EsKotlinScriptTemplate, Any>(lambda))
+                .field("inline", KotlinScriptEngineService.chillambda.serializeLambdaToBase64<EsKotlinScriptTemplate, Any>(lambda))
                 .startObject("params").endObject()
                 .endObject()
                 .endObject()
