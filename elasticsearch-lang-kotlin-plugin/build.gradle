@@ -25,6 +25,8 @@ dependencies {
 
     compile group: 'org.elasticsearch', name: 'elasticsearch', version: version_elasticsearch
 
+    compile group: 'uy.kohesive.klutter', name: 'klutter-conversion', version: version_klutter
+
   //  compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
   //  compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
 

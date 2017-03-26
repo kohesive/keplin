@@ -31,6 +31,7 @@ import uy.kohesive.cuarentena.policy.PolicyAllowance
 import uy.kohesive.cuarentena.policy.toPolicy
 import uy.kohesive.keplin.util.ClassPathUtils.findRequiredScriptingJarFiles
 import java.io.File
+import java.lang.reflect.Type
 import java.security.AccessController
 import java.security.PrivilegedAction
 import java.util.*
@@ -68,7 +69,10 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
         val sharedReceiverCuarentenaPolicies = listOf(
                 PolicyAllowance.ClassLevel.ClassAccess(EsKotlinScriptTemplate::class.java.canonicalName, setOf(AccessTypes.ref_Class_Instance)),
                 PolicyAllowance.ClassLevel.ClassMethodAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", "*", setOf(AccessTypes.call_Class_Instance_Method)),
-                PolicyAllowance.ClassLevel.ClassPropertyAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", "*", setOf(AccessTypes.read_Class_Instance_Property))
+                PolicyAllowance.ClassLevel.ClassPropertyAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", "*", setOf(AccessTypes.read_Class_Instance_Property)),
+                // These references only allow passing along a Type or Class but not doing anything with them
+                PolicyAllowance.ClassLevel.ClassAccess(Type::class.java.canonicalName, setOf(AccessTypes.ref_Class_Instance)),
+                PolicyAllowance.ClassLevel.ClassAccess(Class::class.java.canonicalName, setOf(AccessTypes.ref_Class))
         )
 
         val receiverCuarentenaPolicies = sharedReceiverCuarentenaPolicies.toPolicy().toSet()
@@ -117,13 +121,13 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
         return ExecutableKotlin(compiledScript, vars)
     }
 
-    class ExecutableKotlin(val compiledScript: CompiledScript, val vars: Map<String, Any>?) : ExecutableScript {
-        val _mutableVars: MutableMap<String, Any> = HashMap<String, Any>(vars)
+    class ExecutableKotlin(val compiledScript: CompiledScript, val params: Map<String, Any>?) : ExecutableScript {
+        val _mutableVars: MutableMap<String, Any> = HashMap<String, Any>(params)
 
         override fun run(): Any? {
             @Suppress("UNCHECKED_CAST")
-            val ctx = _mutableVars.get("ctx") as? MutableMap<Any, Any> ?: hashMapOf()
-            val args = makeArgs(variables = _mutableVars.toWrapped(), ctx = ctx)
+            val ctx = _mutableVars.get("ctx") as? MutableMap<String, Any> ?: hashMapOf()
+            val args = makeArgs(variables = _mutableVars, ctx = ctx)
             val executable = compiledScript.compiled() as PreparedScript
             return executable.code.invoker(executable.code, args)
         }
@@ -160,8 +164,8 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
 
         override fun run(): Any? {
             val score = _scorer?.score()?.toDouble() ?: 0.0
-            val ctx = _mutableVars.get("ctx") as? MutableMap<Any, Any> ?: hashMapOf()
-            val args = makeArgs(_mutableVars.toWrapped(), score, _doc, ctx, _aggregationValue)
+            val ctx = _mutableVars.get("ctx") as? MutableMap<String, Any> ?: hashMapOf()
+            val args = makeArgs(_mutableVars, score, _doc, ctx, _aggregationValue)
             val executable = compiledScript.compiled() as PreparedScript
             return executable.code.invoker(executable.code, args)
         }

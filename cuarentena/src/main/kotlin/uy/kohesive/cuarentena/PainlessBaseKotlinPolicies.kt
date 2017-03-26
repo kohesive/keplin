@@ -65,6 +65,7 @@ object KotlinPolicies {
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "collectionSizeOrDefault", "(Ljava.lang.Iterable;I)I", setOf(AccessTypes.call_Class_Static_Method)),
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "filterNotNull", "(Ljava.lang.Iterable;)Ljava.util.List;", setOf(AccessTypes.call_Class_Static_Method)),
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "flatten", "(Ljava.lang.Iterable;)Ljava.util.List;", setOf(AccessTypes.call_Class_Static_Method)),
+            PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.CollectionsKt", "single", "(Ljava.util.List;)Ljava.lang.Object;", setOf(AccessTypes.call_Class_Static_Method)),
 
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.SetsKt", "emptySet", "()Ljava/util/Set;", setOf(AccessTypes.call_Class_Static_Method)),
             PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.collections.SetsKt", "setOf", "(Ljava/lang/Object;)Ljava/util/Set;", setOf(AccessTypes.call_Class_Static_Method)),

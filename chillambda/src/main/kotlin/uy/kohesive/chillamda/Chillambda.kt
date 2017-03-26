@@ -32,6 +32,9 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
     fun <R : Any, T : Any> deserFromPrefixedBase64(lambdaReceiver: KClass<R>, lambdaReturnType: KClass<T>, scriptSource: String, additionalPolicies: Set<String> = emptySet<String>()): SerializedLambdaClassData {
         if (!isPrefixedBase64(scriptSource)) throw ClassSerDesException("Script is not valid encoded classes")
         try {
+            val receiverClassName = lambdaReceiver.java.canonicalName ?: lambdaReceiver.java.name
+            val returnTypeClassName = lambdaReturnType.java.canonicalName ?: lambdaReturnType.java.name
+
             val rawData = scriptSource.substring(BINARY_PREFIX.length)
             val decodedBinary = Base64.getDecoder().decode(rawData)
             val content = DataInputStream(ByteArrayInputStream(decodedBinary)).use { stream ->
@@ -43,6 +46,8 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
                 }
 
                 val className = stream.readString()
+                val checkReceiverClassName = stream.readString()
+                val checkReturnTypeClassName = stream.readString()
                 val classes = stream.readInt().let { count ->
                     (1..count).map {
                         val name = stream.readString()
@@ -57,6 +62,8 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
 
                 val digest = SipHashDigest(SIG_SEED.toByteArray())
                 digest.update(className)
+                digest.update(checkReceiverClassName)
+                digest.update(checkReturnTypeClassName)
                 classes.forEach {
                     digest.update(it.className)
                     digest.update(it.bytes)
@@ -65,6 +72,8 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
                 val calcSig = digest.finish().getHex(true, SipHashCase.UPPER)
 
                 if (sentSig != calcSig) throw ClassSerDesException("Serialized classes signature is not valid")
+                if (receiverClassName != checkReceiverClassName) throw ClassSerDesException("Serialized lambda does not have expected receiver ${receiverClassName}, instead is ${checkReceiverClassName}")
+                if (returnTypeClassName != checkReturnTypeClassName) throw ClassSerDesException("Serialized lambda does not have expected return type ${returnTypeClassName}, instead is ${checkReturnTypeClassName}")
 
                 val verification = verifier.verifyClassAgainstPolicies(classes, additionalPolicies)
                 if (verification.failed) {
@@ -112,6 +121,8 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
     fun <R : Any, T : Any> serializeLambdaToBase64(lambdaReceiver: KClass<R>, lambdaReturnType: KClass<T>, additionalPolicies: Set<String> = emptySet<String>(), lambda: R.() -> T?): String {
         val serClass = lambda.javaClass
         val className = serClass.canonicalName ?: serClass.name
+        val receiverClassName = lambdaReceiver.java.canonicalName ?: lambdaReceiver.java.name
+        val returnTypeClassName = lambdaReturnType.java.canonicalName ?: lambdaReturnType.java.name
 
         val serClassBytes = classBytesForClass(className, serClass.classLoader)
 
@@ -165,6 +176,8 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
                 stream.writeInt(MARKER_VER)
 
                 stream.writeString(className)
+                stream.writeString(receiverClassName)
+                stream.writeString(returnTypeClassName)
                 stream.writeInt(actualClassesToShipAsBytes.size)
                 actualClassesToShipAsBytes.forEach {
                     stream.writeString(it.className)
@@ -175,6 +188,8 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
 
                 val digest = SipHashDigest(SIG_SEED.toByteArray())
                 digest.update(className)
+                digest.update(receiverClassName)
+                digest.update(returnTypeClassName)
                 actualClassesToShipAsBytes.forEach {
                         digest.update(it.className)
                         digest.update(it.bytes)

@@ -84,10 +84,24 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         }
     }
 
+    fun testMoreComplexPainlessScriptMultiValueField() {
+        val prep = client.prepareSearch(INDEX_NAME)
+                .addScriptField("scriptField1", Script(ScriptType.INLINE, "painless", """
+                    List currentValue = doc['multiValue'];
+                    currentValue
+                  """, emptyMap()))
+                .setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
+
+        prep.runManyTimes {
+            printHitsField("scriptField1")
+        }
+    }
+
     fun testStringScript() {
         val prep = client.prepareSearch(INDEX_NAME)
                 .addScriptField("scriptField1", mapOf("multiplier" to 2), """
-                    docInt("number", 1) * parmInt("multiplier", 1) + _score
+                    doc.intVal("number", 1) * param.intVal("multiplier", 1) + _score
                 """).setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
 
@@ -104,7 +118,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
 
                     val f = File("howdy")  // violation!
 
-                    docInt("number", 1) * parmInt("multiplier", 1) + _score
+                    doc.intVal("number", 1) * param.intVal("multiplier", 1) + _score
                 """).setQuery(QueryBuilders.matchQuery("title", "title"))
                     .setFetchSource(true).execute().actionGet()
             fail("security verification should have caught this use of File")
@@ -117,7 +131,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
     fun testMoreComplexKotlinAsScript() {
         val prep = client.prepareSearch(INDEX_NAME)
                 .addScriptField("scriptField1", Script(ScriptType.INLINE, "kotlin", """
-                    val currentValue = docString("badContent") ?: ""
+                    val currentValue = doc.stringVal("badContent") ?: ""
                     "^(\\w+)\\s*\\:\\s*(.+)$".toRegex().matchEntire(currentValue)
                             ?.takeIf { it.groups.size > 2 }
                             ?.let {
@@ -139,7 +153,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
     fun testLambdaAsScript() {
         val prep = client.prepareSearch(INDEX_NAME)
                 .addScriptField("scriptField1", mapOf("multiplier" to 2)) {
-                    docInt("number", 1) * parmInt("multiplier", 1) + _score
+                    doc["number"].asValue(1) * param["multiplier"].asValue(1) + _score
                 }.setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
 
@@ -153,7 +167,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
             val response = client.prepareSearch(INDEX_NAME)
                     .addScriptField("multi", mapOf("multiplier" to 2)) {
                         val f = File("asdf") // security violation
-                        docInt("number", 1) * parmInt("multiplier", 1) + _score
+                        doc["number"].asValue(1) * param["multiplier"].asValue(1) + _score
                     }.setQuery(QueryBuilders.matchQuery("title", "title"))
                     .setFetchSource(true).execute().actionGet()
             fail("security verification should have caught this use of File")
@@ -166,7 +180,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
         val prep = client.prepareSearch(INDEX_NAME)
                 .addScriptField("scriptField1", emptyMap()) {
-                    val currentValue = docStringList("badContent")
+                    val currentValue = doc["badContent"].asList<String>()
                     currentValue.map { value -> badCategoryPattern.toRegex().matchEntire(value)?.takeIf { it.groups.size > 2 } }
                             .filterNotNull()
                             .map {
@@ -187,7 +201,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
     fun testFuncRefWithMockContextAndRealDeal() {
         val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
         val scriptFunc = fun EsKotlinScriptTemplate.(): Any? {
-            val currentValue = docStringList("badContent")
+            val currentValue = doc["badContent"].asList<String>()
             return currentValue.map { value -> badCategoryPattern.toRegex().matchEntire(value)?.takeIf { it.groups.size > 2 } }
                     .filterNotNull()
                     .map {
@@ -199,7 +213,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                     }.flatten()
         }
 
-        val mockContext = ConcreteEsKotlinScriptTemplate(parm = emptyMap(),
+        val mockContext = ConcreteEsKotlinScriptTemplate(param = emptyMap(),
                 doc = mutableMapOf("badContent" to mutableListOf<Any>("category:  History, Science, Fish")),
                 ctx = mutableMapOf(), _value = 0, _score = 0.0)
 
@@ -220,7 +234,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
     fun testLambdaAsIngestPipelineStep() {
         val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
         val scriptFunc = fun EsKotlinScriptTemplate.(): Any? {
-            val newValue = (ctx["badContent"] as? String)
+            val newValue = ctx["badContent"]?.asValue<String>()
                     ?.let { currentValue ->
                         badCategoryPattern.takeIfMatching(currentValue, 3)
                                 ?.let {
@@ -274,7 +288,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                         "title": { "type": "text" },
                         "content": { "type": "text" },
                         "number": { "type": "integer" },
-                        "badContent": { "type": "keyword" }
+                        "badContent": { "type": "keyword" },
+                        "multiValue": { "type": "keyword" }
                       }
                     }
                   }
@@ -293,6 +308,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                             .field("content", "Hello World $i!")
                             .field("number", i)
                             .field("badContent", "category:  History, Science, Fish")
+                            .field("multiValue", listOf("one", "two", "three"))
                             // badContent is incorrect, should be multi-value
                             // ["category: history", "category: science", "category: fish"]
                             .endObject()
