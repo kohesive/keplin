@@ -215,7 +215,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                         Thread.currentThread().contextClassLoader = classLoader
                         // deser every time in case it is mutable, we don't want a changing base (or is that really possible?)
                         try {
-                            val lambda: EsKotlinScriptTemplate.() -> Any? = chillambda.instantiateSerializedLambdaSafely(className, serInstance)
+                            val lambda: EsKotlinScriptTemplate.() -> Any? = chillambda.instantiateSerializedLambdaSafely(className, serInstance, deserAdditionalPolicies)
                             val scriptTemplate = scriptTemplateConstructor.call(*scriptArgs.scriptArgs)
                             lambda.invoke(scriptTemplate)
                         } catch (ex: Exception) {
@@ -292,7 +292,9 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
         return PreparedScript(executableCode, isScoreAccessed)
     }
 
-    data class ExecutableCode(val className: String, val code: String, val classes: List<NamedClassBytes>, val verification: Cuarentena.VerifyResults, val extraData: Any? = null, val invoker: ExecutableCode.(ScriptArgsWithTypes) -> Any?)
+    data class ExecutableCode(val className: String, val code: String, val classes: List<NamedClassBytes>, val verification: Cuarentena.VerifyResults, val extraData: Any? = null, val invoker: ExecutableCode.(ScriptArgsWithTypes) -> Any?) {
+        val deserAdditionalPolicies = classes.map { PolicyAllowance.ClassLevel.ClassAccess(it.className, setOf(AccessTypes.ref_Class_Instance)) }.toPolicy().toSet()
+    }
 
     data class PreparedScript(val code: ExecutableCode, val scoreFieldAccessed: Boolean)
 }
