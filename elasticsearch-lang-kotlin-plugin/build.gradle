@@ -45,3 +45,7 @@ configurations.all {
     // this is a problem, we need it excluded from Kotlin compiler embeddable so we can use the ES version instead, because this won't work in real life:
     // exclude group: 'net.java.dev.jna', module: 'jna'
 }
+
+test {
+    systemProperty 'java.security.policy', 'src/test/resources/plugin-security.policy'
+}
