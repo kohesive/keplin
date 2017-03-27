@@ -19,6 +19,7 @@ import uy.kohesive.keplin.util.ClassPathUtils
 import java.io.Closeable
 import java.io.File
 import java.net.URLClassLoader
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
@@ -77,13 +78,14 @@ open class SimplifiedRepl protected constructor(protected val disposable: Dispos
     }
 
     private val state = evaluator.createState(stateLock)
+    private val nextLine: AtomicInteger = AtomicInteger(0)
 
-    fun nextCodeLine(code: String) = stateLock.write { ReplCodeLine(state.getNextLineNo(), state.currentGeneration, code) }
+    fun nextCodeLine(code: String) = stateLock.write { ReplCodeLine(nextLine.incrementAndGet(), state.currentGeneration, code) }
 
     fun resetToLine(lineNumber: Int): List<ILineId> {
         stateLock.write {
             val removedList = state.history.last { it.id.no == lineNumber }.let { state.history.resetTo(it.id) }.toList()
-
+            nextLine.set(state.getNextLineNo() - 1)
             return removedList
         }
     }
