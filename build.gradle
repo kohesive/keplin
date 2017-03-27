@@ -22,6 +22,13 @@ subprojects {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
+    compileKotlin {
+        kotlinOptions {
+            jvmTarget = 1.8
+            languageVersion = 1.1
+        }
+    }
+
     if (project.name.startsWith("cuarentena")) {
         project.group="uy.kohesive.cuarentena"
     } else if (project.name.startsWith("chillambda")) {
@@ -67,12 +74,6 @@ subprojects {
 
     task subRelease() {
         dependsOn jars, uploadArchives
-    }
-
-    compileKotlin {
-        kotlinOptions {
-            jvmTarget = 1.8
-        }
     }
 
     modifyPom {

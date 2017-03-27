@@ -12,19 +12,18 @@ http://dl.bintray.com/jaysonminard/kohesive
 
 |artifact|GAV|
 |---|---|
-|`keplin-core`|`uy.kohesive.keplin:keplin-core:1.0.0-BETA-03`|
-|`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-BETA-03`|
-|`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-BETA-03`|
+|`keplin-core`|`uy.kohesive.keplin:keplin-core:1.0.0-BETA-08`|
+|`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-BETA-08`|
+|`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-BETA-08`|
 |`kotlin-script`|coming soon|
 |`elasticsearch-kotlin-plugin`|coming soon https://vimeo.com/apatrida/es-lang-kotlin |
-|`chilambda`|coming soon|
-|`cuarentena`|coming soon|
-|`cuarentena-policy-painless`|coming soon|
-|`cuarentena-policy-painless-kotlin`|coming soon|
+|`chillambda`|`uy.kohesive.chillambda:chillambda:1.0.0-BETA-08`|
+|`cuarentena`|`uy.kohesive.cuarentena:cuarentena:1.0.0-BETA-08`|
+|`cuarentena-policy`|`uy.kohesive.cuarentena:cuarentena-policy:1.0.0-BETA-08`|
+|`cuarentena-painless-policy`|`uy.kohesive.cuarentena:cuarentena-painless-policy:1.0.0-BETA-08`|
 
 TODO:  
 
-* finish breaking out the new "coming soon" modules
 * security reviews for `Cuarentena`
 * document the modules
 * elasticsearch script client, containing Kotlin extensions to the Java client to easily add Lambda-scripts anywhere scripting would be used
@@ -43,10 +42,14 @@ See [unit tests](./core/src/test/kotlin/uy/kohesive/keplin/kotlin/script)
 
 ### kotlin-script
 
+_coming soon..._
+
 * a set of Kotlin REPLs that can apply `Cuarentena` whitelist policies to any scripts compiled/executed before class loading or execution
 * helpers for script compile / execute that can also apply `Cuarentena` whitelist policies before class loading or execution
 
 ### Elasticsearch-Kotlin-Plugin
+
+_coming soon..._
 
 Kotlin as a secure scripting language for Elasticsearch.  
 
