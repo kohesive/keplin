@@ -7,6 +7,9 @@ import uy.kohesive.cuarentena.policy.toPolicy
 object KotlinPolicies {
     // TODO: move to a policy file/generator outside of here for Kotlin safe calls
     val painlessBaseKotlinPolicy = (listOf(
+            // java.lang.Object, as an ancestor the bytecode accesses the constructor
+            PolicyAllowance.ClassLevel.ClassConstructorAccess("java.lang.Object", "()Ljava.lang.Object;", setOf(AccessTypes.call_Class_Constructor)),
+
             // java.lang.StringBuilder
             PolicyAllowance.ClassLevel.ClassMethodAccess("java.lang.StringBuilder", "append", "(Ljava/lang/String;)Ljava/lang/StringBuilder;", setOf(AccessTypes.call_Class_Instance_Method)),
             PolicyAllowance.ClassLevel.ClassMethodAccess("java.lang.StringBuilder", "append", "(I)Ljava/lang/StringBuilder;", setOf(AccessTypes.call_Class_Instance_Method)),
@@ -81,7 +84,7 @@ object KotlinPolicies {
 
             // kotlin.Unit
             PolicyAllowance.ClassLevel.ClassFieldAccess("kotlin.Unit", "INSTANCE", "Lkotlin/Unit;", setOf(AccessTypes.read_Class_Static_Field))
-    ) + (0..22).map { idx -> PolicyAllowance.ClassLevel.ClassAccess("kotlin.jvm.functions.Function$idx", setOf(AccessTypes.ref_Class)) }
+    ) + (0..22).map { idx -> PolicyAllowance.ClassLevel.ClassAccess("kotlin.jvm.functions.Function$idx", setOf(AccessTypes.ref_Class_Instance)) }
             ).toPolicy()
 
     private fun safeCodeByExample(): List<PolicyAllowance.ClassLevel> {

@@ -6,6 +6,8 @@ import uy.kohesive.cuarentena.policy.PolicyAllowance
 import uy.kohesive.cuarentena.policy.toPolicy
 import java.io.*
 
+// TODO: This is not really a test, it is a manual display of what happens, write a real test
+
 class TestClassAllowanceDetector {
     val globalPolicies = Cuarentena.painlessCombinedPolicy
 
@@ -78,7 +80,8 @@ class TestClassAllowanceDetector {
             }
         }.toByteArray()
 
-        val outerClasses = generateSequence<Class<*>>(serClass) { seed -> seed.declaringClass.takeIf { it != seed } }
+        val outerClasses = generateSequence<Class<*>>(serClass) { seed -> seed.declaringClass.takeIf { it != seed } } +
+                generateSequence<Class<*>>(serClass) { seed -> seed.enclosingClass.takeIf { it != seed } }
         val innerClasses = generateSequence<List<Class<*>>>(listOf<Class<*>>(serClass)) { seed ->
             val l = seed.map { it.classes.filterNot { it == seed }.toList() }.flatten()
             if (l.isEmpty()) null else l

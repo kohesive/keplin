@@ -142,7 +142,8 @@ class Chillambda(val verifier: Cuarentena = Cuarentena()) {
         val serializedClassNames = classesIncludedInSerialization.map { it.canonicalName ?: it.name }.toSet()
 
         // take the starting lambda, and maybe its outer and inner classes but only if they are referenced
-        val outerClasses = generateSequence<Class<*>>(serClass) { seed -> seed.declaringClass.takeIf { it != seed } }
+        val outerClasses = generateSequence<Class<*>>(serClass) { seed -> seed.declaringClass.takeIf { it != seed } } +
+                generateSequence<Class<*>>(serClass) { seed -> seed.enclosingClass.takeIf { it != seed } }
         val innerClasses = generateSequence<List<Class<*>>>(listOf<Class<*>>(serClass)) { seed ->
             val l = seed.map { it.classes.filterNot { it == seed }.toList() }.flatten()
             if (l.isEmpty()) null else l
