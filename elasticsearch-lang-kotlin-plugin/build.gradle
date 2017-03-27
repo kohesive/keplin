@@ -47,5 +47,5 @@ configurations.all {
 }
 
 test {
-    systemProperty 'java.security.policy', 'src/test/resources/plugin-security.policy'
+    systemProperty 'java.security.policy', 'src/test/resources/test-plugin-security.policy'
 }
