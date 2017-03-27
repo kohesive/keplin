@@ -17,12 +17,14 @@ import org.elasticsearch.script.ScriptType
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.test.ESIntegTestCase
 import org.junit.Before
+import uy.klutter.core.common.toIsoString
 import uy.kohesive.chillamda.Chillambda
 import uy.kohesive.keplin.elasticsearch.kotlinscript.ConcreteEsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.EsKotlinScriptTemplate
 import uy.kohesive.keplin.elasticsearch.kotlinscript.KotlinScriptEngineService
 import uy.kohesive.keplin.elasticsearch.kotlinscript.KotlinScriptPlugin
 import java.io.File
+import java.time.Instant
 import java.util.regex.Pattern
 import kotlin.system.measureTimeMillis
 
@@ -162,6 +164,20 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
         }
     }
 
+    fun testLambdaAccessingMoreTypes() {
+        val prep = client.prepareSearch(INDEX_NAME)
+                .addScriptField("scriptField1", mapOf("multiplier" to 2)) {
+                    doc["dtValue"].asValue(1L)         // date as long
+                    doc["dtValue"]?.asValue<Instant>() // date as instant
+                    doc["number"].asValue(1) * param["multiplier"].asValue(1) * doc["dblValue"].asValue(1.0) + _score
+                }.setQuery(QueryBuilders.matchQuery("title", "title"))
+                .setFetchSource(true)
+
+        prep.runManyTimes {
+            printHitsField("scriptField1")
+        }
+    }
+
     fun testSecurityViolationInLambdaAsScript() {
         try {
             val response = client.prepareSearch(INDEX_NAME)
@@ -289,7 +305,9 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                         "content": { "type": "text" },
                         "number": { "type": "integer" },
                         "badContent": { "type": "keyword" },
-                        "multiValue": { "type": "keyword" }
+                        "multiValue": { "type": "keyword" },
+                        "dblValue": { "type": "double" },
+                        "dtValue": { "type": "date" }
                       }
                     }
                   }
@@ -309,6 +327,8 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                             .field("number", i)
                             .field("badContent", "category:  History, Science, Fish")
                             .field("multiValue", listOf("one", "two", "three"))
+                            .field("dblValue", i * 1.33)
+                            .field("dtValue", if (i % 2 == 1) Instant.now().toIsoString() else Instant.now().toEpochMilli())
                             // badContent is incorrect, should be multi-value
                             // ["category: history", "category: science", "category: fish"]
                             .endObject()

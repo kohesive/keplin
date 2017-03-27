@@ -110,13 +110,16 @@ abstract class EsKotlinScriptTemplate(val param: Map<String, Any>,
 
     fun <T : Any> Map<String, T>.intVal(field: String, default: Int): Int = get(field)?.asValue<Long>()?.toInt() ?: default
     fun <T : Any> Map<String, T>.longVal(field: String, default: Long): Long = get(field)?.asValue<Long>() ?: default
+    fun <T : Any> Map<String, T>.doubleVal(field: String, default: Double): Double = get(field)?.asValue<Double>() ?: default
     fun <T : Any> Map<String, T>.stringVal(field: String, default: String): String = get(field)?.asValue<String>() ?: default
 
     fun <T : Any> Map<String, T>.intVal(field: String): Int? = get(field)?.asValue<Long>()?.toInt()
     fun <T : Any> Map<String, T>.longVal(field: String): Long? = get(field)?.asValue<Long>()
+    fun <T : Any> Map<String, T>.doubleVal(field: String): Double? = get(field)?.asValue<Double>()
     fun <T : Any> Map<String, T>.stringVal(field: String): String? = get(field)?.asValue<String>()
 
     fun <T : Any> Map<String, T>.intVals(field: String): List<Int> = get(field)?.asList<Long>()?.map { it.toInt() } ?: emptyList()
     fun <T : Any> Map<String, T>.longVals(field: String): List<Long> = get(field)?.asList<Long>() ?: emptyList()
+    fun <T : Any> Map<String, T>.doubleVals(field: String): List<Double> = get(field)?.asList<Double>() ?: emptyList()
     fun <T : Any> Map<String, T>.stringVals(field: String): List<String> = get(field)?.asList<String>() ?: emptyList()
 }
