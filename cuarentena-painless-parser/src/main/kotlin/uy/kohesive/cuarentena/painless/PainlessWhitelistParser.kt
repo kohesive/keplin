@@ -3,6 +3,7 @@ package uy.kohesive.cuarentena.painless
 import uy.kohesive.cuarentena.policy.*
 import java.io.File
 import java.lang.reflect.AnnotatedType
+import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
@@ -80,6 +81,18 @@ class PainlessWhitelistParser() {
             }
         }
 
+        fun Method.signature(indicesToOverrideWithObject: Set<Int> = emptySet()): String {
+            val checkParams = parameterTypes.map { typeToSigPart(it.safeName()) }.mapIndexed { index, param ->
+                if (index in indicesToOverrideWithObject) {
+                    "Ljava.lang.Object;"
+                } else {
+                    param
+                }
+            }
+            val checkReturn = returnType.let { typeToSigPart(it.safeName()) }
+            return "(${checkParams.joinToString("")})${checkReturn}"
+        }
+
         val painlessPolicies: AccessPolicies = definitionResources().map { it.bufferedReader() }.map { stream ->
             stream.use { input ->
                 input.lineSequence().filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.map { line ->
@@ -91,11 +104,11 @@ class PainlessWhitelistParser() {
                         val painlessClassName = parts.groups[1]!!.value
                         currentClassName = getJavaType(painlessClassName)
                         currentClass = loadClass(currentClassName!!)
-                        null
+                        listOf(null)
                     } else if (line.startsWith("}")) {
                         currentClassName = null
                         currentClass = null
-                        null
+                        listOf(null)
                     } else {
                         val parts = methodPartsRegex.matchEntire(line)
                         if (parts != null) {
@@ -105,6 +118,11 @@ class PainlessWhitelistParser() {
                             val returnType = parts.groups[1]!!.value
                             val methodName = parts.groups[2]!!.value
                             val paramTypes = parts.groups[3]?.value?.split(',') ?: emptyList()
+
+                            val paramsCount     = paramTypes.size
+                            val defParamIndices = paramTypes.mapIndexed { index, paramType ->
+                                if (paramType == "def") index else -1
+                            }.filterNot { it == -1 }.toSet()
 
                             val seekParams = paramTypes.map { typeToSigPart(getJavaType(it)) }
                             val seekReturn = returnType.let { typeToSigPart(getJavaType(it)) }
@@ -148,7 +166,7 @@ class PainlessWhitelistParser() {
                                     java.util.Map.groupBy*(Ljava.util.function.BiFunction;)Ljava.util.Map;
                                     java.util.regex.Matcher.namedGroup*(Ljava.lang.String;)Ljava.lang.String;
                                  */
-                                null
+                                listOf(null)
                             } else {
                                 if (methodName == "<init>") {
                                     val constructorName = currentClassName
@@ -164,24 +182,26 @@ class PainlessWhitelistParser() {
                                     if (constructor == null) {
                                         throw IllegalStateException("Method not found! $currentClassName.$constructorName$methodSig")
                                     }
-                                    PolicyAllowance.ClassLevel.ClassConstructorAccess(currentClassName!!, methodSig, setOf(AccessTypes.call_Class_Constructor))
+                                    listOf(PolicyAllowance.ClassLevel.ClassConstructorAccess(currentClassName!!, methodSig, setOf(AccessTypes.call_Class_Constructor)))
                                 } else {
-                                    val method = (currentClass!!.declaredMethods + currentClass!!.methods)
-                                            .filter { Modifier.isPublic(it.modifiers) && methodName == it.name }
-                                            .firstOrNull {
-                                                val checkParams = it.parameterTypes.map { typeToSigPart(it.safeName()) }
-                                                val checkReturn = it.returnType.let { typeToSigPart(it.safeName()) }
-                                                val checkSig = "(${checkParams.joinToString("")})${checkReturn}"
+                                    val methods = (currentClass!!.declaredMethods + currentClass!!.methods)
+                                            .filter { Modifier.isPublic(it.modifiers) && methodName == it.name && paramsCount == it.parameterCount }
+                                            .filter {
+                                                val checkSig = it.signature(defParamIndices)
                                                 debug { println("check:  $currentClassName.$methodName$checkSig  = ${checkSig == methodSig}") }
                                                 checkSig == methodSig
                                             }
-                                    if (method == null) {
+                                    if (methods.isEmpty()) {
                                         throw IllegalStateException("Method not found! $currentClassName.$methodName$methodSig")
                                     }
 
-                                    val access = if (Modifier.isStatic(method.modifiers)) AccessTypes.call_Class_Static_Method
-                                    else AccessTypes.call_Class_Instance_Method
-                                    PolicyAllowance.ClassLevel.ClassMethodAccess(currentClassName!!, methodName, methodSig, setOf(access))
+                                    methods.map { method ->
+                                        val access = if (Modifier.isStatic(method.modifiers)) AccessTypes.call_Class_Static_Method
+                                        else AccessTypes.call_Class_Instance_Method
+                                        val signature = method.signature()
+
+                                        signature to PolicyAllowance.ClassLevel.ClassMethodAccess(currentClassName!!, methodName, signature, setOf(access))
+                                    }.distinctBy { it.first }.map { it.second }
                                 }
                             }
                         } else {
@@ -218,10 +238,10 @@ class PainlessWhitelistParser() {
                             if (getter != null) {
                                 if (Modifier.isStatic(getter.modifiers)) {
                                     val access = setOf(AccessTypes.read_Class_Static_Property) + if (setter != null && Modifier.isStatic(setter.modifiers)) listOf(AccessTypes.write_Class_Static_Property) else emptyList()
-                                    PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access)
+                                    listOf(PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access))
                                 } else {
                                     val access = setOf(AccessTypes.read_Class_Instance_Property) + if (setter != null && !Modifier.isStatic(setter.modifiers)) listOf(AccessTypes.write_Class_Instance_Property) else emptyList()
-                                    PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access)
+                                    listOf(PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access))
                                 }
                             } else {
                                 // sometimes painless accesses fields instead
@@ -239,7 +259,7 @@ class PainlessWhitelistParser() {
                                         Modifier.isFinal(field.modifiers) -> setOf(AccessTypes.read_Class_Instance_Field)
                                         else -> setOf(AccessTypes.read_Class_Instance_Field, AccessTypes.write_Class_Instance_Field)
                                     }
-                                    PolicyAllowance.ClassLevel.ClassFieldAccess(currentClassName!!, propertyName, propertySig, access)
+                                    listOf(PolicyAllowance.ClassLevel.ClassFieldAccess(currentClassName!!, propertyName, propertySig, access))
                                 } else {
                                     throw IllegalStateException("Property/Field not found! $currentClassName.$propertyName:$propertySig")
                                 }
@@ -247,7 +267,7 @@ class PainlessWhitelistParser() {
                         }
                     }
 
-                }.filterNotNull().toList()
+                }.flatten().filterNotNull().toList()
             }
         }.flatten().toList()
         return painlessPolicies
