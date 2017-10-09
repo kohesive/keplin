@@ -198,10 +198,11 @@ object ClassAllowanceDetector {
                 }
             } else {
                 val access = when (opcode) {
+                    Opcodes.INVOKESPECIAL,
                     Opcodes.INVOKEVIRTUAL,
                     Opcodes.INVOKEINTERFACE -> AccessTypes.call_Class_Instance_Method
                     Opcodes.INVOKESTATIC -> AccessTypes.call_Class_Static_Method
-                    else -> throw IllegalStateException("Invalid op code for visitMethodInsn: $opcode")
+                    else -> throw IllegalStateException("Invalid op code for visitMethodInsn: $opcode, name=$name")
                 }
                 collect.allowances.add(PolicyAllowance.ClassLevel.ClassMethodAccess(owner, name, desc, setOf(access)))
             }
@@ -223,13 +224,13 @@ object ClassAllowanceDetector {
     }
 
     class AnnotationAllowanceScanner(val collect: ScanState) : AnnotationVisitor(Opcodes.ASM5) {
-        override fun visitAnnotation(name: String, desc: String?): AnnotationVisitor {
+        override fun visitAnnotation(name: String?, desc: String?): AnnotationVisitor {
             collect.requestsFromDescSig(desc, null)
             return AnnotationAllowanceScanner(collect)
         }
 
         override fun visitEnum(name: String?, desc: String?, value: String?) {
-            TODO("what about enum")
+//            TODO("what about enum")
         }
 
         override fun visit(name: String?, value: Any?) {
@@ -249,11 +250,11 @@ object ClassAllowanceDetector {
         }
 
         override fun visitFormalTypeParameter(name: String) {
-            collect.allowances.add(PolicyAllowance.ClassLevel.ClassAccess(name.replace('/', '.'), setOf(AccessTypes.ref_Class)))
+//            collect.allowances.add(PolicyAllowance.ClassLevel.ClassAccess(name.replace('/', '.'), setOf(AccessTypes.ref_Class)))
         }
 
         override fun visitTypeVariable(name: String) {
-            collect.allowances.add(PolicyAllowance.ClassLevel.ClassAccess(name.replace('/', '.'), setOf(AccessTypes.ref_Class)))
+//            collect.allowances.add(PolicyAllowance.ClassLevel.ClassAccess(name.replace('/', '.'), setOf(AccessTypes.ref_Class)))
         }
 
         override fun visitInnerClassType(name: String) {

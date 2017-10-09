@@ -3,7 +3,14 @@ package uy.kohesive.cuarentena.policy
 typealias AccessPolicies = List<PolicyAllowance>
 
 sealed class PolicyAllowance(_fqnTarget: String, val actions: Set<AccessTypes>, val validActions: Set<AccessTypes>) {
-    val fqnTarget: String = _fqnTarget.replace('/', '.')
+
+    companion object {
+        val ArrayInSigRegexp = "\\[L(.*);".toRegex()
+        fun String.replaceArrayWithTypeParameter() = replace(ArrayInSigRegexp) { it.groupValues[1] }
+    }
+
+    val fqnTarget: String = _fqnTarget.replaceArrayWithTypeParameter().replace('/', '.')
+
     init {
         if (actions.any { it !in validActions }) {
             throw IllegalArgumentException("Requested actions $actions are not valid for ${this::class.qualifiedName!!} ($validActions)")
@@ -85,4 +92,4 @@ sealed class PolicyAllowance(_fqnTarget: String, val actions: Set<AccessTypes>, 
     }
 }
 
-fun AccessPolicies.toPolicy() = this.map { it.asPolicyStrings() }.flatten().toSet().sorted()
+fun AccessPolicies.toPolicy(): List<String> = this.map { it.asPolicyStrings() }.flatten().toSet().sorted()

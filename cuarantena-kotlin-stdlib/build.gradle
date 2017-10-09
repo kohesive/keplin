@@ -1,13 +1,11 @@
 dependencies {
+    compile project(':cuarentena')
     compile project(':cuarentena-policy')
     compile project(':cuarentena-painless-policy')
     compile project(':keplin-util')
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
-    compile group: 'com.zackehh', name: 'siphash', version: version_zacsiphash
-
-    // ASM is included by too many things at different version levels, it should eventually be shaded/renamed into this JAR
-    compile group: 'org.ow2.asm', name: 'asm-debug-all', version: version_elasticsearch_asm
+    compile group: 'org.reflections', name: 'reflections', version: version_reflections
 
     testCompile group: 'junit', name: 'junit', version: version_junit
     testCompile group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit', version: version_kotlin
