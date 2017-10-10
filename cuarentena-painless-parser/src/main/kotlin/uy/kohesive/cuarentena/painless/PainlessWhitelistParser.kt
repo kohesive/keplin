@@ -81,7 +81,7 @@ class PainlessWhitelistParser() {
             }
         }
 
-        fun Method.signature(indicesToOverrideWithObject: Set<Int> = emptySet()): String {
+        fun Method.signature(returnTypeIsDef: Boolean = false, indicesToOverrideWithObject: Set<Int> = emptySet()): String {
             val checkParams = parameterTypes.map { typeToSigPart(it.safeName()) }.mapIndexed { index, param ->
                 if (index in indicesToOverrideWithObject) {
                     "Ljava.lang.Object;"
@@ -89,7 +89,12 @@ class PainlessWhitelistParser() {
                     param
                 }
             }
-            val checkReturn = returnType.let { typeToSigPart(it.safeName()) }
+            val checkReturn = if (returnTypeIsDef) {
+                "Ljava.lang.Object;"
+            } else {
+                returnType.let { typeToSigPart(it.safeName()) }
+            }
+
             return "(${checkParams.joinToString("")})${checkReturn}"
         }
 
@@ -123,6 +128,7 @@ class PainlessWhitelistParser() {
                             val defParamIndices = paramTypes.mapIndexed { index, paramType ->
                                 if (paramType == "def") index else -1
                             }.filterNot { it == -1 }.toSet()
+                            val returnTypeIsDef = returnType == "def"
 
                             val seekParams = paramTypes.map { typeToSigPart(getJavaType(it)) }
                             val seekReturn = returnType.let { typeToSigPart(getJavaType(it)) }
@@ -187,7 +193,7 @@ class PainlessWhitelistParser() {
                                     val methods = (currentClass!!.declaredMethods + currentClass!!.methods)
                                             .filter { Modifier.isPublic(it.modifiers) && methodName == it.name && paramsCount == it.parameterCount }
                                             .filter {
-                                                val checkSig = it.signature(defParamIndices)
+                                                val checkSig = it.signature(returnTypeIsDef, defParamIndices)
                                                 debug { println("check:  $currentClassName.$methodName$checkSig  = ${checkSig == methodSig}") }
                                                 checkSig == methodSig
                                             }

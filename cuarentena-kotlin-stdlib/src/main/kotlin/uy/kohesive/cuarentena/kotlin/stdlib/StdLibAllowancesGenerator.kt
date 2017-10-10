@@ -8,7 +8,8 @@ import java.io.FileInputStream
 import java.util.zip.ZipInputStream
 
 fun main(args: Array<String>) {
-    val cuarentena = Cuarentena()
+//    val cuarentena = Cuarentena.createBaseJavaPolicyCuarentena() // java-core only
+    val cuarentena = Cuarentena() // java-core only
 
     val stdLibClasses = ClassPathUtils.findKotlinStdLibJars().flatMap { kotlinStdLib ->
         kotlinStdLib.getClassNames().map { className ->
@@ -16,8 +17,18 @@ fun main(args: Array<String>) {
         }
     }
 
-    val verifyResults: Cuarentena.VerifyResults = cuarentena.verifyClassAgainstPolicies(stdLibClasses)
-    verifyResults.violations.distinct().sorted().forEach { println(it) }
+    val perClassViolations = cuarentena.verifyClassAgainstPoliciesPerClass(stdLibClasses)
+    val violationClasses   = perClassViolations.map { it.violatingClass.className }.toSet()
+    val verifiedClasses    = stdLibClasses.map { it.className } - violationClasses
+
+    println("Verified classes:")
+    verifiedClasses.sorted().forEach { println(" + $it") }
+    println()
+    println("Black-listed classes:")
+    perClassViolations.sortedBy { it.violatingClass.className }.forEach {
+        println(" - ${it.violatingClass.className}:")
+        it.violations.forEach { println("   - $it") }
+    }
 }
 
 fun classBytesForClass(className: String, useClassLoader: ClassLoader): NamedClassBytes {

@@ -237,7 +237,7 @@ object ClassAllowanceDetector {
             // primitive value
         }
 
-        override fun visitArray(name: String): AnnotationVisitor {
+        override fun visitArray(name: String?): AnnotationVisitor {
             return AnnotationAllowanceScanner(collect)
         }
 
