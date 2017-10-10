@@ -1,4 +1,4 @@
-package uy.kohesive.cuarentena.painless
+package uy.kohesive.keplin.util
 
 import java.lang.reflect.*
 

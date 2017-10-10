@@ -1,6 +1,7 @@
 package uy.kohesive.cuarentena.painless
 
 import uy.kohesive.cuarentena.policy.*
+import uy.kohesive.keplin.util.erasedType
 import java.io.File
 import java.lang.reflect.AnnotatedType
 import java.lang.reflect.Method
