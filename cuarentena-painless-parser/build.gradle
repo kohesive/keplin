@@ -1,5 +1,6 @@
 dependencies {
     compile project(":cuarentena-policy")
+    compile project(":cuarentena-painless-plus")
     compile project(":keplin-util")
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
