@@ -52,6 +52,7 @@ class PainlessWhitelistParser {
     fun readDefinitions(): AccessPolicies {
         // two passes, first to pick up the painless class => java class names ... second to build policies
         val painlessClassMappings = definitionResources(includePlusDefinitions = true).map {
+            println("Reading definitions from ${it.filePath}")
             it.stream.bufferedReader().use { input ->
                 input.lineSequence().filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.map { line ->
                     if (line.startsWith("class ")) {
@@ -148,7 +149,7 @@ class PainlessWhitelistParser {
         val painlessPolicies: AccessPolicies = definitionResources(includePlusDefinitions = true).map {
             val definitionFile = it.filePath
             it.stream.bufferedReader().use { input ->
-                input.lineSequence().filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.map { line ->
+                input.lineSequence().filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.toList().map { line ->
                     if (line.startsWith("class ")) {
                         val parts = classSigRegex.matchEntire(line)
                         if (parts == null || parts.groups.size < 2) throw IllegalStateException("Invalid struct definition [ $line ] @ $definitionFile")
