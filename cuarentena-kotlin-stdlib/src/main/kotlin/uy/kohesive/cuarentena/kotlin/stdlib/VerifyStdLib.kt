@@ -7,7 +7,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.util.zip.ZipInputStream
 
-fun main1(args: Array<String>) {
+fun main(args: Array<String>) {
 //    val cuarentena = Cuarentena.createBaseJavaPolicyCuarentena() // java-core only
     val cuarentena = Cuarentena()
 

@@ -8,8 +8,10 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
-class PainlessWhitelistParser() {
-    private fun definitionResources() = DEFINITION_FILES.map { Thread.currentThread().contextClassLoader.getResourceAsStream("$painlessPackage/$it") }
+class PainlessWhitelistParser {
+    private fun definitionResources(elasticSearchFirst: Boolean = true)
+        = PainlessDefinitions(elasticSearchFirst).map { Thread.currentThread().contextClassLoader.getResourceAsStream("$painlessPackage/$it") }
+
     private val classSigRegex = """^class\s+([\w\_][\w\_\d\.\$]*)\s+\-\>\s+([\w\_][\w\_\d\.\$]*)(?:\s+extend[s]?\s+([\w\_][\w\_\d\.\,\$]*)\s*)?\s*\{$""".toRegex()
     private val methodPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+((?:[\w\_][\w\_\d\.]*|\<init\>)\*?)\(([\w\_][\w\_\d\.\,\[\]]*)?\)[;]?$""".toRegex()
     private val propertyPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+([\w\_][\w\_\d\.]*\*?)$""".toRegex()
@@ -99,17 +101,49 @@ class PainlessWhitelistParser() {
             return "(${checkParams.joinToString("")})${checkReturn}"
         }
 
+        // We need to track the per-class allowances for to calc inherited allowances later
+        val classFqNameToAllowances = HashMap<String, MutableList<PolicyAllowance>>()
+        val classFqNameToSuperClassesSimpleNames = HashMap<String, List<String>>()
+        fun storeAllowances(allowances: AccessPolicies): AccessPolicies {
+            classFqNameToAllowances.getOrPut(currentClassName!!) {
+                ArrayList<PolicyAllowance>()
+            }.addAll(allowances)
+            return allowances
+        }
+        fun storeAllowance(allowance: PolicyAllowance): AccessPolicies {
+            return storeAllowances(listOf(allowance))
+        }
+        fun lookupAllowancesBySimpleClassName(simpleClassName: String): AccessPolicies {
+            val fixedSimpleClassName = simpleClassName.replace('.', '$')
+
+            val possiblePackages = PainlessDefinitions(elasticSearchFirst = false).map {
+                it.dropLast(".txt".length)
+            }
+
+            return possiblePackages.map { "$it.$fixedSimpleClassName" }.firstOrNull { fqName ->
+                classFqNameToAllowances.containsKey(fqName)
+            }?.let { targetClass ->
+                classFqNameToAllowances[targetClass]
+            } ?: emptyList<PolicyAllowance>()
+        }
+
         val painlessPolicies: AccessPolicies = definitionResources().map { it.bufferedReader() }.map { stream ->
             stream.use { input ->
                 input.lineSequence().filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.map { line ->
-
                     if (line.startsWith("class ")) {
                         val parts = classSigRegex.matchEntire(line)
                         if (parts == null || parts.groups.size < 2) throw IllegalStateException("Invalid struct definition [ $line ]")
 
                         val painlessClassName = parts.groups[1]!!.value
-                        currentClassName = getJavaType(painlessClassName)
-                        currentClass = loadClass(currentClassName!!)
+
+                        currentClassName  = getJavaType(painlessClassName)
+                        currentClass      = loadClass(currentClassName!!)
+
+                        // Superclasses
+                        parts.groups[3]?.value?.split(',')?.filterNot { it == "Object" }?.let { superClassesSimpleNames ->
+                            classFqNameToSuperClassesSimpleNames[currentClassName!!] = superClassesSimpleNames
+                        }
+
                         listOf(null)
                     } else if (line.startsWith("}")) {
                         currentClassName = null
@@ -189,7 +223,7 @@ class PainlessWhitelistParser() {
                                     if (constructor == null) {
                                         throw IllegalStateException("Method not found! $currentClassName.$constructorName$methodSig")
                                     }
-                                    listOf(PolicyAllowance.ClassLevel.ClassConstructorAccess(currentClassName!!, methodSig, setOf(AccessTypes.call_Class_Constructor)))
+                                    storeAllowance(PolicyAllowance.ClassLevel.ClassConstructorAccess(currentClassName!!, methodSig, setOf(AccessTypes.call_Class_Constructor)))
                                 } else {
                                     val methods = (currentClass!!.declaredMethods + currentClass!!.methods)
                                             .filter { Modifier.isPublic(it.modifiers) && methodName == it.name && paramsCount == it.parameterCount }
@@ -202,13 +236,13 @@ class PainlessWhitelistParser() {
                                         throw IllegalStateException("Method not found! $currentClassName.$methodName$methodSig")
                                     }
 
-                                    methods.map { method ->
+                                    storeAllowances(methods.map { method ->
                                         val access = if (Modifier.isStatic(method.modifiers)) AccessTypes.call_Class_Static_Method
                                         else AccessTypes.call_Class_Instance_Method
                                         val signature = method.signature()
 
                                         signature to PolicyAllowance.ClassLevel.ClassMethodAccess(currentClassName!!, methodName, signature, setOf(access))
-                                    }.distinctBy { it.first }.map { it.second }
+                                    }.distinctBy { it.first }.map { it.second })
                                 }
                             }
                         } else {
@@ -245,10 +279,10 @@ class PainlessWhitelistParser() {
                             if (getter != null) {
                                 if (Modifier.isStatic(getter.modifiers)) {
                                     val access = setOf(AccessTypes.read_Class_Static_Property) + if (setter != null && Modifier.isStatic(setter.modifiers)) listOf(AccessTypes.write_Class_Static_Property) else emptyList()
-                                    listOf(PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access))
+                                    storeAllowance(PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access))
                                 } else {
                                     val access = setOf(AccessTypes.read_Class_Instance_Property) + if (setter != null && !Modifier.isStatic(setter.modifiers)) listOf(AccessTypes.write_Class_Instance_Property) else emptyList()
-                                    listOf(PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access))
+                                    storeAllowance(PolicyAllowance.ClassLevel.ClassPropertyAccess(currentClassName!!, propertyName, propertySig, access))
                                 }
                             } else {
                                 // sometimes painless accesses fields instead
@@ -266,18 +300,43 @@ class PainlessWhitelistParser() {
                                         Modifier.isFinal(field.modifiers) -> setOf(AccessTypes.read_Class_Instance_Field)
                                         else -> setOf(AccessTypes.read_Class_Instance_Field, AccessTypes.write_Class_Instance_Field)
                                     }
-                                    listOf(PolicyAllowance.ClassLevel.ClassFieldAccess(currentClassName!!, propertyName, propertySig, access))
+                                    storeAllowance(PolicyAllowance.ClassLevel.ClassFieldAccess(currentClassName!!, propertyName, propertySig, access))
                                 } else {
                                     throw IllegalStateException("Property/Field not found! $currentClassName.$propertyName:$propertySig")
                                 }
                             }
                         }
                     }
-
                 }.flatten().filterNotNull().toList()
             }
         }.flatten().toList()
-        return painlessPolicies
+
+        val inheritedAllowances = classFqNameToSuperClassesSimpleNames.flatMap {
+            val classFqName = it.key
+
+            val superClassesAllowances: List<PolicyAllowance> = it.value.map {
+                lookupAllowancesBySimpleClassName(it)
+            }.flatMap { it }.filter {
+                it is PolicyAllowance.ClassLevel.ClassMethodAccess ||
+                it is PolicyAllowance.ClassLevel.ClassFieldAccess ||
+                it is PolicyAllowance.ClassLevel.ClassPropertyAccess
+            }
+
+            superClassesAllowances.map {
+                when (it) {
+                    is PolicyAllowance.ClassLevel.ClassMethodAccess ->
+                        PolicyAllowance.ClassLevel.ClassMethodAccess(classFqName, it.methodName, it.methodSig, it.actions)
+                    is PolicyAllowance.ClassLevel.ClassFieldAccess ->
+                        PolicyAllowance.ClassLevel.ClassFieldAccess(classFqName, it.fieldName, it.fieldTypeSig, it.actions)
+                    is PolicyAllowance.ClassLevel.ClassPropertyAccess ->
+                        PolicyAllowance.ClassLevel.ClassPropertyAccess(classFqName, it.propertyName, it.propertyTypeSig, it.actions)
+                    else ->
+                        throw IllegalStateException("Unsupported inherited allowance: $it")
+                }
+            }
+        }
+
+        return (painlessPolicies + inheritedAllowances).sortedBy { it.fqnTarget }
     }
 
     private fun loadClass(className: String): Class<*> {
@@ -294,20 +353,27 @@ class PainlessWhitelistParser() {
         }
     }
 
+    private val ElasticSearchDefinitions = listOf("org.elasticsearch.txt")
+    private val BaseDefinitions = listOf(
+        "java.lang.txt",
+        "java.math.txt",
+        "java.text.txt",
+        "java.time.txt",
+        "java.time.chrono.txt",
+        "java.time.format.txt",
+        "java.time.temporal.txt",
+        "java.time.zone.txt",
+        "java.util.txt",
+        "java.util.function.txt",
+        "java.util.regex.txt",
+        "java.util.stream.txt",
+        "joda.time.txt"
+    )
 
-    private val DEFINITION_FILES = listOf("org.elasticsearch.txt",
-            "java.lang.txt",
-            "java.math.txt",
-            "java.text.txt",
-            "java.time.txt",
-            "java.time.chrono.txt",
-            "java.time.format.txt",
-            "java.time.temporal.txt",
-            "java.time.zone.txt",
-            "java.util.txt",
-            "java.util.function.txt",
-            "java.util.regex.txt",
-            "java.util.stream.txt",
-            "joda.time.txt")
+    private fun PainlessDefinitions(elasticSearchFirst: Boolean = true) = if (elasticSearchFirst) {
+        ElasticSearchDefinitions + BaseDefinitions
+    } else {
+        BaseDefinitions + ElasticSearchDefinitions
+    }
 }
 

@@ -7,14 +7,10 @@ import uy.kohesive.cuarentena.policy.typeToSigPart
 import uy.kohesive.keplin.util.erasedType
 import java.lang.reflect.*
 
-class StdLibAllowancesGenerator {
+class FullClassAllowancesGenerator {
 
     fun Class<*>.safeName() = this.typeName
-        fun Type.safeName() = this.erasedType().typeName
-        fun AnnotatedType.safeName() = this.type.erasedType().typeName
-        fun String.asGetterNames(): List<String> = (this.first().toUpperCase() + this.substring(1)).let { listOf("get$it", "is$it", "has$it") }
-        fun String.asSetterNames(): List<String> = (this.first().toUpperCase() + this.substring(1)).let { listOf("set$it") }
-
+    fun Type.safeName() = this.erasedType().typeName
 
     fun Method.signature(): String {
         val checkParams = parameterTypes.map { typeToSigPart(it.safeName()) }
@@ -28,6 +24,10 @@ class StdLibAllowancesGenerator {
         return "(${checkParams.joinToString("")})$checkReturn"
     }
 
+    fun Field.signature(): String {
+        return type.let { uy.kohesive.cuarentena.policy.typeToSigPart(it.safeName()) }
+    }
+
     fun generateAllowances(clazz: Class<*>): AccessPolicies {
         val currentClassName = clazz.name
 
@@ -39,7 +39,7 @@ class StdLibAllowancesGenerator {
             }
 
         // Methods
-        val methodAllowances = (clazz.declaredMethods + clazz.methods)
+        val methodAllowances = clazz.methods
             .filter { Modifier.isPublic(it.modifiers) }
             .map { method ->
                 val access = if (Modifier.isStatic(method.modifiers)) AccessTypes.call_Class_Static_Method
@@ -50,7 +50,7 @@ class StdLibAllowancesGenerator {
             }.distinctBy { it.first }.map { it.second }
 
         // Fields
-        val fieldsAllowances = clazz.declaredFields
+        val fieldsAllowances = clazz.fields
             .filter { Modifier.isPublic(it.modifiers) }
             .map { field ->
                 val access = when {
@@ -59,7 +59,7 @@ class StdLibAllowancesGenerator {
                     Modifier.isFinal(field.modifiers) -> setOf(AccessTypes.read_Class_Instance_Field)
                     else -> setOf(AccessTypes.read_Class_Instance_Field, AccessTypes.write_Class_Instance_Field)
                 }
-                val signature = field.type.let { typeToSigPart(it.safeName()) }
+                val signature = field.signature()
 
                 PolicyAllowance.ClassLevel.ClassFieldAccess(currentClassName, field.name, signature, access)
             }
