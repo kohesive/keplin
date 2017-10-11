@@ -3,19 +3,41 @@ package uy.kohesive.cuarentena.painless
 import uy.kohesive.cuarentena.policy.*
 import uy.kohesive.keplin.util.erasedType
 import java.io.File
+import java.io.InputStream
 import java.lang.reflect.AnnotatedType
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 
 class PainlessWhitelistParser {
-    private fun definitionResources(elasticSearchFirst: Boolean = true)
-        = PainlessDefinitions(elasticSearchFirst).map { Thread.currentThread().contextClassLoader.getResourceAsStream("$painlessPackage/$it") }
+
+    companion object {
+        private val PainlessPackage     = "org.elasticsearch.painless".replace('.', '/')
+        private val PainlessPlusPackage = "uy.kohesive.cuarentena.painless.plus".replace('.', '/')
+    }
+
+    data class PainlessDefinitionStream(
+        val stream: InputStream,
+        val filePath: String
+    )
+
+    private fun definitionResources(elasticSearchFirst: Boolean = true, includePlusDefinitions: Boolean = false) =
+        (if (includePlusDefinitions) {
+            listOf(PainlessPackage, PainlessPlusPackage)
+        } else {
+            listOf(PainlessPackage)
+        }).flatMap { definitionPackage ->
+            PainlessDefinitions(elasticSearchFirst).map { definitionFile ->
+                val definitionFilePath = "$definitionPackage/$definitionFile"
+                definitionFilePath to Thread.currentThread().contextClassLoader.getResourceAsStream(definitionFilePath)
+            }
+        }.filterNot { it.second == null }.map {
+            PainlessDefinitionStream(filePath = it.first, stream = it.second)
+        }
 
     private val classSigRegex = """^class\s+([\w\_][\w\_\d\.\$]*)\s+\-\>\s+([\w\_][\w\_\d\.\$]*)(?:\s+extend[s]?\s+([\w\_][\w\_\d\.\,\$]*)\s*)?\s*\{$""".toRegex()
     private val methodPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+((?:[\w\_][\w\_\d\.]*|\<init\>)\*?)\(([\w\_][\w\_\d\.\,\[\]]*)?\)[;]?$""".toRegex()
     private val propertyPartsRegex = """^([\w\_][\w\_\d\.]*(?:\[\])*)\s+([\w\_][\w\_\d\.]*\*?)$""".toRegex()
-    private val painlessPackage = "org.elasticsearch.painless".replace('.', '/')
     private val debugOut = false
 
     fun makePolicy(): List<String> = readDefinitions().toPolicy()
@@ -29,26 +51,25 @@ class PainlessWhitelistParser {
 
     fun readDefinitions(): AccessPolicies {
         // two passes, first to pick up the painless class => java class names ... second to build policies
-
-        val painlessClassMappings = definitionResources().map { it.bufferedReader() }.map { stream ->
-            stream.use { input ->
+        val painlessClassMappings = definitionResources(includePlusDefinitions = true).map {
+            it.stream.bufferedReader().use { input ->
                 input.lineSequence().filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.map { line ->
                     if (line.startsWith("class ")) {
                         val parts = classSigRegex.matchEntire(line)
                         if (parts == null || parts.groups.size < 2) throw IllegalStateException("Invalid struct definition [ $line ]")
 
                         val painlessClassName = parts.groups[1]!!.value
-                        val javaRawClassName = parts.groups[2]!!.value
+                        val javaRawClassName  = parts.groups[2]!!.value
                         val javaClassName = when (javaRawClassName) {
-                            "void" -> Unit::class.java.name
+                            "void"    -> Unit::class.java.name
                             "boolean" -> Boolean::class.javaPrimitiveType!!.name
-                            "byte" -> Byte::class.javaPrimitiveType!!.name
-                            "short" -> Short::class.javaPrimitiveType!!.name
-                            "char" -> Char::class.javaPrimitiveType!!.name
-                            "int" -> Int::class.javaPrimitiveType!!.name
-                            "long" -> Long::class.javaPrimitiveType!!.name
-                            "float" -> Float::class.javaPrimitiveType!!.name
-                            "double" -> Double::class.javaPrimitiveType!!.name
+                            "byte"    -> Byte::class.javaPrimitiveType!!.name
+                            "short"   -> Short::class.javaPrimitiveType!!.name
+                            "char"    -> Char::class.javaPrimitiveType!!.name
+                            "int"     -> Int::class.javaPrimitiveType!!.name
+                            "long"    -> Long::class.javaPrimitiveType!!.name
+                            "float"   -> Float::class.javaPrimitiveType!!.name
+                            "double"  -> Double::class.javaPrimitiveType!!.name
                             else -> javaRawClassName
                         }
                         painlessClassName to javaClassName
@@ -97,7 +118,6 @@ class PainlessWhitelistParser {
             } else {
                 returnType.let { typeToSigPart(it.safeName()) }
             }
-
             return "(${checkParams.joinToString("")})${checkReturn}"
         }
 
@@ -115,11 +135,9 @@ class PainlessWhitelistParser {
         }
         fun lookupAllowancesBySimpleClassName(simpleClassName: String): AccessPolicies {
             val fixedSimpleClassName = simpleClassName.replace('.', '$')
-
-            val possiblePackages = PainlessDefinitions(elasticSearchFirst = false).map {
+            val possiblePackages     = PainlessDefinitions(elasticSearchFirst = false).map {
                 it.dropLast(".txt".length)
             }
-
             return possiblePackages.map { "$it.$fixedSimpleClassName" }.firstOrNull { fqName ->
                 classFqNameToAllowances.containsKey(fqName)
             }?.let { targetClass ->
@@ -127,12 +145,13 @@ class PainlessWhitelistParser {
             } ?: emptyList<PolicyAllowance>()
         }
 
-        val painlessPolicies: AccessPolicies = definitionResources().map { it.bufferedReader() }.map { stream ->
-            stream.use { input ->
+        val painlessPolicies: AccessPolicies = definitionResources(includePlusDefinitions = true).map {
+            val definitionFile = it.filePath
+            it.stream.bufferedReader().use { input ->
                 input.lineSequence().filterNot { it.isBlank() }.map { it.trim() }.filterNot { it.startsWith('#') }.map { line ->
                     if (line.startsWith("class ")) {
                         val parts = classSigRegex.matchEntire(line)
-                        if (parts == null || parts.groups.size < 2) throw IllegalStateException("Invalid struct definition [ $line ]")
+                        if (parts == null || parts.groups.size < 2) throw IllegalStateException("Invalid struct definition [ $line ] @ $definitionFile")
 
                         val painlessClassName = parts.groups[1]!!.value
 
@@ -140,20 +159,27 @@ class PainlessWhitelistParser {
                         currentClass      = loadClass(currentClassName!!)
 
                         // Superclasses
-                        parts.groups[3]?.value?.split(',')?.filterNot { it == "Object" }?.let { superClassesSimpleNames ->
+                        parts.groups[3]?.value?.split(',')?.let { superClassesSimpleNames ->
                             classFqNameToSuperClassesSimpleNames[currentClassName!!] = superClassesSimpleNames
                         }
 
                         listOf(null)
                     } else if (line.startsWith("}")) {
+                        // If we haven't generated any member allowances, we need to grant at least ref_Class and ref_Class_Instance, otherwise we'll lose it later
+                        val finalAllowances = if (currentClassName?.let { currentClass -> classFqNameToAllowances[currentClass] }?.isEmpty() ?: true) {
+                            listOf(PolicyAllowance.ClassLevel.ClassAccess(currentClassName!!, setOf(AccessTypes.ref_Class_Instance, AccessTypes.ref_Class)))
+                        } else {
+                            listOf(null)
+                        }
+
                         currentClassName = null
                         currentClass = null
-                        listOf(null)
+                        finalAllowances
                     } else {
                         val parts = methodPartsRegex.matchEntire(line)
                         if (parts != null) {
                             if (parts.groups.size < 2) {
-                                throw IllegalStateException("Invalid method definition [ $currentClassName => $line ]")
+                                throw IllegalStateException("Invalid method definition [ $currentClassName => $line ] @ $definitionFile")
                             }
                             val returnType = parts.groups[1]!!.value
                             val methodName = parts.groups[2]!!.value
@@ -221,7 +247,7 @@ class PainlessWhitelistParser {
                                                 checkSig1 == methodSig
                                             }
                                     if (constructor == null) {
-                                        throw IllegalStateException("Method not found! $currentClassName.$constructorName$methodSig")
+                                        throw IllegalStateException("Method not found! $currentClassName.$constructorName$methodSig @ $definitionFile")
                                     }
                                     storeAllowance(PolicyAllowance.ClassLevel.ClassConstructorAccess(currentClassName!!, methodSig, setOf(AccessTypes.call_Class_Constructor)))
                                 } else {
@@ -233,7 +259,7 @@ class PainlessWhitelistParser {
                                                 checkSig == methodSig
                                             }
                                     if (methods.isEmpty()) {
-                                        throw IllegalStateException("Method not found! $currentClassName.$methodName$methodSig")
+                                        throw IllegalStateException("Method not found! $currentClassName.$methodName$methodSig @ $definitionFile")
                                     }
 
                                     storeAllowances(methods.map { method ->
@@ -248,7 +274,7 @@ class PainlessWhitelistParser {
                         } else {
                             val propParts = propertyPartsRegex.matchEntire(line)
                             if (propParts == null || propParts.groups.size < 2) {
-                                throw IllegalStateException("Invalid property definition [ $currentClassName => $line ]")
+                                throw IllegalStateException("Invalid property definition [ $currentClassName => $line ] @ $definitionFile")
                             }
                             val returnType = propParts.groups[1]!!.value
                             val propertyName = propParts.groups[2]!!.value
@@ -302,7 +328,7 @@ class PainlessWhitelistParser {
                                     }
                                     storeAllowance(PolicyAllowance.ClassLevel.ClassFieldAccess(currentClassName!!, propertyName, propertySig, access))
                                 } else {
-                                    throw IllegalStateException("Property/Field not found! $currentClassName.$propertyName:$propertySig")
+                                    throw IllegalStateException("Property/Field not found! $currentClassName.$propertyName:$propertySig @ $definitionFile")
                                 }
                             }
                         }
@@ -342,13 +368,13 @@ class PainlessWhitelistParser {
     private fun loadClass(className: String): Class<*> {
         return when (className) {
             "boolean" -> Boolean::class.javaPrimitiveType!!
-            "byte" -> Byte::class.javaPrimitiveType!!
-            "short" -> Short::class.javaPrimitiveType!!
-            "char" -> Char::class.javaPrimitiveType!!
-            "int" -> Int::class.javaPrimitiveType!!
-            "long" -> Long::class.javaPrimitiveType!!
-            "float" -> Float::class.javaPrimitiveType!!
-            "double" -> Double::class.javaPrimitiveType!!
+            "byte"    -> Byte::class.javaPrimitiveType!!
+            "short"   -> Short::class.javaPrimitiveType!!
+            "char"    -> Char::class.javaPrimitiveType!!
+            "int"     -> Int::class.javaPrimitiveType!!
+            "long"    -> Long::class.javaPrimitiveType!!
+            "float"   -> Float::class.javaPrimitiveType!!
+            "double"  -> Double::class.javaPrimitiveType!!
             else -> Class.forName(className)
         }
     }
@@ -356,6 +382,7 @@ class PainlessWhitelistParser {
     private val ElasticSearchDefinitions = listOf("org.elasticsearch.txt")
     private val BaseDefinitions = listOf(
         "java.lang.txt",
+        "java.lang.annotation.txt",
         "java.math.txt",
         "java.text.txt",
         "java.time.txt",
@@ -369,11 +396,11 @@ class PainlessWhitelistParser {
         "java.util.stream.txt",
         "joda.time.txt"
     )
-
     private fun PainlessDefinitions(elasticSearchFirst: Boolean = true) = if (elasticSearchFirst) {
         ElasticSearchDefinitions + BaseDefinitions
     } else {
         BaseDefinitions + ElasticSearchDefinitions
     }
+
 }
 

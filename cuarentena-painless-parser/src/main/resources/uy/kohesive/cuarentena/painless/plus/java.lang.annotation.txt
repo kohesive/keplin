@@ -1,0 +1,18 @@
+#
+# Painless definition file. This defines the hierarchy of classes,
+# what methods and fields they have, etc.
+#
+
+#### Interfaces
+
+class LangAnnotation -> java.lang.annotation.Annotation extends Object {
+}
+
+class Documented -> java.lang.annotation.Documented extends Object {
+}
+
+class LangRetention -> java.lang.annotation.Retention extends Object {
+}
+
+class LangTarget -> java.lang.annotation.Target extends Object {
+}
