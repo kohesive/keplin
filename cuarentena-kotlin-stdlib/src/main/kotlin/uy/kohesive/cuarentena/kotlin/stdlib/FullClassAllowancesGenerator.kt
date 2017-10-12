@@ -3,30 +3,10 @@ package uy.kohesive.cuarentena.kotlin.stdlib
 import uy.kohesive.cuarentena.policy.AccessPolicies
 import uy.kohesive.cuarentena.policy.AccessTypes
 import uy.kohesive.cuarentena.policy.PolicyAllowance
-import uy.kohesive.cuarentena.policy.typeToSigPart
-import uy.kohesive.keplin.util.erasedType
+import uy.kohesive.cuarentena.policy.*
 import java.lang.reflect.*
 
 class FullClassAllowancesGenerator {
-
-    fun Class<*>.safeName() = this.typeName
-    fun Type.safeName() = this.erasedType().typeName
-
-    fun Method.signature(): String {
-        val checkParams = parameterTypes.map { typeToSigPart(it.safeName()) }
-        val checkReturn = returnType.let { typeToSigPart(it.safeName()) }
-        return "(${checkParams.joinToString("")})$checkReturn"
-    }
-
-    fun Constructor<*>.signature(): String {
-        val checkParams = parameterTypes.map { typeToSigPart(it.safeName()) }
-        val checkReturn = annotatedReturnType.type.let { typeToSigPart(it.safeName()) }
-        return "(${checkParams.joinToString("")})$checkReturn"
-    }
-
-    fun Field.signature(): String {
-        return type.let { uy.kohesive.cuarentena.policy.typeToSigPart(it.safeName()) }
-    }
 
     fun generateAllowances(clazz: Class<*>): AccessPolicies {
         val currentClassName = clazz.name

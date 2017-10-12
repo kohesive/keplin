@@ -1,5 +1,30 @@
 package uy.kohesive.cuarentena.policy
 
+import uy.kohesive.keplin.util.erasedType
+import java.lang.reflect.Constructor
+import java.lang.reflect.Field
+import java.lang.reflect.Method
+import java.lang.reflect.Type
+
+fun Class<*>.safeName() = this.typeName
+fun Type.safeName() = this.erasedType().typeName
+
+fun Method.signature(): String {
+    val checkParams = parameterTypes.map { typeToSigPart(it.safeName()) }
+    val checkReturn = returnType.let { typeToSigPart(it.safeName()) }
+    return "(${checkParams.joinToString("")})$checkReturn"
+}
+
+fun Constructor<*>.signature(): String {
+    val checkParams = parameterTypes.map { typeToSigPart(it.safeName()) }
+    val checkReturn = annotatedReturnType.type.let { typeToSigPart(it.safeName()) }
+    return "(${checkParams.joinToString("")})$checkReturn"
+}
+
+fun Field.signature(): String {
+    return type.let { uy.kohesive.cuarentena.policy.typeToSigPart(it.safeName()) }
+}
+
 fun typeToSigPart(type: String): String {
     val baseName = type.substringBefore('[')
     val suffix = type.removePrefix(baseName)

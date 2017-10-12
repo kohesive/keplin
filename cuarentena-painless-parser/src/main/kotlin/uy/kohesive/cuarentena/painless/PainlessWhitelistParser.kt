@@ -239,11 +239,9 @@ class PainlessWhitelistParser {
                                 if (methodName == "<init>") {
                                     val constructorName = currentClassName
                                     val constructor = currentClass!!.declaredConstructors
-                                            .filter { Modifier.isPublic(it.modifiers) && constructorName == it.name }
+                                            .filter { (Modifier.isPublic(it.modifiers) || Modifier.isProtected(it.modifiers)) && constructorName == it.name }
                                             .singleOrNull {
-                                                val checkParams = it.parameterTypes.map { typeToSigPart(it.safeName()) }
-                                                val checkReturn = it.annotatedReturnType.type.let { typeToSigPart(it.safeName()) }
-                                                val checkSig1 = "(${checkParams.joinToString("")})${checkReturn}"
+                                                val checkSig1 = it.signature()
                                                 debug { println("check:  $currentClassName.$methodName$checkSig1  = ${checkSig1 == methodSig}") }
                                                 checkSig1 == methodSig
                                             }
@@ -345,6 +343,7 @@ class PainlessWhitelistParser {
                 lookupAllowancesBySimpleClassName(it)
             }.flatMap { it }.filter {
                 it is PolicyAllowance.ClassLevel.ClassMethodAccess ||
+                it is PolicyAllowance.ClassLevel.ClassConstructorAccess ||
                 it is PolicyAllowance.ClassLevel.ClassFieldAccess ||
                 it is PolicyAllowance.ClassLevel.ClassPropertyAccess
             }
@@ -353,6 +352,8 @@ class PainlessWhitelistParser {
                 when (it) {
                     is PolicyAllowance.ClassLevel.ClassMethodAccess ->
                         PolicyAllowance.ClassLevel.ClassMethodAccess(classFqName, it.methodName, it.methodSig, it.actions)
+                    is PolicyAllowance.ClassLevel.ClassConstructorAccess ->
+                        PolicyAllowance.ClassLevel.ClassConstructorAccess(classFqName, it.constructorSig, it.actions)
                     is PolicyAllowance.ClassLevel.ClassFieldAccess ->
                         PolicyAllowance.ClassLevel.ClassFieldAccess(classFqName, it.fieldName, it.fieldTypeSig, it.actions)
                     is PolicyAllowance.ClassLevel.ClassPropertyAccess ->
@@ -391,6 +392,8 @@ class PainlessWhitelistParser {
         "java.time.format.txt",
         "java.time.temporal.txt",
         "java.time.zone.txt",
+        "java.io.txt",
+        "java.nio.charset.txt",
         "java.util.txt",
         "java.util.function.txt",
         "java.util.regex.txt",
