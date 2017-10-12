@@ -4,10 +4,7 @@ import uy.kohesive.cuarentena.policy.*
 import uy.kohesive.keplin.util.erasedType
 import java.io.File
 import java.io.InputStream
-import java.lang.reflect.AnnotatedType
-import java.lang.reflect.Method
-import java.lang.reflect.Modifier
-import java.lang.reflect.Type
+import java.lang.reflect.*
 
 class PainlessWhitelistParser {
 
@@ -106,7 +103,19 @@ class PainlessWhitelistParser {
             }
         }
 
-        fun Method.signature(returnTypeIsDef: Boolean = false, indicesToOverrideWithObject: Set<Int> = emptySet()): String {
+        fun Constructor<*>.wildCardSignature(indicesToOverrideWithObject: Set<Int> = emptySet()): String {
+            val checkParams = parameterTypes.map { typeToSigPart(it.safeName()) }.mapIndexed { index, param ->
+                if (index in indicesToOverrideWithObject) {
+                    "Ljava.lang.Object;"
+                } else {
+                    param
+                }
+            }
+            val checkReturn = annotatedReturnType.type.let { typeToSigPart(it.safeName()) }
+            return "(${checkParams.joinToString("")})$checkReturn"
+        }
+
+        fun Method.wildCardSignature(returnTypeIsDef: Boolean = false, indicesToOverrideWithObject: Set<Int> = emptySet()): String {
             val checkParams = parameterTypes.map { typeToSigPart(it.safeName()) }.mapIndexed { index, param ->
                 if (index in indicesToOverrideWithObject) {
                     "Ljava.lang.Object;"
@@ -238,22 +247,25 @@ class PainlessWhitelistParser {
                             } else {
                                 if (methodName == "<init>") {
                                     val constructorName = currentClassName
-                                    val constructor = currentClass!!.declaredConstructors
+                                    val constructors = currentClass!!.declaredConstructors
                                             .filter { (Modifier.isPublic(it.modifiers) || Modifier.isProtected(it.modifiers)) && constructorName == it.name }
-                                            .singleOrNull {
-                                                val checkSig1 = it.signature()
+                                            .filter {
+                                                val checkSig1 = it.wildCardSignature(defParamIndices)
                                                 debug { println("check:  $currentClassName.$methodName$checkSig1  = ${checkSig1 == methodSig}") }
                                                 checkSig1 == methodSig
                                             }
-                                    if (constructor == null) {
+                                    if (constructors.isEmpty()) {
                                         throw IllegalStateException("Method not found! $currentClassName.$constructorName$methodSig @ $definitionFile")
                                     }
-                                    storeAllowance(PolicyAllowance.ClassLevel.ClassConstructorAccess(currentClassName!!, methodSig, setOf(AccessTypes.call_Class_Constructor)))
+
+                                    storeAllowances(constructors.map { constructor ->
+                                        PolicyAllowance.ClassLevel.ClassConstructorAccess(currentClassName!!, constructor.wildCardSignature(), setOf(AccessTypes.call_Class_Constructor))
+                                    })
                                 } else {
                                     val methods = (currentClass!!.declaredMethods + currentClass!!.methods)
                                             .filter { Modifier.isPublic(it.modifiers) && methodName == it.name && paramsCount == it.parameterCount }
                                             .filter {
-                                                val checkSig = it.signature(returnTypeIsDef, defParamIndices)
+                                                val checkSig = it.wildCardSignature(returnTypeIsDef, defParamIndices)
                                                 debug { println("check:  $currentClassName.$methodName$checkSig  = ${checkSig == methodSig}") }
                                                 checkSig == methodSig
                                             }
@@ -264,7 +276,7 @@ class PainlessWhitelistParser {
                                     storeAllowances(methods.map { method ->
                                         val access = if (Modifier.isStatic(method.modifiers)) AccessTypes.call_Class_Static_Method
                                         else AccessTypes.call_Class_Instance_Method
-                                        val signature = method.signature()
+                                        val signature = method.wildCardSignature()
 
                                         signature to PolicyAllowance.ClassLevel.ClassMethodAccess(currentClassName!!, methodName, signature, setOf(access))
                                     }.distinctBy { it.first }.map { it.second })
@@ -385,6 +397,7 @@ class PainlessWhitelistParser {
     private val BaseDefinitions = listOf(
         "java.lang.txt",
         "java.lang.annotation.txt",
+        "java.lang.reflect.txt",
         "java.math.txt",
         "java.text.txt",
         "java.time.txt",
@@ -395,9 +408,11 @@ class PainlessWhitelistParser {
         "java.io.txt",
         "java.nio.charset.txt",
         "java.util.txt",
+        "java.util.concurrent.txt",
         "java.util.function.txt",
         "java.util.regex.txt",
         "java.util.stream.txt",
+        "java.util.concurrent.atomic.txt",
         "joda.time.txt"
     )
     private fun PainlessDefinitions(elasticSearchFirst: Boolean = true) = if (elasticSearchFirst) {
