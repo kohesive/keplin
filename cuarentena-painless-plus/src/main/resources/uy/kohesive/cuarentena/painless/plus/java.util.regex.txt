@@ -13,3 +13,7 @@ class MatchResult -> java.util.regex.MatchResult {
   String group(int)
 }
 
+class Matcher -> java.util.regex.Matcher extends Object {
+  MatchResult toMatchResult()
+}
+

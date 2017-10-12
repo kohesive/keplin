@@ -1,0 +1,9 @@
+#
+# Painless definition file. This defines the hierarchy of classes,
+# what methods and fields they have, etc.
+#
+
+class Array -> java.lang.reflect.Array extends Object {
+  def newInstance(Class,int)
+}
+

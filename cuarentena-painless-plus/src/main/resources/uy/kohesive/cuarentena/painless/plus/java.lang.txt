@@ -23,10 +23,17 @@ class Character -> java.lang.Character extends Comparable,Object {
 }
 
 class String -> java.lang.String extends CharSequence,Comparable,Object {
+  String <init>(def,int,int)
+  String <init>(def,int,int,def)
+  String <init>(def,def)
+  String <init>(def)
   int indexOf(int,int)
   int lastIndexOf(int,int)
   String replace(char,char)
   String intern()
+  boolean contentEquals(StringBuffer)
+  def getBytes(def)
+  Comparator CASE_INSENSITIVE_ORDER
 }
 
 class Appendable -> java.lang.Appendable {
@@ -52,6 +59,10 @@ class Throwable -> java.lang.Throwable extends Object {
 class Error -> java.lang.Error extends Throwable,Object {
 }
 
+class AssertionError -> java.lang.AssertionError extends Error,Throwable,Object {
+  AssertionError <init>(def)
+}
+
 class Enum -> java.lang.Enum extends Comparable,Object {
   Enum <init>(String,int)
   Enum valueOf(Class,String)
@@ -61,10 +72,23 @@ class Enum -> java.lang.Enum extends Comparable,Object {
 }
 
 class Class -> java.lang.Class extends Object {
-
+  boolean isInstance(def)
+  boolean desiredAssertionStatus()
+  Class getComponentType()
 }
 
+class Object -> java.lang.Object {
+  Class getClass()
+}
 
+class Math -> java.lang.Math extends Object {
+  int max(int,int)
+  float max(float,float)
+  long max(long,long)
+  int min(int,int)
+  float min(float,float)
+  long min(long,long)
+}
 
 
 

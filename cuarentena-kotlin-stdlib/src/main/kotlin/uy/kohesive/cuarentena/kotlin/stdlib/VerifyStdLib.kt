@@ -24,12 +24,13 @@ fun main(args: Array<String>) {
 //    println("Verified classes:")
 //    verifiedClasses.sorted().forEach { println(" + $it") }
 //    println()
-    println("Black-listed classes:")
 
+    println("Black-listed classes:")
     perClassViolations.sortedBy { it.violatingClass.className }.filterNot {
         it.violatingClass.className.startsWith("kotlin.io") ||
         it.violatingClass.className.startsWith("kotlin.jvm") ||
         it.violatingClass.className.startsWith("kotlin.concurrent") ||
+        it.violatingClass.className.startsWith("kotlin.coroutines") ||
         it.violatingClass.className.startsWith("kotlin.internal")
     }.forEach {
         println(" - ${it.violatingClass.className}:")
