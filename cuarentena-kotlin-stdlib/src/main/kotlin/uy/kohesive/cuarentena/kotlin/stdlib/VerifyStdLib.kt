@@ -21,11 +21,17 @@ fun main(args: Array<String>) {
     val violationClasses   = perClassViolations.map { it.violatingClass.className }.toSet()
     val verifiedClasses    = stdLibClasses.map { it.className } - violationClasses
 
-    println("Verified classes:")
-    verifiedClasses.sorted().forEach { println(" + $it") }
-    println()
+//    println("Verified classes:")
+//    verifiedClasses.sorted().forEach { println(" + $it") }
+//    println()
     println("Black-listed classes:")
-    perClassViolations.sortedBy { it.violatingClass.className }.forEach {
+
+    perClassViolations.sortedBy { it.violatingClass.className }.filterNot {
+        it.violatingClass.className.startsWith("kotlin.io") ||
+        it.violatingClass.className.startsWith("kotlin.jvm") ||
+        it.violatingClass.className.startsWith("kotlin.concurrent") ||
+        it.violatingClass.className.startsWith("kotlin.internal")
+    }.forEach {
         println(" - ${it.violatingClass.className}:")
         it.violations.forEach { println("   - $it") }
     }

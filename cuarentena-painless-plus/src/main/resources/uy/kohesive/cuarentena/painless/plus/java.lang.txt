@@ -3,6 +3,63 @@
 # what methods and fields they have, etc.
 #
 
+class Character -> java.lang.Character extends Comparable,Object {
+  boolean isDefined(char)
+  boolean isLetter(char)
+  boolean isLetterOrDigit(char)
+  boolean isDigit(char)
+  boolean isIdentifierIgnorable(char)
+  boolean isISOControl(char)
+  boolean isJavaIdentifierPart(char)
+  boolean isJavaIdentifierStart(char)
+  boolean isWhitespace(char)
+  boolean isSpaceChar(char)
+  boolean isUpperCase(char)
+  boolean isLowerCase(char)
+  boolean isTitleCase(char)
+  int getType(char)
+  byte getDirectionality(char)
+  boolean isLowSurrogate(char)
+}
+
+class String -> java.lang.String extends CharSequence,Comparable,Object {
+  int indexOf(int,int)
+  int lastIndexOf(int,int)
+  String replace(char,char)
+  String intern()
+}
+
+class Appendable -> java.lang.Appendable {
+  Appendable append(def)
+}
+
+class StringBuilder -> java.lang.StringBuilder extends CharSequence,Appendable,Object {
+  StringBuilder <init>(int)
+}
+
+class Exception -> java.lang.Exception extends Throwable,Object {
+  Exception <init>(String,Throwable)
+  Exception <init>(Throwable)
+  Exception <init>(String)
+}
+
+class Throwable -> java.lang.Throwable extends Object {
+  Throwable <init>(String,Throwable)
+  Throwable <init>(Throwable)
+  Throwable <init>(String)
+}
+
+class Error -> java.lang.Error extends Throwable,Object {
+}
+
+class Enum -> java.lang.Enum extends Comparable,Object {
+  Enum <init>(String,int)
+  Enum valueOf(Class,String)
+  int compareTo(Enum)
+  String name();
+  int ordinal();
+}
+
 class Class -> java.lang.Class extends Object {
 
 }
