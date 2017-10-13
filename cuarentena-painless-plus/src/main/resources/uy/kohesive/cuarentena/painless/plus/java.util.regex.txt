@@ -17,3 +17,7 @@ class Matcher -> java.util.regex.Matcher extends Object {
   MatchResult toMatchResult()
 }
 
+class Pattern -> java.util.regex.Pattern extends Object {
+  Pattern compile(String)
+  Pattern compile(String,int)
+}

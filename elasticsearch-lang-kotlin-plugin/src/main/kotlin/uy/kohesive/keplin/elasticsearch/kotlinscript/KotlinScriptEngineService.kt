@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
 import org.jetbrains.kotlin.utils.PathUtil
 import uy.kohesive.chillamda.Chillambda
 import uy.kohesive.cuarentena.Cuarentena
-import uy.kohesive.cuarentena.Cuarentena.Companion.painlessCombinedPolicy
+import uy.kohesive.cuarentena.Cuarentena.Companion.painlessPlusKotlinPolicy
 import uy.kohesive.cuarentena.NamedClassBytes
 import uy.kohesive.cuarentena.policy.AccessTypes
 import uy.kohesive.cuarentena.policy.PolicyAllowance
@@ -81,7 +81,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                 PolicyAllowance.ClassLevel.ClassConstructorAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", setOf(AccessTypes.call_Class_Constructor))
         )).toPolicy().toSet()
 
-        val cuarentena = Cuarentena(painlessCombinedPolicy + receiverCuarentenaPolicies)
+        val cuarentena = Cuarentena(painlessPlusKotlinPolicy + receiverCuarentenaPolicies)
         val chillambda = Chillambda(cuarentena)
     }
 

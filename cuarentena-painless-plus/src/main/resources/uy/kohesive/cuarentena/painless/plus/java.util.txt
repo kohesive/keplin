@@ -68,5 +68,10 @@ class TreeMap -> java.util.TreeMap extends AbstractMap,NavigableMap,SortedMap,Ma
   TreeMap <init>(Map)
 }
 
+class ArrayList -> java.util.ArrayList extends AbstractList,AbstractCollection,List,RandomAccess,Collection,Iterable,Object {
+  ArrayList <init>(int)
+  void ensureCapacity(int)
+}
+
 
 

@@ -4,6 +4,7 @@
 #
 
 class LangAnnotation -> java.lang.annotation.Annotation extends Object {
+  Class annotationType()
 }
 
 class Documented -> java.lang.annotation.Documented extends Object {

@@ -4,6 +4,7 @@ dependencies {
     compile project(':keplin-util')
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+    compile group: 'org.reflections', name: 'reflections', version: version_reflections
     compile group: 'com.zackehh', name: 'siphash', version: version_zacsiphash
 
     // ASM is included by too many things at different version levels, it should eventually be shaded/renamed into this JAR

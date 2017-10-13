@@ -1,12 +1,12 @@
 package uy.kohesive.cuarentena
 
 import uy.kohesive.cuarentena.ClassAllowanceDetector.scanClassByteCodeForDesiredAllowances
-import uy.kohesive.cuarentena.KotlinPolicies.painlessBaseKotlinPolicy
+import uy.kohesive.cuarentena.KotlinPolicies.painlessKotlinBootstrapPolicy
+import uy.kohesive.cuarentena.kotlin.KotlinStdlibPolicyGenerator
 import uy.kohesive.cuarentena.policy.ALL_CLASS_ACCESS_TYPES
 import uy.kohesive.cuarentena.policy.AccessTypes
 import uy.kohesive.cuarentena.policy.CuarentenaPolicyLoader
 import uy.kohesive.cuarentena.policy.PolicyAllowance
-
 
 // TODO: this is from first round of exploring and work, needs overhauled to take those learnings into account, simplify
 //       and develop the formal Kotlin whitelist, and then the lambda serializeable tiny whitelist.  More checking, more
@@ -14,33 +14,16 @@ import uy.kohesive.cuarentena.policy.PolicyAllowance
 
 // TODO: replace all class, package, ... lists with Cuarentena policies
 
-/*
- val kotinAllowedClasses = setOf("org.jetbrains.annotations.NotNull",
-                "kotlin.jvm.internal.Intrinsics",
-                "kotlin.jvm.internal.Lambda",
-                "kotlin.Metadata",
-                "kotlin.Unit",
-                "kotlin.text.Regex",
-                "kotlin.text.MatchResult",
-                "kotlin.text.MatchGroupCollection",
-                "kotlin.text.MatchGroup",
-                "kotlin.TypeCastException",
-                "kotlin.text.StringsKt",
-                "org.jetbrains.annotations.Nullable",
-                "[Ljava.lang.String;", // TODO: this needs other handling
-                "java.util.regex.Pattern")  // TODO: we need a serializable white-list too
+class Cuarentena(val policies: Set<String> = painlessPlusKotlinBootstrapPolicy) {
 
-                val kotlinAllowedPackages = listOf("kotlin.collections.", "kotlin.jvm.functions.") // TODO: need specific list, these are not sealed
-*/
-
-
-class Cuarentena(val policies: Set<String> = painlessCombinedPolicy) {
     companion object {
-        private val painlessBaseJavaPolicy = CuarentenaPolicyLoader.loadPolicy("painless-base-java")
+        private val painlessBaseJavaPolicy: Set<String> by lazy { CuarentenaPolicyLoader.loadPolicy("painless-base-java") }
 
-        val painlessCombinedPolicy = painlessBaseJavaPolicy + painlessBaseKotlinPolicy
+        internal val painlessPlusKotlinBootstrapPolicy = painlessBaseJavaPolicy + painlessKotlinBootstrapPolicy
+        internal fun createKotlinBootstrapCuarentena() = Cuarentena(painlessPlusKotlinBootstrapPolicy)
 
-        fun createBaseJavaPolicyCuarentena() = Cuarentena(painlessBaseJavaPolicy)
+        val painlessPlusKotlinPolicy: Set<String> by lazy { painlessPlusKotlinBootstrapPolicy + KotlinStdlibPolicyGenerator().generatePolicy() }
+        fun createKotlinCuarentena() = Cuarentena(painlessPlusKotlinPolicy)
     }
 
     fun verifyClassAgainstPoliciesPerClass(newClasses: List<NamedClassBytes>, additionalPolicies: Set<String> = emptySet()): List<VerifyResultsPerClass> {

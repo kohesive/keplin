@@ -9,7 +9,7 @@ import java.io.*
 // TODO: This is not really a test, it is a manual display of what happens, write a real test
 
 class TestClassAllowanceDetector {
-    val globalPolicies = Cuarentena.painlessCombinedPolicy
+    val globalPolicies = Cuarentena.painlessPlusKotlinPolicy
 
     @Test
     fun testSeeAllImportantThings() {
