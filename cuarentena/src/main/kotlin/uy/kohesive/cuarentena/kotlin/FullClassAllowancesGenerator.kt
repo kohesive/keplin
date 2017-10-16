@@ -26,7 +26,9 @@ class FullClassAllowancesGenerator {
         // Methods
         val methodAllowances = clazz.methods
             .filter { isPublic(it.modifiers) }
-            .map { method ->
+            .filterNot {
+                it.declaringClass == Object::class.java && it.name == "wait"
+            }.map { method ->
                 val access = if (Modifier.isStatic(method.modifiers)) {
                     AccessTypes.call_Class_Static_Method
                 } else  {
