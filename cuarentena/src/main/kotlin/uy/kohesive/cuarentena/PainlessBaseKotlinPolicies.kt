@@ -19,6 +19,10 @@ object KotlinPolicies {
         PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.jvm.internal.Intrinsics", "checkParameterIsNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V", setOf(AccessTypes.call_Class_Static_Method)),
         PolicyAllowance.ClassLevel.ClassMethodAccess("kotlin.jvm.internal.Intrinsics", "throwNpe", "()V", setOf(AccessTypes.call_Class_Static_Method)),
 
+        // kotlin.Unit
+        // This is a tough one as we don't want to replace it with Void
+        PolicyAllowance.ClassLevel.ClassFieldAccess("kotlin.Unit", "INSTANCE", "Lkotlin/Unit;", setOf(AccessTypes.read_Class_Static_Field)),
+
         // kotlin misc
         PolicyAllowance.ClassLevel.ClassAccess("org.jetbrains.annotations.NotNull", setOf(AccessTypes.ref_Class)),
         PolicyAllowance.ClassLevel.ClassAccess("org.jetbrains.annotations.Nullable", setOf(AccessTypes.ref_Class))
