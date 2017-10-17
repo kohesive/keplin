@@ -1,15 +1,12 @@
 package uy.kohesive.cuarentena.kotlin
 
-import uy.kohesive.cuarentena.policy.*
+import uy.kohesive.cuarentena.policy.AccessPolicies
+import uy.kohesive.cuarentena.policy.AccessTypes
+import uy.kohesive.cuarentena.policy.PolicyAllowance
+import uy.kohesive.cuarentena.policy.signature
 import java.lang.reflect.Constructor
 import java.lang.reflect.Modifier
 import java.lang.reflect.Modifier.*
-
-fun main(args: Array<String>) {
-    FullClassAllowancesGenerator().generateAllowances(Class.forName("kotlin.collections.CollectionsKt")).toPolicy().forEach {
-        println(it)
-    }
-}
 
 class FullClassAllowancesGenerator {
 

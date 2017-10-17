@@ -5,7 +5,7 @@ import uy.kohesive.cuarentena.kotlin.KotlinStdlibPolicyGenerator
 // Not really a test
 // TODO: do a real test
 fun main(args: Array<String>) {
-    val verifyStdlibClasses = KotlinStdlibPolicyGenerator().verifyStdlibClasses()
+    val verifyStdlibClasses = KotlinStdlibPolicyGenerator().verifyClasses()
 
     println("Verified classes:")
     verifyStdlibClasses.verifiedClasses.sorted().forEach { println(" + $it") }
