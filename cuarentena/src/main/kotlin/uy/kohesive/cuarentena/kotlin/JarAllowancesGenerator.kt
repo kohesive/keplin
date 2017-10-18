@@ -64,13 +64,14 @@ open class JarAllowancesGenerator(
     }
 
     fun verifyClasses(): ClassesVerifyResult {
-        debug("Building kotlin whitelist for ${ ClassPathUtils.findKotlinStdLibJars().map { it.path }.joinToString(", ") }")
         val cuarentena = if (useBootStrapPolicy) {
-            Cuarentena.createKotlinBootstrapCuarentena()
+            debug("Building kotlin whitelist for ${ ClassPathUtils.findKotlinStdLibJars().map { it.path }.joinToString(", ") }")
+            Cuarentena.createKotlinBootstrapCuarentena().apply {
+                debug("Done processing kotlin")
+            }
         } else {
             Cuarentena.createKotlinCuarentena()
         }
-        debug("Done processing kotlin")
 
         val allClasses = jarFiles.map { File(it) }.flatMap { jarFile ->
             jarFile.getClassNames().map { className ->
