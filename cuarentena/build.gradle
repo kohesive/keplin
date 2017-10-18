@@ -13,3 +13,10 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: version_junit
     testCompile group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit', version: version_kotlin
 }
+
+// TODO: this is temporary, need a fat-jar building to test gradle plugin
+jar {
+  from {
+    configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+  }
+}
