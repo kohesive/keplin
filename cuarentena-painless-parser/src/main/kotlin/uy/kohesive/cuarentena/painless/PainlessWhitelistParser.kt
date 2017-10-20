@@ -131,7 +131,7 @@ class PainlessWhitelistParser {
             return "(${checkParams.joinToString("")})${checkReturn}"
         }
 
-        // We need to track the per-class allowances for to calc inherited allowances later
+        // We need to track the per-class allowances to calc inherited allowances later
         val classFqNameToAllowances = HashMap<String, MutableList<PolicyAllowance>>()
         val classFqNameToSuperClassesSimpleNames = HashMap<String, List<String>>()
         fun storeAllowances(allowances: AccessPolicies): AccessPolicies {
@@ -173,13 +173,13 @@ class PainlessWhitelistParser {
                             classFqNameToSuperClassesSimpleNames[currentClassName!!] = superClassesSimpleNames
                         }
 
-                        listOf(null)
+                        emptyList()
                     } else if (line.startsWith("}")) {
                         // If we haven't generated any member allowances, we need to grant at least ref_Class and ref_Class_Instance, otherwise we'll lose it later
                         val finalAllowances = if (currentClassName?.let { currentClass -> classFqNameToAllowances[currentClass] }?.isEmpty() ?: true) {
                             listOf(PolicyAllowance.ClassLevel.ClassAccess(currentClassName!!, setOf(AccessTypes.ref_Class_Instance, AccessTypes.ref_Class)))
                         } else {
-                            listOf(null)
+                            emptyList()
                         }
 
                         currentClassName = null
@@ -243,7 +243,7 @@ class PainlessWhitelistParser {
                                     java.util.Map.groupBy*(Ljava.util.function.BiFunction;)Ljava.util.Map;
                                     java.util.regex.Matcher.namedGroup*(Ljava.lang.String;)Ljava.lang.String;
                                  */
-                                listOf(null)
+                                emptyList()
                             } else {
                                 if (methodName == "<init>") {
                                     val constructorName = currentClassName
