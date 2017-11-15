@@ -1,0 +1,77 @@
+#
+# Painless definition file. This defines the hierarchy of classes,
+# what methods and fields they have, etc.
+#
+
+class Arrays -> java.util.Arrays extends Object {
+  def copyOfRange(def,int,int)
+  int hashCode(def)
+  boolean equals(def,def)
+  def copyOf(def,int)
+  def copyOf(def,int,Class)
+  String toString(def)
+  void sort(def)
+  void sort(def,int,int)
+  void sort(def,Comparator)
+  void sort(def,int,int,Comparator)
+  void fill(def,int,int,def)
+  int binarySearch(def,int,int,def)
+  int binarySearch(def,int,int,def,Comparator)
+}
+
+class Collection -> java.util.Collection extends Iterable {
+  boolean remove(def)
+}
+
+class LinkedHashMap -> java.util.LinkedHashMap extends HashMap,AbstractMap,Map,Object {
+  LinkedHashMap <init>(int)
+}
+
+class LinkedHashSet -> java.util.LinkedHashSet extends HashSet,AbstractSet,Set,AbstractCollection,Collection,Iterable,Object {
+  LinkedHashSet <init>(int)
+}
+
+class ListIterator -> java.util.ListIterator extends Iterator {
+  def previous()
+}
+
+class AbstractCollection -> java.util.AbstractCollection extends Collection,Iterable,Object {
+  AbstractCollection <init>()
+}
+
+class AbstractList -> java.util.AbstractList extends AbstractCollection,List,Collection,Iterable,Object {
+  AbstractList <init>()
+}
+
+class AbstractMap -> java.util.AbstractMap extends Map,Object {
+  AbstractMap <init>()
+}
+
+class Properties -> java.util.Properties extends Map,Object {
+  Properties <init>()
+  void putAll(Map)
+}
+
+class EnumSet -> java.util.EnumSet extends AbstractSet,Object {
+  EnumSet allOf(Class)
+}
+
+class HashSet -> java.util.HashSet extends AbstractSet,Set,Collection,Iterable,Object {
+  HashSet <init>(int)
+}
+
+class HashMap -> java.util.HashMap extends AbstractMap,Map,Object {
+  HashMap <init>(int)
+}
+
+class TreeMap -> java.util.TreeMap extends AbstractMap,NavigableMap,SortedMap,Map,Object {
+  TreeMap <init>(Map)
+}
+
+class ArrayList -> java.util.ArrayList extends AbstractList,AbstractCollection,List,RandomAccess,Collection,Iterable,Object {
+  ArrayList <init>(int)
+  void ensureCapacity(int)
+}
+
+
+

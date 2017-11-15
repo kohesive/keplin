@@ -1,5 +1,7 @@
 dependencies {
     compile project(":cuarentena-policy")
+    compile project(":cuarentena-painless-plus")
+    compile project(":keplin-util")
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
 
@@ -11,7 +13,7 @@ dependencies {
     // search.
     // It is not available directly, but is via the org.codelibs module extraction
     // TODO: change to a Git submodule for these files
-    compile group: 'org.codelibs.elasticsearch.module', name: 'lang-painless', version: version_elasticsearch
+    compile group: 'org.codelibs.elasticsearch.module', name: 'lang-painless', version: version_painless
 
     testCompile group: 'junit', name: 'junit', version: version_junit
     testCompile group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit', version: version_kotlin

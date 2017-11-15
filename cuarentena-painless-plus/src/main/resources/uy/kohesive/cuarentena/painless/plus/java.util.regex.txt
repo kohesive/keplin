@@ -1,0 +1,23 @@
+#
+# Painless definition file. This defines the hierarchy of classes,
+# what methods and fields they have, etc.
+#
+
+class MatchResult -> java.util.regex.MatchResult {
+  int start()
+  int end()
+  int start(int)
+  int end(int)
+  int groupCount()
+  String group()
+  String group(int)
+}
+
+class Matcher -> java.util.regex.Matcher extends Object {
+  MatchResult toMatchResult()
+}
+
+class Pattern -> java.util.regex.Pattern extends Object {
+  Pattern compile(String)
+  Pattern compile(String,int)
+}

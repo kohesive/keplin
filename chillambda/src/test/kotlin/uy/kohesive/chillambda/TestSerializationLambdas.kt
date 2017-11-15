@@ -20,7 +20,7 @@ class TestSerializationLambdas : Serializable {
             PolicyAllowance.ClassLevel.ClassPropertyAccess(MyReceiver::class.java.canonicalName, "*", "*", setOf(AccessTypes.read_Class_Instance_Property))
     ).toPolicy().toSet()
 
-    val chillambda = Chillambda(Cuarentena(Cuarentena.painlessCombinedPolicy + receiverCuarentenaPolicies))
+    val chillambda = Chillambda(Cuarentena(Cuarentena.painlessPlusKotlinPolicy + receiverCuarentenaPolicies))
 
     fun internal() {
         val z = 1

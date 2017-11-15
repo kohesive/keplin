@@ -1,0 +1,135 @@
+#
+# Painless definition file. This defines the hierarchy of classes,
+# what methods and fields they have, etc.
+#
+
+class Boolean -> java.lang.Boolean extends Comparable,Object {
+  Class TYPE
+}
+
+class Byte -> java.lang.Byte extends Comparable,Object {
+  Class TYPE
+  byte byteValue()
+}
+
+class Short -> java.lang.Short extends Comparable,Object {
+  Class TYPE
+  short shortValue()
+}
+
+class Integer -> java.lang.Integer extends Comparable,Object {
+  Class TYPE
+  int intValue()
+}
+
+class Float -> java.lang.Float extends Comparable,Object {
+  Class TYPE
+  float floatValue()
+}
+
+class Long -> java.lang.Long extends Comparable,Object {
+  Class TYPE
+  long longValue()
+}
+
+class Double -> java.lang.Double extends Comparable,Object {
+  Class TYPE
+  double doubleValue()
+}
+
+class Character -> java.lang.Character extends Comparable,Object {
+  Class TYPE
+  boolean isDefined(char)
+  boolean isLetter(char)
+  boolean isLetterOrDigit(char)
+  boolean isDigit(char)
+  boolean isIdentifierIgnorable(char)
+  boolean isISOControl(char)
+  boolean isJavaIdentifierPart(char)
+  boolean isJavaIdentifierStart(char)
+  boolean isWhitespace(char)
+  boolean isSpaceChar(char)
+  boolean isUpperCase(char)
+  boolean isLowerCase(char)
+  boolean isTitleCase(char)
+  int getType(char)
+  byte getDirectionality(char)
+  boolean isLowSurrogate(char)
+}
+
+class String -> java.lang.String extends CharSequence,Comparable,Object {
+  String <init>(def,int,int)
+  String <init>(def,int,int,def)
+  String <init>(def,def)
+  String <init>(def)
+  int indexOf(int,int)
+  int lastIndexOf(int,int)
+  String replace(char,char)
+  String intern()
+  boolean contentEquals(StringBuffer)
+  def getBytes(def)
+  Comparator CASE_INSENSITIVE_ORDER
+}
+
+class Appendable -> java.lang.Appendable {
+  Appendable append(def)
+}
+
+class StringBuilder -> java.lang.StringBuilder extends CharSequence,Appendable,Object {
+  StringBuilder <init>(int)
+}
+
+class Exception -> java.lang.Exception extends Throwable,Object {
+  Exception <init>(String,Throwable)
+  Exception <init>(Throwable)
+  Exception <init>(String)
+}
+
+class Throwable -> java.lang.Throwable extends Object {
+  Throwable <init>(String,Throwable)
+  Throwable <init>(Throwable)
+  Throwable <init>(String)
+}
+
+class Error -> java.lang.Error extends Throwable,Object {
+}
+
+class AssertionError -> java.lang.AssertionError extends Error,Throwable,Object {
+  AssertionError <init>(def)
+}
+
+class Enum -> java.lang.Enum extends Comparable,Object {
+  Enum <init>(String,int)
+  Enum valueOf(Class,String)
+  int compareTo(Enum)
+  String name();
+  int ordinal();
+}
+
+class Class -> java.lang.Class extends Object {
+  boolean isInstance(def)
+  boolean desiredAssertionStatus()
+  Class getComponentType()
+  String getName()
+  boolean isPrimitive()
+  boolean isAssignableFrom(Class)
+}
+
+class Object -> java.lang.Object {
+  Object <init>()
+  Class getClass()
+}
+
+class Math -> java.lang.Math extends Object {
+  int max(int,int)
+  float max(float,float)
+  long max(long,long)
+  int min(int,int)
+  float min(float,float)
+  long min(long,long)
+}
+
+class Deprecared -> java.lang.Deprecated {
+}
+
+

@@ -1,12 +1,12 @@
 package uy.kohesive.cuarentena
 
 import uy.kohesive.cuarentena.ClassAllowanceDetector.scanClassByteCodeForDesiredAllowances
-import uy.kohesive.cuarentena.KotlinPolicies.painlessBaseKotlinPolicy
+import uy.kohesive.cuarentena.KotlinPolicies.painlessKotlinBootstrapPolicy
+import uy.kohesive.cuarentena.kotlin.KotlinStdlibPolicyGenerator
 import uy.kohesive.cuarentena.policy.ALL_CLASS_ACCESS_TYPES
 import uy.kohesive.cuarentena.policy.AccessTypes
 import uy.kohesive.cuarentena.policy.CuarentenaPolicyLoader
 import uy.kohesive.cuarentena.policy.PolicyAllowance
-
 
 // TODO: this is from first round of exploring and work, needs overhauled to take those learnings into account, simplify
 //       and develop the formal Kotlin whitelist, and then the lambda serializeable tiny whitelist.  More checking, more
@@ -14,35 +14,45 @@ import uy.kohesive.cuarentena.policy.PolicyAllowance
 
 // TODO: replace all class, package, ... lists with Cuarentena policies
 
-/*
- val kotinAllowedClasses = setOf("org.jetbrains.annotations.NotNull",
-                "kotlin.jvm.internal.Intrinsics",
-                "kotlin.jvm.internal.Lambda",
-                "kotlin.Metadata",
-                "kotlin.Unit",
-                "kotlin.text.Regex",
-                "kotlin.text.MatchResult",
-                "kotlin.text.MatchGroupCollection",
-                "kotlin.text.MatchGroup",
-                "kotlin.TypeCastException",
-                "kotlin.text.StringsKt",
-                "org.jetbrains.annotations.Nullable",
-                "[Ljava.lang.String;", // TODO: this needs other handling
-                "java.util.regex.Pattern")  // TODO: we need a serializable white-list too
+class Cuarentena(val policies: Set<String> = painlessPlusKotlinBootstrapPolicy) {
 
-                val kotlinAllowedPackages = listOf("kotlin.collections.", "kotlin.jvm.functions.") // TODO: need specific list, these are not sealed
-*/
-
-
-class Cuarentena(val policies: Set<String> = painlessCombinedPolicy) {
     companion object {
-        private val painlessBaseJavaPolicy = CuarentenaPolicyLoader.loadPolicy("painless-base-java")
+        private val painlessBaseJavaPolicy: Set<String> by lazy { CuarentenaPolicyLoader.loadPolicy("painless-base-java") }
 
-        val painlessCombinedPolicy = painlessBaseJavaPolicy + painlessBaseKotlinPolicy
+        internal val painlessPlusKotlinBootstrapPolicy = painlessBaseJavaPolicy + painlessKotlinBootstrapPolicy
+        internal fun createKotlinBootstrapCuarentena() = Cuarentena(painlessPlusKotlinBootstrapPolicy)
+
+        val painlessPlusKotlinPolicy: Set<String> by lazy { painlessPlusKotlinBootstrapPolicy + KotlinStdlibPolicyGenerator().generatePolicy() }
+        fun createKotlinCuarentena() = Cuarentena(painlessPlusKotlinPolicy)
+    }
+
+    fun verifyClassAgainstPoliciesPerClass(newClasses: List<NamedClassBytes>, additionalPolicies: Set<String> = emptySet()): List<VerifyResultsPerClass> {
+        val newClassNames   = newClasses.map { it.className }
+        val filteredClasses = filterKnownClasses(newClasses, additionalPolicies)
+
+        return filteredClasses.map { filteredClass ->
+            val filteredClassDesiredAllowances = scanClassByteCodeForDesiredAllowances(listOf(filteredClass))
+
+            val violations = filteredClassDesiredAllowances.allowances
+                .filterNot {
+                    // new classes can call themselves, so these can't be violations
+                    it.fqnTarget in newClassNames
+                }.filterNot { it.assertAllowance(additionalPolicies) }
+
+            val violationStrings = violations.map { it.resultingViolations(additionalPolicies) }.flatten().toSet()
+
+            VerifyResultsPerClass(
+                violatingClass = filteredClass,
+                scanResults    = filteredClassDesiredAllowances,
+                violations     = violationStrings
+            )
+        }.filter {
+            it.violations.isNotEmpty()
+        }
     }
 
     fun verifyClassAgainstPolicies(newClasses: List<NamedClassBytes>, additionalPolicies: Set<String> = emptySet()): VerifyResults {
-        val filteredClasses = filterKnownClasses(newClasses, additionalPolicies)
+        val filteredClasses  = filterKnownClasses(newClasses, additionalPolicies)
         val classScanResults = scanClassByteCodeForDesiredAllowances(filteredClasses)
 
         val filteredClassNames = filteredClasses.map { it.className }.toSet()
@@ -64,6 +74,12 @@ class Cuarentena(val policies: Set<String> = painlessCombinedPolicy) {
         val violationStrings = violations.map { it.resultingViolations(additionalPolicies) }.flatten().toSet()
         return VerifyNameResults(violationStrings)
     }
+
+    data class VerifyResultsPerClass(
+        val violatingClass: NamedClassBytes,
+        val scanResults: ClassAllowanceDetector.ScanState,
+        val violations: Set<String>
+    )
 
     data class VerifyResults(val scanResults: ClassAllowanceDetector.ScanState, val violations: Set<String>, val filteredClasses: List<NamedClassBytes>) {
         val failed: Boolean = violations.isNotEmpty()
@@ -87,6 +103,8 @@ class Cuarentena(val policies: Set<String> = painlessCombinedPolicy) {
         Remove known classes from the policy from the captured class bytes, because they are not expected to be shipped
      */
     fun filterKnownClasses(newClasses: List<NamedClassBytes>, additionalPolicies: Set<String>): List<NamedClassBytes> {
-        return newClasses.filterNot { PolicyAllowance.ClassLevel.ClassAccess(it.className, ALL_CLASS_ACCESS_TYPES).assertAllowance(additionalPolicies) }
+        return newClasses.filterNot { newClass ->
+            PolicyAllowance.ClassLevel.ClassAccess(newClass.className, ALL_CLASS_ACCESS_TYPES).assertAllowance(additionalPolicies)
+        }
     }
 }
