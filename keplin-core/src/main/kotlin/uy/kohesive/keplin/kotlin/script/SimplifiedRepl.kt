@@ -46,7 +46,7 @@ open class SimplifiedRepl protected constructor(protected val disposable: Dispos
                 repeatingMode: ReplRepeatingMode = ReplRepeatingMode.NONE,
                 sharedHostClassLoader: ClassLoader? = null) : this(disposable,
             compilerConfiguration = CompilerConfiguration().apply {
-                addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
+                addJvmClasspathRoots(PathUtil.getJdkClassesRootsFromCurrentJre())
                 addJvmClasspathRoots(ClassPathUtils.findRequiredScriptingJarFiles(scriptDefinition.template,
                         includeScriptEngine = false,
                         includeKotlinCompiler = false,
@@ -187,9 +187,9 @@ private fun ReplEvalResult.toResult(codeLine: LineId): EvalResult {
 
 class ReplCompilerException(val errorResult: ReplCompileResult.Error) : ReplException(errorResult.message) {
     constructor (checkResult: ReplCheckResult.Error) : this(ReplCompileResult.Error(checkResult.message, checkResult.location))
-    constructor (incompleteResult: ReplCompileResult.Incomplete) : this(ReplCompileResult.Error("Incomplete Code", CompilerMessageLocation.NO_LOCATION))
+    constructor (incompleteResult: ReplCompileResult.Incomplete) : this(ReplCompileResult.Error("Incomplete Code", null))
     constructor (checkResult: ReplEvalResult.Error.CompileTime) : this(ReplCompileResult.Error(checkResult.message, checkResult.location))
-    constructor (incompleteResult: ReplEvalResult.Incomplete) : this(ReplCompileResult.Error("Incomplete Code", CompilerMessageLocation.NO_LOCATION))
+    constructor (incompleteResult: ReplEvalResult.Incomplete) : this(ReplCompileResult.Error("Incomplete Code", null))
     constructor (historyMismatchResult: ReplEvalResult.HistoryMismatch) : this(ReplCompileResult.Error("History Mismatch", CompilerMessageLocation.create(null, historyMismatchResult.lineNo, 0, null)))
 }
 

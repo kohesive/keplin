@@ -1,5 +1,5 @@
 dependencies {
-    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: "kotlin-stdlib-$version_kotlin_stdlib_type", version: version_kotlin
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
 
     compile project(':keplin-util')

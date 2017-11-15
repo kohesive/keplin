@@ -11,11 +11,11 @@ class CapturingMessageCollector : MessageCollector {
         messages.clear()
     }
 
-    override fun report(severity: CompilerMessageSeverity, message: String, location: CompilerMessageLocation) {
+    override fun report(severity: CompilerMessageSeverity, message: String, location: CompilerMessageLocation?) {
         messages.add(Message(severity, message, location))
     }
 
     override fun hasErrors(): Boolean = messages.any { it.severity.isError }
 
-    data class Message(val severity: CompilerMessageSeverity, val message: String, val location: CompilerMessageLocation)
+    data class Message(val severity: CompilerMessageSeverity, val message: String, val location: CompilerMessageLocation?)
 }

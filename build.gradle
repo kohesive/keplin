@@ -24,7 +24,14 @@ subprojects {
 
     compileKotlin {
         kotlinOptions {
-            // jvmTarget = 1.8
+            jvmTarget = 1.8
+            languageVersion = 1.1
+        }
+    }
+
+    compileTestKotlin {
+        kotlinOptions {
+            jvmTarget = 1.8
             languageVersion = 1.1
         }
     }

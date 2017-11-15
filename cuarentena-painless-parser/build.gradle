@@ -3,7 +3,7 @@ dependencies {
     compile project(":cuarentena-painless-plus")
     compile project(":keplin-util")
 
-    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: "kotlin-stdlib-$version_kotlin_stdlib_type", version: version_kotlin
 
     compile group: 'org.elasticsearch', name: 'elasticsearch', version: version_elasticsearch
 

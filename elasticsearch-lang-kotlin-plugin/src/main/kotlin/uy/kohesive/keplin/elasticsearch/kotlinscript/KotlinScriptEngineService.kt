@@ -15,12 +15,10 @@ import org.jetbrains.kotlin.cli.common.repl.ReplCompileResult
 import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.repl.GenericReplCompiler
-import org.jetbrains.kotlin.com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
-import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
 import org.jetbrains.kotlin.utils.PathUtil
 import uy.kohesive.chillamda.Chillambda
 import uy.kohesive.cuarentena.Cuarentena
@@ -37,6 +35,7 @@ import java.security.PrivilegedAction
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass
+import kotlin.script.dependencies.KotlinScriptExternalDependencies
 
 
 interface ScriptTemplateEmptyArgsProvider {
@@ -52,11 +51,13 @@ open class KotlinScriptDefinitionEx(template: KClass<out Any>,
         override val imports: List<String> get() = (defaultImports + base.imports).distinct()
     }
 
+    /* TODO: fix this dependency stuff
     override fun <TF : Any> getDependenciesFor(file: TF, project: Project, previousDependencies: KotlinScriptExternalDependencies?): KotlinScriptExternalDependencies? {
         val base = super.getDependenciesFor(file, project, previousDependencies)
         return if (previousDependencies == null && defaultImports.isNotEmpty()) DefaultImports(defaultImports, base ?: EmptyDependencies())
         else base
     }
+    */
 }
 
 class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
@@ -98,7 +99,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             val moduleName = "kotlin-script-module-${uniqueSessionId}"
             val messageCollector = compilerMessages
             val compilerConfig = CompilerConfiguration().apply {
-                addJvmClasspathRoots(PathUtil.getJdkClassesRoots())
+                addJvmClasspathRoots(PathUtil.getJdkClassesRootsFromCurrentJre())
                 addJvmClasspathRoots(findRequiredScriptingJarFiles(scriptDefinition.template,
                         includeScriptEngine = false,
                         includeKotlinCompiler = false,
@@ -247,7 +248,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                         val replResult = repl.compile(replState, codeLine)
                         val compiledCode = when (replResult) {
                             is ReplCompileResult.Error -> throw toScriptException(replResult.message, scriptSource, replResult.location)
-                            is ReplCompileResult.Incomplete -> throw toScriptException("Incomplete code", scriptSource, CompilerMessageLocation.NO_LOCATION)
+                            is ReplCompileResult.Incomplete -> throw toScriptException("Incomplete code", scriptSource, null)
                             is ReplCompileResult.CompiledClasses -> replResult
                         }
 
@@ -303,7 +304,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     data class PreparedScript(val code: ExecutableCode, val scoreFieldAccessed: Boolean)
 }
 
-fun toScriptException(message: String, code: String, location: CompilerMessageLocation): ScriptException {
+fun toScriptException(message: String, code: String, location: CompilerMessageLocation?): ScriptException {
     val msgs = message.split('\n')
     val text = msgs[0]
     val snippet = if (msgs.size > 1) msgs[1] else ""
