@@ -1,7 +1,7 @@
 package uy.kohesive.keplin.util
 
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
-import org.jetbrains.kotlin.cli.jvm.repl.GenericRepl
+import org.jetbrains.kotlin.cli.jvm.repl.ReplInterpreter
 import org.jetbrains.kotlin.utils.PathUtil
 import java.io.File
 import java.io.FileNotFoundException
@@ -23,7 +23,9 @@ object ClassPathUtils {
 
     fun scriptCompilationClasspathFromContext(classLoader: ClassLoader = Thread.currentThread().contextClassLoader): List<File> =
             (System.getProperty("kotlin.script.classpath")?.split(File.pathSeparator)?.map(::File)
-                    ?: contextClasspath(PathUtil.KOTLIN_JAVA_RUNTIME_JAR, classLoader)
+                    ?: contextClasspath(PathUtil.KOTLIN_JAVA_RUNTIME_JRE8_JAR, classLoader)
+                    ?: contextClasspath(PathUtil.KOTLIN_JAVA_RUNTIME_JRE7_JAR, classLoader)
+                    ?: contextClasspath(PathUtil.KOTLIN_JAVA_STDLIB_JAR, classLoader)
                     ?: listOf(kotlinRuntimeJar, kotlinScriptRuntimeJar)
                     )
                     .map { it?.canonicalFile }
@@ -43,7 +45,9 @@ object ClassPathUtils {
 
     val kotlinRuntimeJar: File? by lazy {
         System.getProperty("kotlin.java.runtime.jar")?.let(::File)?.existsOrNull()
-                ?: kotlinCompilerJar.let { File(it.parentFile, PathUtil.KOTLIN_JAVA_RUNTIME_JAR) }.existsOrNull()
+                ?: kotlinCompilerJar.let { File(it.parentFile, PathUtil.KOTLIN_JAVA_RUNTIME_JRE8_JAR) }.existsOrNull()
+                ?: kotlinCompilerJar.let { File(it.parentFile, PathUtil.KOTLIN_JAVA_RUNTIME_JRE7_JAR) }.existsOrNull()
+                ?: kotlinCompilerJar.let { File(it.parentFile, PathUtil.KOTLIN_JAVA_STDLIB_JAR) }.existsOrNull()
                 ?: PathUtil.getResourcePathForClass(JvmStatic::class.java).existsOrNull()
     }
 
@@ -134,7 +138,7 @@ object ClassPathUtils {
         val templateClassJars = if (templateClass != null) findClassJarsOrEmpty(templateClass).assertNotEmpty("Cannot find template classpath, which is required")
         else emptyList()
         val additionalClassJars = additionalClasses.map { findClassJarsOrEmpty(it).assertNotEmpty("Missing JAR for additional class $it") }.flatten()
-        val scriptEngineJars = if (includeScriptEngine) findClassJarsOrEmpty(GenericRepl::class).assertNotEmpty("Cannot find repl engine classpath, which is required")
+        val scriptEngineJars = if (includeScriptEngine) findClassJarsOrEmpty(ReplInterpreter::class).assertNotEmpty("Cannot find repl engine classpath, which is required")
         else emptyList()
         val kotlinJars = (if (includeKotlinCompiler) findKotlinCompilerJars(useEmbeddableCompiler) else emptyList()) +
                 (if (includeStdLib) findKotlinStdLibOrEmbeddedCompilerJars() else emptyList()) +

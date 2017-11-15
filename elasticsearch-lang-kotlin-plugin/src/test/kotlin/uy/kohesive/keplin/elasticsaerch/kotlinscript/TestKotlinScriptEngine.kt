@@ -121,7 +121,7 @@ class TestKotlinScriptEngine : ESIntegTestCase() {
                     val f = File("howdy")  // violation!
 
                     doc.intVal("number", 1) * param.intVal("multiplier", 1) + _score
-                """).setQuery(QueryBuilders.matchQuery("title", "title"))
+                    """).setQuery(QueryBuilders.matchQuery("title", "title"))
                     .setFetchSource(true).execute().actionGet()
             fail("security verification should have caught this use of File")
         } catch (ex: Exception) {

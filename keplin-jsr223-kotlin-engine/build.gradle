@@ -4,7 +4,10 @@ dependencies {
     compile project(':keplin-maven-resolver')
 
     // special Kotlin temporary builds, avoiding conflicts with ES classpath (JarHell checker)
-    compile fileTree(dir: '../lib', include: 'kotlin-daemon-client*.jar')
+    // compile fileTree(dir: '../lib', include: 'kotlin-daemon-client*.jar')
+
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-daemon-client', version: version_kotlin
+
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
 
