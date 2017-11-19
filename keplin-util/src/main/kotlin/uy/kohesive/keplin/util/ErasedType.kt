@@ -2,7 +2,8 @@ package uy.kohesive.keplin.util
 
 import java.lang.reflect.*
 
-@Suppress("UNCHECKED_CAST") fun Type.erasedType(): Class<Any> {
+@Suppress("UNCHECKED_CAST")
+fun Type.erasedType(): Class<Any> {
     return when (this) {
         is Class<*> -> this as Class<Any>
         is ParameterizedType -> this.getRawType().erasedType()
