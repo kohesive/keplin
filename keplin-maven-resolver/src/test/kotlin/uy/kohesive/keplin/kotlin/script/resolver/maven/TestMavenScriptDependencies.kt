@@ -2,7 +2,6 @@ package uy.kohesive.keplin.kotlin.script.resolver.maven
 
 import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import org.junit.Assert
-import org.junit.Ignore
 import org.junit.Test
 import uy.kohesive.keplin.kotlin.script.SimplifiedRepl
 import uy.kohesive.keplin.kotlin.script.resolver.AnnotationTriggeredScriptDefinition
@@ -69,7 +68,6 @@ class TestMavenScriptDependencies {
     }
 
     @Test
-    @Ignore("waiting on resolution of some problem with Kotlin analysis layer")
     fun testResolveLibWithExtensionFunctions() {
         makeEngine().use { repl ->
             repl.compileAndEval("""@file:DependsOnMaven("uy.klutter:klutter-core-jdk6:1.20.1")""")
