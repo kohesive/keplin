@@ -36,14 +36,6 @@ subprojects {
         }
     }
 
-    if (project.name.startsWith("cuarentena")) {
-        project.group="uy.kohesive.cuarentena"
-    } else if (project.name.startsWith("chillambda")) {
-        project.group="uy.kohesive.chillambda"
-    } else {
-        project.group="uy.kohesive.keplin"
-    }
-
     repositories {
         jcenter()
         mavenCentral()
@@ -110,6 +102,11 @@ subprojects {
                     id 'apatrida'
                     name 'Jayson Minard'
                     email 'jayson.minard@gmail.com'
+                }
+                developer {
+                    id 'brainoutsource'
+                    name 'Alex Eliseyev'
+                    email 'a.a.eliseyev@gmail.com'
                 }
             }
         }

@@ -1,4 +1,0 @@
-dependencies {
-    compile project(':keplin-core')
-    compile project(':keplin-maven-resolver')
-}

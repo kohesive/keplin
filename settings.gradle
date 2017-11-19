@@ -1,14 +1,6 @@
-include 'cuarentena',
-        'cuarentena-policy',
-        'cuarentena-painless-parser',
-        'cuarentena-painless-policy',
-        'cuarentena-painless-plus',
-        'keplin-util',
+include 'keplin-util',
         'keplin-core',
         'keplin-maven-resolver',
-        'keplin-jsr223-kotlin-engine',
-        'chillambda',
-        'elasticsearch-lang-kotlin-plugin'
-
+        'keplin-jsr223-kotlin-engine'
 
 
