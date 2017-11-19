@@ -1,10 +1,14 @@
 package uy.kohesive.keplin.kotlin.script.resolver
 
-import org.jetbrains.kotlin.script.*
+import org.jetbrains.kotlin.script.InvalidScriptResolverAnnotation
 import uy.kohesive.keplin.util.ClassPathUtils
 import java.io.File
 import java.util.concurrent.Future
 import kotlin.reflect.KClass
+import kotlin.script.dependencies.KotlinScriptExternalDependencies
+import kotlin.script.dependencies.PseudoFuture
+import kotlin.script.dependencies.ScriptContents
+import kotlin.script.dependencies.ScriptDependenciesResolver
 
 class AnnotationTriggeredResolutionManager(val resolvers: List<AnnotationTriggeredScriptResolver>) : ScriptDependenciesResolver {
     class ResolvedDependencies(override val classpath: List<File>, override val imports: List<String>) : KotlinScriptExternalDependencies
@@ -45,6 +49,6 @@ class AnnotationTriggeredResolutionManager(val resolvers: List<AnnotationTrigger
 
         val defaultImports = if (previousDependencies == null) resolvers.map { it.autoImports }.flatten().distinct() else emptyList()
 
-        return ResolvedDependencies(defaultClassPath + depsFromAnnotations, defaultImports).asFuture()
+        return PseudoFuture(ResolvedDependencies(defaultClassPath + depsFromAnnotations, defaultImports))
     }
 }

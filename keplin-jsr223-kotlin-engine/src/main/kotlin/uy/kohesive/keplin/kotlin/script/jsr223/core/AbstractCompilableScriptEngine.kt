@@ -17,9 +17,9 @@ abstract class AbstractCompilableScriptEngine(factory: ScriptEngineFactory,
             return CompiledCode(delayed)
         } catch (ex: ReplCompilerException) {
             throw ScriptException(ex.errorResult.message,
-                    ex.errorResult.location.path,
-                    ex.errorResult.location.line,
-                    ex.errorResult.location.column)
+                    ex.errorResult.location?.path,
+                    ex.errorResult.location?.line ?: 0,
+                    ex.errorResult.location?.column ?: 0)
         } catch (ex: Exception) {
             throw ScriptException(ex)
         }

@@ -11,21 +11,25 @@ import org.jetbrains.kotlin.com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.NameUtils
-import org.jetbrains.kotlin.parsing.KotlinParserDefinition
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtScript
 import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.resolve.BindingTraceContext
 import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluator
-import org.jetbrains.kotlin.script.*
+import org.jetbrains.kotlin.script.KotlinScriptDefinitionFromAnnotatedTemplate
+import org.jetbrains.kotlin.script.tryCreateCallableMappingFromNamedArgs
 import org.jetbrains.kotlin.types.TypeUtils
-import org.jetbrains.kotlin.utils.tryCreateCallableMappingFromNamedArgs
-import uy.kohesive.keplin.kotlin.script.KotlinScriptDefinitionEx
+import uy.kohesive.keplin.util.ApiChangeDependencyResolverWrapper
+import uy.kohesive.keplin.util.KotlinScriptDefinitionEx
 import java.io.File
+import java.util.concurrent.Future
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.primaryConstructor
+import kotlin.script.dependencies.*
+import kotlin.script.experimental.dependencies.DependenciesResolver
+import kotlin.script.templates.DEFAULT_SCRIPT_FILE_PATTERN
 
 open class AnnotationTriggeredScriptDefinition(definitionName: String,
                                                template: KClass<out Any>,
@@ -36,15 +40,14 @@ open class AnnotationTriggeredScriptDefinition(definitionName: String,
                                                val environment: Map<String, Any?>? = null) :
         KotlinScriptDefinitionEx(template, defaultEmptyArgs, defaultImports) {
     override val name = definitionName
-    protected val acceptedAnnotations = resolvers.map { it.acceptedAnnotations }.flatten()
-
-    override fun <TF : Any> isScript(file: TF): Boolean = getFileName(file).endsWith(KotlinParserDefinition.STD_SCRIPT_EXT)
+    override val acceptedAnnotations = resolvers.map { it.acceptedAnnotations }.flatten()
 
     protected val resolutionManager: AnnotationTriggeredResolutionManager by lazy {
         AnnotationTriggeredResolutionManager(resolvers)
     }
 
     override fun getScriptName(script: KtScript): Name = NameUtils.getScriptNameForFile(script.containingKtFile.name)
+    override fun isScript(fileName: String): Boolean = scriptFilePattern.matches(fileName)
 
     class MergeDependencies(val current: KotlinScriptExternalDependencies, val backup: KotlinScriptExternalDependencies) : KotlinScriptExternalDependencies {
         override val imports: List<String> get() = (current.imports + backup.imports).distinct()
@@ -54,96 +57,79 @@ open class AnnotationTriggeredScriptDefinition(definitionName: String,
         override val scripts: Iterable<File> get() = (current.scripts + backup.scripts).distinct()
     }
 
-    override fun <TF : Any> getDependenciesFor(file: TF, project: Project, previousDependencies: KotlinScriptExternalDependencies?): KotlinScriptExternalDependencies? {
-        fun logClassloadingError(ex: Throwable) {
-            logScriptDefMessage(ScriptDependenciesResolver.ReportSeverity.WARNING, ex.message ?: "Invalid script template: ${template.qualifiedName}", null)
-        }
+    override val dependencyResolver: DependenciesResolver = ApiChangeDependencyResolverWrapper(OldSchoolDependencyResolver())
 
-        @Suppress("UNCHECKED_CAST")
-        fun makeScriptContents() = BasicScriptContents(file, getAnnotations = {
-            val classLoader = (template as Any).javaClass.classLoader
+
+    private inner class OldSchoolDependencyResolver : ScriptDependenciesResolver {
+        override fun resolve(script: ScriptContents, environment: Environment?, report: (ScriptDependenciesResolver.ReportSeverity, String, ScriptContents.Position?) -> Unit, previousDependencies: KotlinScriptExternalDependencies?): Future<KotlinScriptExternalDependencies?> {
+            fun logClassloadingError(ex: Throwable) {
+                logScriptDefMessage(ScriptDependenciesResolver.ReportSeverity.WARNING, ex.message ?: "Invalid script template: ${template.qualifiedName}", null)
+            }
+
             try {
-                getAnnotationEntries(file, project)
-                        .mapNotNull { psiAnn ->
-                            // TODO: consider advanced matching using semantic similar to actual resolving
-                            acceptedAnnotations.find { ann ->
-                                psiAnn.typeName.let { it == ann.simpleName || it == ann.qualifiedName }
-                            }?.let { constructAnnotation(psiAnn, classLoader.loadClass(it.qualifiedName).kotlin as KClass<out Annotation>) }
-                        }
+                val fileDeps = resolutionManager.resolve(script, environment, Companion::logScriptDefMessage, previousDependencies)
+
+                val updatedDependencies = fileDeps.get()
+                val backupDependencies = super.resolve(script, environment, report, previousDependencies).get()
+                return if (updatedDependencies == null || backupDependencies == null) PseudoFuture(updatedDependencies ?: backupDependencies)
+                else PseudoFuture(MergeDependencies(updatedDependencies, backupDependencies))
             } catch (ex: Throwable) {
                 logClassloadingError(ex)
-                emptyList()
             }
-        })
-
-        try {
-            val fileDeps = resolutionManager.resolve(makeScriptContents(), environment, Companion::logScriptDefMessage, previousDependencies)
-            // TODO: use it as a Future
-            val updatedDependencies = fileDeps.get()
-            val backupDependencies = super.getDependenciesFor(file, project, previousDependencies)
-            return if (updatedDependencies == null || backupDependencies == null) updatedDependencies ?: backupDependencies
-            else MergeDependencies(updatedDependencies, backupDependencies)
-        } catch (ex: Throwable) {
-            logClassloadingError(ex)
+            return PseudoFuture(null)
         }
-        return null
-    }
 
-    private val KtAnnotationEntry.typeName: String get() = (typeReference?.typeElement as? KtUserType)?.referencedName.orAnonymous()
+        private val KtAnnotationEntry.typeName: String get() = (typeReference?.typeElement as? KtUserType)?.referencedName.orAnonymous()
 
-    internal fun String?.orAnonymous(kind: String = ""): String =
-            this ?: "<anonymous" + (if (kind.isNotBlank()) " $kind" else "") + ">"
+        internal fun String?.orAnonymous(kind: String = ""): String =
+                this ?: "<anonymous" + (if (kind.isNotBlank()) " $kind" else "") + ">"
 
-    internal fun constructAnnotation(psi: KtAnnotationEntry, targetClass: KClass<out Annotation>): Annotation {
+        internal fun constructAnnotation(psi: KtAnnotationEntry, targetClass: KClass<out Annotation>): Annotation {
 
-        val valueArguments = psi.valueArguments.map { arg ->
-            val evaluator = ConstantExpressionEvaluator(DefaultBuiltIns.Instance, LanguageVersionSettingsImpl.DEFAULT)
-            val trace = BindingTraceContext()
-            val result = evaluator.evaluateToConstantValue(arg.getArgumentExpression()!!, trace, TypeUtils.NO_EXPECTED_TYPE)
-            // TODO: consider inspecting `trace` to find diagnostics reported during the computation (such as division by zero, integer overflow, invalid annotation parameters etc.)
-            val argName = arg.getArgumentName()?.asName?.toString()
-            argName to result?.value
+            val valueArguments = psi.valueArguments.map { arg ->
+                val evaluator = ConstantExpressionEvaluator(DefaultBuiltIns.Instance, LanguageVersionSettingsImpl.DEFAULT)
+                val trace = BindingTraceContext()
+                val result = evaluator.evaluateToConstantValue(arg.getArgumentExpression()!!, trace, TypeUtils.NO_EXPECTED_TYPE)
+                // TODO: consider inspecting `trace` to find diagnostics reported during the computation (such as division by zero, integer overflow, invalid annotation parameters etc.)
+                val argName = arg.getArgumentName()?.asName?.toString()
+                argName to result?.value
+            }
+            val mappedArguments: Map<KParameter, Any?> =
+                    tryCreateCallableMappingFromNamedArgs(targetClass.constructors.first(), valueArguments)
+                            ?: return InvalidScriptResolverAnnotation(psi.typeName, valueArguments)
+
+            try {
+                return targetClass.primaryConstructor!!.callBy(mappedArguments)
+            } catch (ex: Exception) {
+                return InvalidScriptResolverAnnotation(psi.typeName, valueArguments, ex)
+            }
         }
-        val mappedArguments: Map<KParameter, Any?> =
-                tryCreateCallableMappingFromNamedArgs(targetClass.constructors.first(), valueArguments)
-                        ?: return InvalidScriptResolverAnnotation(psi.typeName, valueArguments)
 
-        try {
-            return targetClass.primaryConstructor!!.callBy(mappedArguments)
-        } catch (ex: Exception) {
-            return InvalidScriptResolverAnnotation(psi.typeName, valueArguments, ex)
+
+        private fun <TF : Any> getAnnotationEntries(file: TF, project: Project): Iterable<KtAnnotationEntry> = when (file) {
+            is PsiFile -> getAnnotationEntriesFromPsiFile(file)
+            is VirtualFile -> getAnnotationEntriesFromVirtualFile(file, project)
+            is File -> {
+                val virtualFile = (StandardFileSystems.local().findFileByPath(file.canonicalPath)
+                        ?: throw IllegalArgumentException("Unable to find file ${file.canonicalPath}"))
+                getAnnotationEntriesFromVirtualFile(virtualFile, project)
+            }
+            else -> throw IllegalArgumentException("Unsupported file type $file")
         }
+
+        private fun getAnnotationEntriesFromPsiFile(file: PsiFile) =
+                (file as? KtFile)?.annotationEntries
+                        ?: throw IllegalArgumentException("Unable to extract kotlin annotations from ${file.name} (${file.fileType})")
+
+        private fun getAnnotationEntriesFromVirtualFile(file: VirtualFile, project: Project): Iterable<KtAnnotationEntry> {
+            val psiFile: PsiFile = PsiManager.getInstance(project).findFile(file)
+                    ?: throw IllegalArgumentException("Unable to load PSI from ${file.canonicalPath}")
+            return getAnnotationEntriesFromPsiFile(psiFile)
+        }
+
     }
 
     class InvalidScriptResolverAnnotation(val name: String, val annParams: List<Pair<String?, Any?>>?, val error: Exception? = null) : Annotation
-
-
-    private fun <TF : Any> getAnnotationEntries(file: TF, project: Project): Iterable<KtAnnotationEntry> = when (file) {
-        is PsiFile -> getAnnotationEntriesFromPsiFile(file)
-        is VirtualFile -> getAnnotationEntriesFromVirtualFile(file, project)
-        is File -> {
-            val virtualFile = (StandardFileSystems.local().findFileByPath(file.canonicalPath)
-                    ?: throw IllegalArgumentException("Unable to find file ${file.canonicalPath}"))
-            getAnnotationEntriesFromVirtualFile(virtualFile, project)
-        }
-        else -> throw IllegalArgumentException("Unsupported file type $file")
-    }
-
-    private fun getAnnotationEntriesFromPsiFile(file: PsiFile) =
-            (file as? KtFile)?.annotationEntries
-                    ?: throw IllegalArgumentException("Unable to extract kotlin annotations from ${file.name} (${file.fileType})")
-
-    private fun getAnnotationEntriesFromVirtualFile(file: VirtualFile, project: Project): Iterable<KtAnnotationEntry> {
-        val psiFile: PsiFile = PsiManager.getInstance(project).findFile(file)
-                ?: throw IllegalArgumentException("Unable to load PSI from ${file.canonicalPath}")
-        return getAnnotationEntriesFromPsiFile(psiFile)
-    }
-
-    class BasicScriptContents<out TF : Any>(myFile: TF, getAnnotations: () -> Iterable<Annotation>) : ScriptContents {
-        override val file: File? by lazy { getFile(myFile) }
-        override val annotations: Iterable<Annotation> by lazy { getAnnotations() }
-        override val text: CharSequence? by lazy { getFileContents(myFile) }
-    }
 
     companion object {
         internal val log = Logger.getInstance(KotlinScriptDefinitionFromAnnotatedTemplate::class.java)

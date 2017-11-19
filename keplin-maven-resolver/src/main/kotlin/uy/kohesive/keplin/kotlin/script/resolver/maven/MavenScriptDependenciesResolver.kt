@@ -2,7 +2,6 @@ package uy.kohesive.keplin.kotlin.script.resolver.maven
 
 
 import com.jcabi.aether.Aether
-import org.jetbrains.kotlin.utils.addToStdlib.check
 import org.jetbrains.kotlin.utils.rethrow
 import org.sonatype.aether.repository.RemoteRepository
 import org.sonatype.aether.resolution.DependencyResolutionException
@@ -58,7 +57,7 @@ open class MavenScriptDependenciesResolver() : AnnotationTriggeredScriptResolver
                 reportError?.invoke(msg) ?: throw RuntimeException(msg)
             }
 
-            fun String?.orNullIfBlank(): String? = this?.check(String::isNotBlank)
+            fun String?.orNullIfBlank(): String? = this?.takeIf(String::isNotBlank)
 
             val parts = dependsOn.fullGAV.split(':')
             if (parts.size < 3 || parts.size > 4 || parts.any { it.isNullOrBlank() }) {
@@ -81,7 +80,7 @@ open class MavenScriptDependenciesResolver() : AnnotationTriggeredScriptResolver
         }
 
         override fun tryAddRepo(annotation: MavenRepository): Boolean {
-            val urlStr = annotation.url.check { it.isValidParam() } ?: annotation.url.check { it.isValidParam() } ?: return false
+            val urlStr = annotation.url.takeIf { it.isValidParam() } ?: annotation.url.takeIf { it.isValidParam() } ?: return false
             try {
                 URL(urlStr)
             } catch (_: MalformedURLException) {

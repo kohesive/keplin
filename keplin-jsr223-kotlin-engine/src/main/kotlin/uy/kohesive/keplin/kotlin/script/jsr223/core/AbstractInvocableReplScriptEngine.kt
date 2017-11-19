@@ -2,7 +2,7 @@ package uy.kohesive.keplin.kotlin.script.jsr223.core
 
 import org.jetbrains.kotlin.cli.common.repl.EvalClassWithInstanceAndLoader
 import org.jetbrains.kotlin.com.google.common.base.Throwables
-import org.jetbrains.kotlin.utils.tryCreateCallableMapping
+import org.jetbrains.kotlin.script.tryCreateCallableMapping
 import uy.kohesive.keplin.util.assertNotEmpty
 import java.lang.reflect.Proxy
 import javax.script.Invocable

@@ -4,6 +4,7 @@ package uy.kohesive.keplin.kotlin.script
 import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import org.junit.Test
 import uy.kohesive.keplin.util.ClassPathUtils
+import uy.kohesive.keplin.util.KotlinScriptDefinitionEx
 import kotlin.test.assertEquals
 
 

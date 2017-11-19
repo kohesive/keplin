@@ -5,7 +5,7 @@ import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 
 class CapturingMessageCollector : MessageCollector {
-    val messages: ArrayList<Message> = arrayListOf()
+    val messages: MutableList<Message> = arrayListOf()
 
     override fun clear() {
         messages.clear()

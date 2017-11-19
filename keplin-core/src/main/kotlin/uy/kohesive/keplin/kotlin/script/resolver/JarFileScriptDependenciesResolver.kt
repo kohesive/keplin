@@ -1,7 +1,5 @@
 package uy.kohesive.keplin.kotlin.script.resolver
 
-
-import org.jetbrains.kotlin.utils.addToStdlib.check
 import java.io.File
 
 open class JarFileScriptDependenciesResolver() : AnnotationTriggeredScriptResolver {
@@ -35,9 +33,9 @@ open class JarFileScriptDependenciesResolver() : AnnotationTriggeredScriptResolv
 
     class DirectResolver : LocalJarResolver {
         override fun tryResolve(dependsOn: DependsOnJar): Iterable<File>? {
-            return dependsOn.filename.check(String::isNotBlank)
+            return dependsOn.filename.takeIf(String::isNotBlank)
                     ?.let(::File)
-                    ?.check { it.exists() && (it.isFile || it.isDirectory) }
+                    ?.takeIf { it.exists() && (it.isFile || it.isDirectory) }
                     ?.let { listOf(it) }
         }
     }
@@ -49,16 +47,16 @@ open class JarFileScriptDependenciesResolver() : AnnotationTriggeredScriptResolv
 
         override fun tryResolve(dependsOn: DependsOnJar): Iterable<File>? =
                 // TODO: add coordinates and wildcard matching
-                dependsOn.filename.check(String::isNotBlank)
+                dependsOn.filename.takeIf(String::isNotBlank)
                         ?.let { File(path, it) }
-                        ?.check { it.exists() && (it.isFile || it.isDirectory) }
+                        ?.takeIf { it.exists() && (it.isFile || it.isDirectory) }
                         ?.let { listOf(it) }
 
         companion object {
             fun tryCreate(annotation: DirRepository): FlatLibDirectoryResolver? =
-                    annotation.path.check(String::isNotBlank)
+                    annotation.path.takeIf(String::isNotBlank)
                             ?.let(::File)
-                            ?.check { it.exists() && it.isDirectory }
+                            ?.takeIf { it.exists() && it.isDirectory }
                             ?.let(::FlatLibDirectoryResolver)
         }
     }

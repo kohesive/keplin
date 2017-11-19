@@ -5,6 +5,7 @@ package uy.kohesive.keplin.kotlin.script
 import org.jetbrains.kotlin.cli.common.repl.ReplRepeatingMode
 import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import org.junit.Test
+import uy.kohesive.keplin.util.KotlinScriptDefinitionEx
 import kotlin.script.templates.standard.ScriptTemplateWithBindings
 import kotlin.test.assertEquals
 import kotlin.test.junit.JUnitAsserter

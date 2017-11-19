@@ -16,6 +16,8 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
 import uy.kohesive.keplin.util.ClassPathUtils
+import uy.kohesive.keplin.util.KotlinScriptDefinitionEx
+import uy.kohesive.keplin.util.ScriptTemplateEmptyArgsProvider
 import java.io.Closeable
 import java.io.File
 import java.net.URLClassLoader

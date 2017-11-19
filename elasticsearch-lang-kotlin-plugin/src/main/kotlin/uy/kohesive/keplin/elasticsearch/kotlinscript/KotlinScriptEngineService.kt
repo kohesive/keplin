@@ -18,7 +18,6 @@ import org.jetbrains.kotlin.cli.jvm.repl.GenericReplCompiler
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
 import uy.kohesive.chillamda.Chillambda
 import uy.kohesive.cuarentena.Cuarentena
@@ -28,16 +27,15 @@ import uy.kohesive.cuarentena.policy.AccessTypes
 import uy.kohesive.cuarentena.policy.PolicyAllowance
 import uy.kohesive.cuarentena.policy.toPolicy
 import uy.kohesive.keplin.util.ClassPathUtils.findRequiredScriptingJarFiles
+import uy.kohesive.keplin.util.KotlinScriptDefinitionEx
 import java.io.File
 import java.lang.reflect.Type
 import java.security.AccessController
 import java.security.PrivilegedAction
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.reflect.KClass
-import kotlin.script.dependencies.KotlinScriptExternalDependencies
 
-
+/*
 interface ScriptTemplateEmptyArgsProvider {
     val defaultEmptyArgs: ScriptArgsWithTypes?
 }
@@ -59,6 +57,7 @@ open class KotlinScriptDefinitionEx(template: KClass<out Any>,
     }
     */
 }
+*/
 
 class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
     companion object {

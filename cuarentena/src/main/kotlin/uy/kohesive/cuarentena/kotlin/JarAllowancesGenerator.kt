@@ -2,8 +2,8 @@ package uy.kohesive.cuarentena.kotlin
 
 import uy.kohesive.cuarentena.Cuarentena
 import uy.kohesive.cuarentena.NamedClassBytes
+import uy.kohesive.cuarentena.kotlin.KotlinStdlibPolicyGenerator.Companion.KotlinJarFiles
 import uy.kohesive.cuarentena.policy.toPolicy
-import uy.kohesive.keplin.util.ClassPathUtils
 import java.io.File
 import java.io.FileInputStream
 import java.util.zip.ZipInputStream
@@ -13,9 +13,9 @@ enum class ScanMode {
 }
 
 data class ClassesVerifyResult(
-    val perClassViolations: List<Cuarentena.VerifyResultsPerClass>,
-    val violationClasses: Set<String>,
-    val verifiedClasses: List<String>
+        val perClassViolations: List<Cuarentena.VerifyResultsPerClass>,
+        val violationClasses: Set<String>,
+        val verifiedClasses: Set<String>
 )
 
 interface DebugCallback {
@@ -28,24 +28,16 @@ object DefaultDebugCallback : DebugCallback {
 }
 
 open class JarAllowancesGenerator(
-    val jarFiles: List<String>,
-    val scanMode: ScanMode,
-    val excludePackages: List<String>,
-    val excludeClasses: List<String>,
-    val useBootStrapPolicy: Boolean = false,
-    val verbose: Boolean = false,
-    val debugCallback: DebugCallback = DefaultDebugCallback
+        val jarFiles: List<String>,
+        val scanMode: ScanMode,
+        val preFilterPackageWhiteList: List<String>,
+        val postFilterPackageWhiteList: List<String>,
+        val postFilterPackageBlackList: List<String>,
+        val postFilterClassBlackList: Set<String>,
+        val useBootStrapPolicy: Boolean = false,
+        val verbose: Boolean = false,
+        val debugCallback: DebugCallback = DefaultDebugCallback
 ) {
-
-    constructor(jarFiles: List<String>, scanMode: String, excludePackages: List<String>, excludeClasses: List<String>, verbose: Boolean, debugCallback: DebugCallback) : this(
-        jarFiles        = jarFiles,
-        scanMode        = ScanMode.valueOf(scanMode),
-        excludePackages = excludePackages,
-        excludeClasses  = excludeClasses,
-        verbose         = verbose,
-        debugCallback   = debugCallback
-    )
-
     init {
         if (jarFiles.isEmpty()) {
             throw IllegalArgumentException("No jar files passed")
@@ -63,9 +55,13 @@ open class JarAllowancesGenerator(
         }
     }
 
-    fun verifyClasses(): ClassesVerifyResult {
+    internal fun verifyClasses(): ClassesVerifyResult {
+        return verifyClasses(listClassnamesFromJar())
+    }
+
+    fun verifyClasses(classNames: Set<String>): ClassesVerifyResult {
         val cuarentena = if (useBootStrapPolicy) {
-            debug("Building kotlin whitelist for ${ ClassPathUtils.findKotlinStdLibJars().map { it.path }.joinToString(", ") }")
+            debug("Building kotlin whitelist for ${KotlinJarFiles.joinToString(", ")}")
             Cuarentena.createKotlinBootstrapCuarentena().apply {
                 debug("Done processing kotlin")
             }
@@ -73,11 +69,9 @@ open class JarAllowancesGenerator(
             Cuarentena.createKotlinCuarentena()
         }
 
-        val allClasses = jarFiles.map { File(it) }.flatMap { jarFile ->
-            jarFile.getClassNames().map { className ->
+        val allClasses = classNames.map { className ->
                 classBytesForClass(className, Thread.currentThread().contextClassLoader)
             }
-        }
 
         val perClassViolations = cuarentena.verifyClassAgainstPoliciesPerClass(allClasses)
         val violationClasses   = perClassViolations.map { it.violatingClass.className }.toSet()
@@ -93,19 +87,40 @@ open class JarAllowancesGenerator(
         return ClassesVerifyResult(
             perClassViolations = perClassViolations,
             violationClasses   = violationClasses,
-            verifiedClasses    = allClasses.map { it.className } - violationClasses
+                verifiedClasses = classNames - violationClasses
         )
     }
 
+    private fun String.ensureDot(): String {
+        if (this.endsWith('.')) return this
+        return this + '.'
+    }
+
+    private fun isAcceptableClass(className: String): Boolean {
+        val whitelistPass = postFilterPackageWhiteList.isEmpty()
+                || postFilterPackageWhiteList.any { className.startsWith(it.ensureDot()) }
+        if (!whitelistPass || className in postFilterClassBlackList) return false
+        return postFilterPackageBlackList.none { className.startsWith(it.ensureDot()) }
+    }
+
+    private fun isJarWhitelistedPackage(className: String): Boolean {
+        return preFilterPackageWhiteList.isEmpty() || preFilterPackageWhiteList.any { className.startsWith(it.ensureDot()) }
+    }
+
+    private fun listClassnamesFromJar(): Set<String> {
+        return jarFiles.map { File(it) }.flatMap { it.getClassNames() }.filter { isJarWhitelistedPackage(it) }.toSet()
+    }
+
+    internal fun determineValidClasses(): Set<String> {
+        val jarClasses = listClassnamesFromJar()
+        return when (scanMode) {
+            ScanMode.ALL -> jarClasses
+            ScanMode.SAFE -> verifyClasses(jarClasses).verifiedClasses
+        }.filterTo(hashSetOf()) { isAcceptableClass(it) }
+    }
+
     fun generatePolicy(): List<String> {
-        val verifiedClassNames = when (scanMode) {
-            ScanMode.ALL  -> jarFiles.map { File(it) }.flatMap { it.getClassNames() }
-            ScanMode.SAFE -> verifyClasses().verifiedClasses
-        }.filter { className ->
-            excludePackages.none { excludedPackage ->
-                className.startsWith(excludedPackage)
-            }
-        } - excludeClasses
+        val verifiedClassNames = determineValidClasses()
 
         val classAllowancesGenerator = FullClassAllowancesGenerator()
         return verifiedClassNames.flatMap { verifiedClassName ->

@@ -16,6 +16,12 @@ fun main(args: Array<String>) {
         println(" - ${it.violatingClass.className}:")
         it.violations.forEach { println("   - $it") }
     }
+
+    println()
+    println("FINAL CLASSES ALLOWED")
+    KotlinStdlibPolicyGenerator().determineValidClasses().sorted().forEach {
+        println("  $it")
+    }
 }
 
 fun main1(args: Array<String>) {

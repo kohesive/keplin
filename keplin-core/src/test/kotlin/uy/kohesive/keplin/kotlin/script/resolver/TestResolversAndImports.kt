@@ -2,9 +2,9 @@ package uy.kohesive.keplin.kotlin.script.resolver
 
 import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import org.junit.Test
-import uy.kohesive.keplin.kotlin.script.KotlinScriptDefinitionEx
 import uy.kohesive.keplin.kotlin.script.ReplCompilerException
 import uy.kohesive.keplin.kotlin.script.SimplifiedRepl
+import uy.kohesive.keplin.util.KotlinScriptDefinitionEx
 import java.time.Instant
 import kotlin.reflect.KClass
 import kotlin.script.templates.standard.ScriptTemplateWithArgs

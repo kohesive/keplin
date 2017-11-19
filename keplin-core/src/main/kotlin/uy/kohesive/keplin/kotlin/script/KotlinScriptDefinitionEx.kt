@@ -1,11 +1,6 @@
 package uy.kohesive.keplin.kotlin.script
 
-import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
-import org.jetbrains.kotlin.script.KotlinScriptDefinition
-import org.jetbrains.kotlin.script.KotlinScriptExternalDependencies
-import kotlin.reflect.KClass
-
-
+/*
 interface ScriptTemplateEmptyArgsProvider {
     val defaultEmptyArgs: ScriptArgsWithTypes?
 }
@@ -19,11 +14,15 @@ open class KotlinScriptDefinitionEx(template: KClass<out Any>,
         override val imports: List<String> get() = (defaultImports + base.imports).distinct()
     }
 
-    /* TODO: fix this
-    override fun <TF : Any> getDependenciesFor(file: TF, project: Project, previousDependencies: KotlinScriptExternalDependencies?): KotlinScriptExternalDependencies? {
-        val base = super.getDependenciesFor(file, project, previousDependencies)
-        return if (previousDependencies == null && defaultImports.isNotEmpty()) DefaultImports(defaultImports, base ?: EmptyDependencies())
-        else base
+    override val dependencyResolver: DependenciesResolver
+        get() = super.dependencyResolver
+
+    private inner class OldSchoolDependencyResolver : ScriptDependenciesResolver {
+        override fun resolve(script: ScriptContents, environment: Environment?, report: (ScriptDependenciesResolver.ReportSeverity, String, ScriptContents.Position?) -> Unit, previousDependencies: KotlinScriptExternalDependencies?): Future<KotlinScriptExternalDependencies?> {
+            val base = super.resolve(script, environment, report, previousDependencies).get()
+            val result =  if (previousDependencies == null && defaultImports.isNotEmpty()) DefaultImports(defaultImports, base ?: EmptyDependencies())
+            else base
+            return PseudoFuture(result)
+        }
     }
-    */
-}
+} */
