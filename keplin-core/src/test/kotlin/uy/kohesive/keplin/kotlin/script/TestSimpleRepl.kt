@@ -60,8 +60,7 @@ class TestSimpleRepl {
             val line5 = repl.nextCodeLine("println(\"value of X is \$x\")")
             repl.eval(repl.compile(line5))
 
-            // TODO: this doesn't evaluate correctly for the println before the assignment, it references the new C being constructed not the old X from previous script lines
-            val line6 = repl.nextCodeLine("println(\"value of X is \$x\"); val x = 1000")
+            val line6 = repl.nextCodeLine("val x = 1000\nprintln(\"value of X is \$x\")")
             repl.eval(repl.compile(line6))
 
             try {
@@ -81,8 +80,7 @@ class TestSimpleRepl {
 
                 assertEquals(20, newEvalResult4.resultValue)
 
-                // TODO: why does this println print "0" instead of "10"
-                val newLine5 = repl.nextCodeLine("println(x); val x = 99\nprintln(x)")
+                val newLine5 = repl.nextCodeLine("val x = 99\nprintln(x)")
                 repl.eval(repl.compile(newLine5))
 
                 val newLine6 = repl.nextCodeLine("x")
