@@ -6,7 +6,4 @@ dependencies {
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-daemon-client', version: version_kotlin
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
-
-    testCompile group: 'junit', name: 'junit', version: version_junit
-    testCompile group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit', version: version_kotlin
 }

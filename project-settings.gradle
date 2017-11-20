@@ -1,0 +1,21 @@
+ext {
+    projectUrl ="https://github.com/kohesive/keplin"
+    projectName = "Keplin for Kotlin"
+    projectDescription = 'Scripting and REPLs for Kotlin'
+    projectInception = '2017'
+
+    sonatypePackageGroup = "uy.kohesive"
+    scmUrl = "git://github.com:kohesive/keplin.git"
+    scmGitFile = "scm:git@github.com:kohesive/keplin.git"
+
+    pomProjectName = projectName
+    groupName = project.group
+
+    licenseName = "MIT"
+    licenseUrl = "$projectUrl/blob/master/LICENSE"
+
+    organisation = groupName
+    primaryEmail = "oss@kohesive.io"
+
+    binTrayRepo = "kohesive"
+}

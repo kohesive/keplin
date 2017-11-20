@@ -1,0 +1,13 @@
+
+apply plugin: 'io.codearte.nexus-staging'
+
+ext {
+    sonatypeStagingUsername = project.hasProperty('nexusUsername') ? nexusUsername : System.getenv('nexusUsername')
+    sonatypeStagingPassword = project.hasProperty('nexusPassword') ? nexusPassword : System.getenv('nexusPassword')
+}
+
+nexusStaging {
+    packageGroup = sonatypePackageGroup
+    username = sonatypeStagingUsername
+    password = sonatypeStagingPassword
+}
