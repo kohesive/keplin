@@ -8,9 +8,9 @@ With `Kotlin 1.50+` in your classpath, add:
 
 |artifact|GAV|
 |---|---|
-|`keplin-core`|`uy.kohesive.keplin:keplin-core:1.0.0-BETA-10`|
-|`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-BETA-10`|
-|`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-BETA-10`|
+|`keplin-core`|`uy.kohesive.keplin:keplin-core:1.0.0-BETA-12`|
+|`keplin-maven-resolver`|`uy.kohesive.keplin:keplin-maven-resolver:1.0.0-BETA-12`|
+|`keplin-jsr223-kotlin-engine`|`uy.kohesive.keplin:keplin-jsr223-kotlin-engine:1.0.0-BETA-12`|
 
 TODO:  
 
