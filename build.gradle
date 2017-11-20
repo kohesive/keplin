@@ -23,6 +23,9 @@ subprojects {
     repositories {
         jcenter()
         mavenCentral()
+        maven {
+            url 'https://dl.bintray.com/jaysonminard/kohesive'
+        }
     }
 
     dependencies {
