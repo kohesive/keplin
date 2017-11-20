@@ -13,7 +13,7 @@ class TestSimpleReplEngineRecursion {
     fun testRecursingScriptsDifferentEngines() {
         val extraClasspath = ClassPathUtils.findClassJars(SimplifiedRepl::class) +
                 ClassPathUtils.findClassJars(ClassPathUtils::class) +
-                ClassPathUtils.findKotlinCompilerJars(true)
+                ClassPathUtils.findKotlinCompilerJars(Thread.currentThread().contextClassLoader, true)
 
         SimplifiedRepl(additionalClasspath = extraClasspath).use { repl ->
             val outerEval = repl.compileAndEval("""
@@ -21,7 +21,7 @@ class TestSimpleReplEngineRecursion {
                  import uy.kohesive.keplin.util.ClassPathUtils
 
                  val extraClasspath =  ClassPathUtils.findClassJars(SimplifiedRepl::class) +
-                                       ClassPathUtils.findKotlinCompilerJars(true)
+                                       ClassPathUtils.findKotlinCompilerJars(Thread.currentThread().contextClassLoader, true)
                  val result = SimplifiedRepl(additionalClasspath = extraClasspath).use { repl ->
                     val innerEval = repl.compileAndEval("println(\"inner world\"); 100")
                     innerEval.resultValue
@@ -35,7 +35,7 @@ class TestSimpleReplEngineRecursion {
     @Test
     fun testRecursingScriptsSameEngines() {
         val extraClasspath = ClassPathUtils.findClassJars(SimplifiedRepl::class) +
-                ClassPathUtils.findKotlinCompilerJars(true)
+                ClassPathUtils.findKotlinCompilerJars(this.javaClass.classLoader, true)
         SimplifiedRepl(scriptDefinition = KotlinScriptDefinitionEx(TestRecursiveScriptContext::class, null),
                 additionalClasspath = extraClasspath,
                 sharedHostClassLoader = Thread.currentThread().contextClassLoader).apply {
