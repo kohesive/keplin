@@ -5,6 +5,7 @@ ext {
     projectInception = '2017'
 
     sonatypePackageGroup = "uy.kohesive"
+    sonatypeStagingProfile = "283dd0bd283334"
     scmUrl = "git://github.com:kohesive/keplin.git"
     scmGitFile = "scm:git@github.com:kohesive/keplin.git"
 

@@ -7,6 +7,7 @@ ext {
 }
 
 nexusStaging {
+    stagingProfileId = sonatypeStagingProfile
     packageGroup = sonatypePackageGroup
     username = sonatypeStagingUsername
     password = sonatypeStagingPassword
