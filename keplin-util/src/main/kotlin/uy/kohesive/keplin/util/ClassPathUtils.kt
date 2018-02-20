@@ -16,8 +16,19 @@ object ClassPathUtils {
         return listOf(K2JVMCompiler::class.containingClasspath(classLoader, filter)).filterNotNull()
     }
 
+    fun findKotlinReflectJarsOrEmpty(classLoader: ClassLoader): List<File> {
+        val filter = """.*\/kotlin-reflect.*\.jar""".toRegex()
+        // TODO: this is wrong, we need a way to see reflect jar but cannot see
+        // any of its classes due to compiler preventing it.
+        return listOf(kotlin.reflect.KType::class.containingClasspath(classLoader, filter)).filterNotNull()
+    }
+
     fun findKotlinCompilerJars(classLoader: ClassLoader, useEmbeddedCompiler: Boolean = true): List<File> {
         return findKotlinCompilerJarsOrEmpty(classLoader, useEmbeddedCompiler).assertNotEmpty("Cannot find kotlin compiler classpath, which is required")
+    }
+
+    fun findKotlinReflectJars(classLoader: ClassLoader): List<File> {
+        return findKotlinReflectJarsOrEmpty(classLoader).assertNotEmpty("Cannot find kotlin reflect classpath, which is required")
     }
 
     fun findKotlinStdLibJarsOrEmpty(classLoader: ClassLoader): List<File> {

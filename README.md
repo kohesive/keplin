@@ -4,9 +4,9 @@ Extended Kotlin Scripting
 
 ### Gradle /Maven
 
-With `Kotlin 1.50+` in your classpath, add:
+With `Kotlin 1.2.+` in your classpath, add:
 
-current version:  `1.0.0-BETA-14`
+current version:  `1.0.0`
 
 |artifact|GAV|
 |---|---|
