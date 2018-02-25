@@ -1,3 +1,5 @@
+[![Kotlin](https://img.shields.io/badge/kotlin-1.2.21-blue.svg)](http://kotlinlang.org)  [![Maven Central](https://img.shields.io/maven-central/v/uy.kohesive.keplin/keplin-core.svg)](https://mvnrepository.com/artifact/uy.kohesive.keplin) [![CircleCI branch](https://img.shields.io/circleci/project/kohesive/keplin/master.svg)](https://circleci.com/gh/kohesive/keplin/tree/master) [![Issues](https://img.shields.io/github/issues/kohesive/keplin.svg)](https://github.com/kohesive/keplin/issues?q=is%3Aopen) [![DUB](https://img.shields.io/dub/l/vibe-d.svg)](https://github.com/kohesive/keplin/blob/master/LICENSE) [![Kotlin Slack](https://img.shields.io/badge/chat-kotlin%20slack%20%23kohesive-orange.svg)](http://kotlinslackin.herokuapp.com)
+
 # keplin
 
 Extended Kotlin Scripting
