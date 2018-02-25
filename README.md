@@ -8,8 +8,6 @@ Extended Kotlin Scripting
 
 With `Kotlin 1.2.+` in your classpath, add:
 
-current version:  `1.0.0`
-
 |artifact|GAV|
 |---|---|
 |`keplin-core`|`uy.kohesive.keplin:keplin-core`|
