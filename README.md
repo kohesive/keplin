@@ -25,7 +25,7 @@ TODO:
 ### keplin-core
 
 * a simple Repl class [SimplifiedRepl](./keplin-core/src/main/kotlin/uy/kohesive/keplin/kotlin/script/SimplifiedRepl.kt)
-* a file based JAR resolver that can be used with `@file:DependsOnJar(fileInDirRepo|fullyQualifiedFile)` and `@file:DirRepository(fullQualifiedPath)` annotations in the script to load JAR files
+* a file based JAR resolver that can be used with `@file:DependsOnJar(fileInDirRepo|fullyQualifiedFile)` and `@file:DirRepository(fullyQualifiedPath)` annotations in the script to load JAR files
 * a script definition that can automatically imply imports `KotlinScriptDefinitionEx`
 
 See [unit tests](./keplin-core/src/test/kotlin/uy/kohesive/keplin/kotlin/script)
